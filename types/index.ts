@@ -10,6 +10,8 @@ export interface UserProfile {
   age_confirmed: boolean;
   accepts_requests: boolean;
   is_moderator: boolean;
+  muted_until: string | null;
+  banned_at: string | null;
   created_at: string;
 }
 
@@ -58,6 +60,7 @@ export interface Conversation {
   user_b_id: string;
   status: ConversationStatus;
   created_at: string;
+  reported_at: string | null;
 }
 
 export interface Message {
@@ -76,5 +79,12 @@ export interface Report {
   reporter_id: string;
   reason: string;
   status: ReportStatus;
+  created_at: string;
+}
+
+export interface BlockedUser {
+  id: string;
+  blocker_id: string;
+  blocked_id: string;
   created_at: string;
 }

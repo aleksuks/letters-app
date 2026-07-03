@@ -17,6 +17,7 @@ interface ConversationDetails {
   user_a_id: string;
   user_b_id: string;
   status: string;
+  reported_at: string | null;
   user_a: { nickname: string } | null;
   user_b: { nickname: string } | null;
 }
@@ -132,9 +133,80 @@ export default function ChatScreen() {
       : conv.user_a?.nickname ?? "nepažįstamasis";
   }
 
+  function otherUserId() {
+    if (!conv || !user) return null;
+    return conv.user_a_id === user.id ? conv.user_b_id : conv.user_a_id;
+  }
+
+  async function handleBlock() {
+    const otherId = otherUserId();
+    if (!otherId) return;
+    Alert.alert(
+      "Blokuoti šį žmogų?",
+      "Jis nebegalės tau rašyti ar siųsti naujų užklausų susisiekti. Šis pokalbis bus užbaigtas.",
+      [
+        { text: "Atšaukti", style: "cancel" },
+        {
+          text: "Blokuoti",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase.rpc("block_user", { p_user_id: otherId });
+            if (error) { Alert.alert("Klaida", error.message); return; }
+            router.back();
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleReport() {
+    if (!conv) return;
+    Alert.alert(
+      "Pranešti apie pokalbį?",
+      "Pokalbis bus iškart baigtas abiem pusėms. Istorija išliks matoma peržiūrai.",
+      [
+        { text: "Atšaukti", style: "cancel" },
+        {
+          text: "Netinkamas turinys",
+          onPress: () => reportConversation("Netinkamas turinys"),
+        },
+        {
+          text: "Priekabiavimas ar grasinimai",
+          onPress: () => reportConversation("Priekabiavimas ar grasinimai"),
+        },
+      ]
+    );
+  }
+
+  async function reportConversation(reason: string) {
+    if (!conv) return;
+    const { error } = await supabase.rpc("report_conversation", {
+      p_conversation_id: conv.id,
+      p_reason: reason,
+    });
+    if (error) { Alert.alert("Klaida", error.message); return; }
+    setConv({ ...conv, status: "blocked", reported_at: new Date().toISOString() });
+    Alert.alert("Ačiū", "Pranešimas gautas, pokalbis baigtas.");
+  }
+
+  function handleMore() {
+    Alert.alert(
+      "Pokalbio veiksmai",
+      undefined,
+      [
+        { text: "Blokuoti", style: "destructive", onPress: handleBlock },
+        { text: "Pranešti", onPress: handleReport },
+        { text: "Palikti pokalbį", style: "destructive", onPress: handleLeave },
+        { text: "Atšaukti", style: "cancel" },
+      ]
+    );
+  }
+
   function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   }
+
+  const canSend = !!conv && conv.status === "active" && !conv.reported_at;
 
   if (loading) {
     return (
@@ -153,10 +225,19 @@ export default function ChatScreen() {
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.headerName}>{otherNickname()}</Text>
-        <TouchableOpacity onPress={handleLeave} hitSlop={8}>
-          <Ionicons name="exit-outline" size={24} color={colors.red ?? "#ef4444"} />
+        <TouchableOpacity onPress={handleMore} hitSlop={8}>
+          <Ionicons name="ellipsis-vertical" size={22} color={colors.text} />
         </TouchableOpacity>
       </View>
+
+      {conv?.reported_at && (
+        <View style={s.reportedBanner}>
+          <Ionicons name="flag" size={14} color={colors.subtext} />
+          <Text style={s.reportedBannerText}>
+            Pokalbis baigtas — pranešta administratoriui.
+          </Text>
+        </View>
+      )}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -193,25 +274,27 @@ export default function ChatScreen() {
           }}
         />
 
-        <View style={s.inputRow}>
-          <TextInput
-            style={s.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Bla bla bla..."
-            placeholderTextColor={colors.subtext}
-            multiline
-            maxLength={1000}
-            returnKeyType="default"
-          />
-          <TouchableOpacity
-            style={[s.sendButton, (!input.trim() || sending) && s.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={!input.trim() || sending}
-          >
-            <Ionicons name="send" size={20} color={colors.accentText} />
-          </TouchableOpacity>
-        </View>
+        {canSend && (
+          <View style={s.inputRow}>
+            <TextInput
+              style={s.input}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Bla bla bla..."
+              placeholderTextColor={colors.subtext}
+              multiline
+              maxLength={1000}
+              returnKeyType="default"
+            />
+            <TouchableOpacity
+              style={[s.sendButton, (!input.trim() || sending) && s.sendButtonDisabled]}
+              onPress={handleSend}
+              disabled={!input.trim() || sending}
+            >
+              <Ionicons name="send" size={20} color={colors.accentText} />
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -231,6 +314,15 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderBottomColor: colors.tabBarBorder,
     },
     headerName: { fontSize: 17, fontWeight: "600", color: colors.text },
+    reportedBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      backgroundColor: colors.surfaceAlt ?? colors.surface,
+    },
+    reportedBannerText: { fontSize: 12, color: colors.subtext, flex: 1 },
     messageList: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
     bubbleRow: { flexDirection: "row" },
     bubbleRowOwn: { justifyContent: "flex-end" },

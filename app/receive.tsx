@@ -106,6 +106,30 @@ export default function ReceiveScreen() {
     setState({ ...state, reaction: "disliked" });
   }
 
+  async function handleReport(reason: string) {
+    if (state.phase !== "ready") return;
+    const { error } = await supabase.rpc("report_letter", {
+      p_letter_id: state.letter.id,
+      p_reason: reason,
+    });
+    if (error) { Alert.alert("Klaida", error.message); return; }
+    Alert.alert("Ačiū", "Praneštas laiškas pašalintas iš apyvartos, kol jį peržiūrės administratorius.");
+    router.back();
+  }
+
+  function confirmReport() {
+    if (state.phase !== "ready") return;
+    Alert.alert(
+      "Pranešti apie laišką?",
+      "Laiškas bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius.",
+      [
+        { text: "Atšaukti", style: "cancel" },
+        { text: "Netinkamas turinys", onPress: () => handleReport("Netinkamas turinys") },
+        { text: "Priekabiavimas ar grasinimai", onPress: () => handleReport("Priekabiavimas ar grasinimai") },
+      ]
+    );
+  }
+
   async function handleSendRequest() {
     if (state.phase !== "ready" || !user || !greeting.trim()) return;
     setSendingRequest(true);
@@ -174,7 +198,9 @@ export default function ReceiveScreen() {
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.from}>nuo {letter.author?.nickname ?? "nepažįstamasis"}</Text>
-        <View style={{ width: 28 }} />
+        <TouchableOpacity onPress={confirmReport} hitSlop={8}>
+          <Ionicons name="flag-outline" size={22} color={colors.subtext} />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
