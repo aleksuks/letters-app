@@ -1,7 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-
-const STORAGE_KEY = "@theme_mode";
+import { createContext, useContext, ReactNode } from "react";
 
 export interface ThemeColors {
   bg: string;
@@ -20,73 +17,32 @@ export interface ThemeColors {
   switchTrackOff: string;
 }
 
-const DARK: ThemeColors = {
-  bg: "#000",
-  surface: "#1a1a1a",
-  surfaceAlt: "#111",
-  text: "#fff",
-  subtext: "#999",
-  accent: "#c084fc",
-  accentText: "#000",
-  border: "#222",
-  red: "#ef4444",
-  tabBar: "#000",
-  tabBarBorder: "#222",
-  tabActive: "#fff",
-  tabInactive: "#999",
-  switchTrackOff: "#444",
-};
-
-const LIGHT: ThemeColors = {
-  bg: "#f2f2f7",
-  surface: "#fff",
-  surfaceAlt: "#f9f9f9",
-  text: "#111",
-  subtext: "#666",
-  accent: "#9333ea",
-  accentText: "#fff",
-  border: "#e5e5ea",
-  red: "#dc2626",
-  tabBar: "#fff",
-  tabBarBorder: "#e5e5ea",
-  tabActive: "#111",
-  tabInactive: "#999",
+const COLORS: ThemeColors = {
+  bg: "#E3DAC9",
+  surface: "#F3EDE1",
+  surfaceAlt: "#FBF7F0",
+  text: "#2B2320",
+  subtext: "#8A7F6F",
+  accent: "#96150D",
+  accentText: "#ffffff",
+  border: "#D8CBB0",
+  red: "#96150D",
+  tabBar: "#F3EDE1",
+  tabBarBorder: "#E5E0D5",
+  tabActive: "#96150D",
+  tabInactive: "#A89F8F",
   switchTrackOff: "#ccc",
 };
 
 interface ThemeContextType {
-  isDark: boolean;
   colors: ThemeColors;
-  toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType>({
-  isDark: true,
-  colors: DARK,
-  toggleTheme: () => {},
-});
+const ThemeContext = createContext<ThemeContextType>({ colors: COLORS });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(true);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((val) => {
-      if (val !== null) setIsDark(val === "dark");
-      setLoaded(true);
-    });
-  }, []);
-
-  function toggleTheme() {
-    const next = !isDark;
-    setIsDark(next);
-    AsyncStorage.setItem(STORAGE_KEY, next ? "dark" : "light");
-  }
-
-  if (!loaded) return null;
-
   return (
-    <ThemeContext.Provider value={{ isDark, colors: isDark ? DARK : LIGHT, toggleTheme }}>
+    <ThemeContext.Provider value={{ colors: COLORS }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -2,14 +2,12 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-});
+import { useTheme } from '@/contexts/theme';
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
   const { code } = useLocalSearchParams<{ code: string }>();
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (!code) {
@@ -26,8 +24,12 @@ export default function AuthCallbackScreen() {
   }, [code]);
 
   return (
-    <View style={styles.container}>
-      <ActivityIndicator color="#fff" size="large" />
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <ActivityIndicator color={colors.accent} size="large" />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+});

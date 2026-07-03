@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
@@ -49,9 +49,16 @@ export function useAuth(): AuthState & {
     await supabase.auth.signOut();
   }
 
+  // Supabase emits a new session object (and thus a new `user` object) on
+  // every auth event, including silent token refreshes. Memoizing on the
+  // id keeps `user`'s reference stable across those events so effects that
+  // depend on it (e.g. fetch-once-per-login screens) don't re-fire and
+  // re-run one-time side effects like marking a letter as seen.
+  const user = useMemo(() => session?.user ?? null, [session?.user?.id]);
+
   return {
     session,
-    user: session?.user ?? null,
+    user,
     loading,
     signInWithEmail,
     signUpWithEmail,

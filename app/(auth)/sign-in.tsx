@@ -4,28 +4,12 @@ import {
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
 import { useAuth } from "@/hooks/use-auth";
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-  inner: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
-  title: { fontSize: 36, fontWeight: "bold", color: "#fff", marginBottom: 8 },
-  subtitle: { fontSize: 16, color: "#999", marginBottom: 40 },
-  input: {
-    backgroundColor: "#1a1a1a", color: "#fff", borderRadius: 12,
-    padding: 16, fontSize: 16, marginBottom: 16, borderWidth: 1, borderColor: "#333",
-  },
-  button: {
-    backgroundColor: "#c084fc", borderRadius: 12, padding: 16,
-    alignItems: "center", marginTop: 8,
-  },
-  buttonText: { color: "#000", fontSize: 16, fontWeight: "bold" },
-  switchRow: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
-  switchText: { color: "#999", fontSize: 14 },
-  switchLink: { color: "#c084fc", fontSize: 14, fontWeight: "600" },
-});
+import { useTheme } from "@/contexts/theme";
 
 export default function SignInScreen() {
   const { signInWithEmail, signUpWithEmail } = useAuth();
+  const { colors } = useTheme();
+  const s = makeStyles(colors);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,27 +24,30 @@ export default function SignInScreen() {
       const { error } = await signUpWithEmail(email, password);
       setLoading(false);
       if (error) {
-        Alert.alert("Error", error.message);
+        Alert.alert("Klaida", error.message);
       } else {
         setAwaitingConfirmation(true);
       }
     } else {
       const { error } = await signInWithEmail(email, password);
       setLoading(false);
-      if (error) Alert.alert("Error", error.message);
+      if (error) Alert.alert("Klaida", error.message);
     }
   }
 
   if (awaitingConfirmation) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.inner}>
-          <Text style={styles.title}>Check your email</Text>
-          <Text style={styles.subtitle}>
-            We sent a confirmation link to {email}. Click it, then come back and sign in.
+      <SafeAreaView style={s.container}>
+        <View style={s.inner}>
+          <Text style={s.title}>Patikrinkite savo el. paštą</Text>
+          <Text style={s.subtitle}>
+            Nusiuntėme patvirtinimo nuorodą į {email}. Patvirtinus, grįžkite čia.
           </Text>
-          <TouchableOpacity style={styles.button} onPress={() => { setAwaitingConfirmation(false); setIsSignUp(false); }}>
-            <Text style={styles.buttonText}>Go to Sign In</Text>
+          <TouchableOpacity
+            style={s.button}
+            onPress={() => { setAwaitingConfirmation(false); setIsSignUp(false); }}
+          >
+            <Text style={s.buttonText}>Prisijungti</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -68,51 +55,76 @@ export default function SignInScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={s.container}>
       <KeyboardAvoidingView
-        style={styles.inner}
+        style={s.inner}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Text style={styles.title}>{isSignUp ? "Create account" : "Welcome back"}</Text>
-        <Text style={styles.subtitle}>
-          {isSignUp ? "Start your learning journey" : "Sign in to continue learning"}
+        <Text style={s.title}>
+          {isSignUp ? "Tapti nariu" : "Sveiki sugrįžę"}
+        </Text>
+        <Text style={s.subtitle}>
+          {isSignUp
+            ? "Rašyk ir gauk laiškelius."
+            : "Norint tęsti, prisijunk"}
         </Text>
 
         <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#666"
+          style={s.input}
+          placeholder="El. paštas"
+          placeholderTextColor={colors.subtext}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
         />
         <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#666"
+          style={s.input}
+          placeholder="Slaptažodis"
+          placeholderTextColor={colors.subtext}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
+        <TouchableOpacity style={s.button} onPress={handleSubmit} disabled={loading}>
           {loading ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color={colors.accentText} />
           ) : (
-            <Text style={styles.buttonText}>{isSignUp ? "Sign Up" : "Sign In"}</Text>
+            <Text style={s.buttonText}>{isSignUp ? "Registruotis" : "Prisijungti"}</Text>
           )}
         </TouchableOpacity>
 
-        <View style={styles.switchRow}>
-          <Text style={styles.switchText}>
-            {isSignUp ? "Already have an account? " : "No account? "}
+        <View style={s.switchRow}>
+          <Text style={s.switchText}>
+            {isSignUp ? "Jau turi paskyrą? " : "Neturi paskyros? "}
           </Text>
           <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
-            <Text style={styles.switchLink}>{isSignUp ? "Sign In" : "Sign Up"}</Text>
+            <Text style={s.switchLink}>{isSignUp ? "Prisijungti" : "Registruotis"}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    inner: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
+    title: { fontSize: 36, fontWeight: "bold", color: colors.text, marginBottom: 8 },
+    subtitle: { fontSize: 16, color: colors.subtext, marginBottom: 40, lineHeight: 24 },
+    input: {
+      backgroundColor: colors.surface, color: colors.text, borderRadius: 12,
+      padding: 16, fontSize: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border,
+    },
+    button: {
+      backgroundColor: colors.accent, borderRadius: 12, padding: 16,
+      alignItems: "center", marginTop: 8,
+    },
+    buttonText: { color: colors.accentText, fontSize: 16, fontWeight: "bold" },
+    switchRow: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
+    switchText: { color: colors.subtext, fontSize: 14 },
+    switchLink: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+  });
 }

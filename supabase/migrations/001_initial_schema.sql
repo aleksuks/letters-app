@@ -1,218 +1,278 @@
--- Enable UUID generation
+-- Letters for Strangers — initial schema
+
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================
 -- ENUMS
 -- ============================================================
 
-CREATE TYPE complexity_level AS ENUM ('beginner', 'intermediate', 'advanced');
-
-CREATE TYPE content_format AS ENUM ('video', 'text_card', 'audio');
-
--- ============================================================
--- CORE CONTENT TABLES
--- ============================================================
-
-CREATE TABLE topics (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  slug            TEXT NOT NULL UNIQUE,
-  name            TEXT NOT NULL,
-  description     TEXT NOT NULL,
-  icon_name       TEXT NOT NULL,
-  color_primary   TEXT NOT NULL,
-  color_secondary TEXT NOT NULL,
-  sort_order      INTEGER NOT NULL DEFAULT 0,
-  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE sub_topics (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  topic_id    UUID NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
-  slug        TEXT NOT NULL,
-  name        TEXT NOT NULL,
-  description TEXT,
-  sort_order  INTEGER NOT NULL DEFAULT 0,
-  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (topic_id, slug)
-);
-
-CREATE TABLE content_items (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  sub_topic_id     UUID NOT NULL REFERENCES sub_topics(id) ON DELETE CASCADE,
-  title            TEXT NOT NULL,
-  body_text        TEXT,
-  complexity_level complexity_level NOT NULL,
-  format           content_format NOT NULL DEFAULT 'video',
-  video_url        TEXT,
-  audio_url        TEXT,
-  thumbnail_url    TEXT,
-  duration_seconds INTEGER NOT NULL DEFAULT 60,
-  tags             TEXT[] DEFAULT '{}',
-  is_published     BOOLEAN NOT NULL DEFAULT FALSE,
-  sort_order       INTEGER NOT NULL DEFAULT 0,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE quiz_questions (
-  id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  content_item_id      UUID NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
-  prompt_text          TEXT NOT NULL,
-  choices              TEXT[] NOT NULL,
-  correct_answer_index INTEGER NOT NULL CHECK (correct_answer_index BETWEEN 0 AND 3),
-  explanation          TEXT,
-  trigger_at_second    INTEGER DEFAULT NULL,
-  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (content_item_id)
-);
+CREATE TYPE letter_status        AS ENUM ('active', 'expired', 'removed_reported');
+CREATE TYPE connection_status    AS ENUM ('pending', 'accepted', 'declined');
+CREATE TYPE conversation_status  AS ENUM ('active', 'left_by_a', 'left_by_b', 'blocked');
+CREATE TYPE report_target_type   AS ENUM ('letter', 'conversation', 'message');
+CREATE TYPE report_status        AS ENUM ('open', 'reviewed_ok', 'reviewed_removed');
 
 -- ============================================================
--- USER TABLES
+-- USER PROFILES
 -- ============================================================
 
 CREATE TABLE user_profiles (
-  id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  display_name TEXT,
-  avatar_url   TEXT,
-  onboarded    BOOLEAN NOT NULL DEFAULT FALSE,
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nickname      TEXT NOT NULL UNIQUE,
+  age_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- LETTERS
+-- author_id → user_profiles so PostgREST can join nickname.
+-- ============================================================
+
+CREATE TABLE letters (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  author_id             UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  body                  TEXT NOT NULL,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at            TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
+  status                letter_status NOT NULL DEFAULT 'active',
+  like_count            INTEGER NOT NULL DEFAULT 0,
+  travel_count          INTEGER NOT NULL DEFAULT 0,
+  max_travels           INTEGER NOT NULL DEFAULT 15,
+  approved_for_obituary BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- ============================================================
+-- LETTER RECIPIENTS
+-- ============================================================
+
+CREATE TABLE letter_recipients (
+  id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  letter_id UUID NOT NULL REFERENCES letters(id) ON DELETE CASCADE,
+  user_id   UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  seen_at   TIMESTAMPTZ,
+  liked     BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE (letter_id, user_id)
+);
+
+-- ============================================================
+-- CONNECTION REQUESTS
+-- Both party columns → user_profiles so PostgREST can join
+-- nicknames. Named constraints allow unambiguous embedding hints.
+-- ============================================================
+
+CREATE TABLE connection_requests (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  letter_id    UUID NOT NULL REFERENCES letters(id) ON DELETE CASCADE,
+  requester_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  author_id    UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  greeting     TEXT NOT NULL,
+  status       connection_status NOT NULL DEFAULT 'pending',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  UNIQUE (letter_id, requester_id)
 );
 
 -- ============================================================
--- INTEREST & PERSONALIZATION TABLES
+-- CONVERSATIONS
 -- ============================================================
 
-CREATE TABLE user_topic_interests (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id        UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  topic_id       UUID NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
-  interest_score FLOAT NOT NULL DEFAULT 0.5 CHECK (interest_score BETWEEN 0 AND 1),
-  explicit_score FLOAT NOT NULL DEFAULT 0.0,
-  implicit_score FLOAT NOT NULL DEFAULT 0.0,
-  last_updated   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (user_id, topic_id)
+CREATE TABLE conversations (
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  connection_request_id UUID NOT NULL REFERENCES connection_requests(id) ON DELETE CASCADE UNIQUE,
+  user_a_id             UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  user_b_id             UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  status                conversation_status NOT NULL DEFAULT 'active',
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
--- PROGRESS TRACKING TABLES
+-- MESSAGES
 -- ============================================================
 
-CREATE TABLE user_progress (
-  id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id                 UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  content_item_id         UUID NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
-  watched                 BOOLEAN NOT NULL DEFAULT FALSE,
-  watch_percent           FLOAT NOT NULL DEFAULT 0 CHECK (watch_percent BETWEEN 0 AND 100),
-  quiz_answered           BOOLEAN NOT NULL DEFAULT FALSE,
-  quiz_answered_correctly BOOLEAN,
-  time_spent_seconds      INTEGER NOT NULL DEFAULT 0,
-  viewed_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at            TIMESTAMPTZ,
-  UNIQUE (user_id, content_item_id)
+CREATE TABLE messages (
+  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id    UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id          UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  body               TEXT NOT NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_for_sender BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE user_streaks (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id           UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-  current_streak    INTEGER NOT NULL DEFAULT 0,
-  longest_streak    INTEGER NOT NULL DEFAULT 0,
-  last_activity_at  TIMESTAMPTZ,
-  streak_started_at TIMESTAMPTZ,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- ============================================================
+-- REPORTS
+-- ============================================================
+
+CREATE TABLE reports (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  target_type report_target_type NOT NULL,
+  target_id   UUID NOT NULL,
+  reporter_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reason      TEXT NOT NULL,
+  status      report_status NOT NULL DEFAULT 'open',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
 -- INDEXES
 -- ============================================================
 
-CREATE INDEX idx_sub_topics_topic_id        ON sub_topics(topic_id);
-CREATE INDEX idx_content_items_sub_topic_id ON content_items(sub_topic_id);
-CREATE INDEX idx_content_items_complexity   ON content_items(complexity_level);
-CREATE INDEX idx_content_items_published    ON content_items(is_published) WHERE is_published = TRUE;
-CREATE INDEX idx_user_progress_user_id      ON user_progress(user_id);
-CREATE INDEX idx_user_progress_content_id   ON user_progress(content_item_id);
-CREATE INDEX idx_user_topic_interests_user  ON user_topic_interests(user_id);
-CREATE INDEX idx_user_topic_interests_score ON user_topic_interests(user_id, interest_score DESC);
+CREATE INDEX idx_letters_author              ON letters(author_id);
+CREATE INDEX idx_letters_status              ON letters(status);
+CREATE INDEX idx_letters_expires_at          ON letters(expires_at);
+CREATE INDEX idx_letters_obituary            ON letters(approved_for_obituary) WHERE approved_for_obituary = TRUE;
+CREATE INDEX idx_letter_recipients_letter    ON letter_recipients(letter_id);
+CREATE INDEX idx_letter_recipients_user      ON letter_recipients(user_id);
+CREATE INDEX idx_conn_requests_author        ON connection_requests(author_id);
+CREATE INDEX idx_conn_requests_requester     ON connection_requests(requester_id);
+CREATE INDEX idx_conn_requests_status        ON connection_requests(status);
+CREATE INDEX idx_conversations_user_a        ON conversations(user_a_id);
+CREATE INDEX idx_conversations_user_b        ON conversations(user_b_id);
+CREATE INDEX idx_messages_conversation       ON messages(conversation_id);
+CREATE INDEX idx_messages_created_at         ON messages(conversation_id, created_at DESC);
+CREATE INDEX idx_reports_status              ON reports(status);
+CREATE INDEX idx_reports_target              ON reports(target_type, target_id);
 
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
 
-ALTER TABLE topics               ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sub_topics           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE content_items        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE quiz_questions       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_profiles        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_topic_interests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_progress        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_streaks         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE letters              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE letter_recipients    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE connection_requests  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports              ENABLE ROW LEVEL SECURITY;
 
--- Public read for content
-CREATE POLICY "topics_public_read"
-  ON topics FOR SELECT USING (is_active = TRUE);
-
-CREATE POLICY "sub_topics_public_read"
-  ON sub_topics FOR SELECT USING (is_active = TRUE);
-
-CREATE POLICY "content_items_public_read"
-  ON content_items FOR SELECT USING (is_published = TRUE);
-
-CREATE POLICY "quiz_questions_public_read"
-  ON quiz_questions FOR SELECT USING (TRUE);
-
--- User-scoped policies
+-- user_profiles
 CREATE POLICY "user_profiles_own"
-  ON user_profiles FOR ALL
-  USING (auth.uid() = id);
+  ON user_profiles FOR ALL USING (auth.uid() = id);
 
-CREATE POLICY "user_topic_interests_own"
-  ON user_topic_interests FOR ALL
-  USING (auth.uid() = user_id);
+CREATE POLICY "user_profiles_read_nickname"
+  ON user_profiles FOR SELECT USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "user_progress_own"
-  ON user_progress FOR ALL
-  USING (auth.uid() = user_id);
+-- letters
+CREATE POLICY "letters_own"
+  ON letters FOR ALL USING (auth.uid() = author_id);
 
-CREATE POLICY "user_streaks_own"
-  ON user_streaks FOR ALL
-  USING (auth.uid() = user_id);
+CREATE POLICY "letters_receive_eligible"
+  ON letters FOR SELECT USING (
+    status = 'active'
+    AND expires_at > NOW()
+    AND author_id != auth.uid()
+    AND travel_count < max_travels
+    AND NOT EXISTS (
+      SELECT 1 FROM letter_recipients lr
+      WHERE lr.letter_id = id AND lr.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "letters_obituary_public"
+  ON letters FOR SELECT USING (
+    status = 'expired' AND approved_for_obituary = TRUE
+  );
+
+-- letter_recipients
+CREATE POLICY "letter_recipients_own"
+  ON letter_recipients FOR ALL USING (auth.uid() = user_id);
+
+-- connection_requests
+CREATE POLICY "connection_requests_parties"
+  ON connection_requests FOR ALL
+  USING (auth.uid() = requester_id OR auth.uid() = author_id);
+
+-- conversations
+CREATE POLICY "conversations_participants"
+  ON conversations FOR ALL
+  USING (auth.uid() = user_a_id OR auth.uid() = user_b_id);
+
+-- messages
+CREATE POLICY "messages_participants"
+  ON messages FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_id
+        AND (c.user_a_id = auth.uid() OR c.user_b_id = auth.uid())
+    )
+  );
+
+-- reports
+CREATE POLICY "reports_insert"
+  ON reports FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+
+CREATE POLICY "reports_own_select"
+  ON reports FOR SELECT USING (auth.uid() = reporter_id);
 
 -- ============================================================
--- TRIGGERS
+-- REALTIME
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+
+-- ============================================================
+-- FUNCTIONS
+-- ============================================================
+
+-- Like a letter atomically. SECURITY DEFINER bypasses RLS so
+-- recipients can increment counts they don't own directly.
+CREATE OR REPLACE FUNCTION like_letter(p_letter_id UUID)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  INSERT INTO public.user_profiles (id) VALUES (NEW.id);
-  INSERT INTO public.user_streaks (user_id) VALUES (NEW.id);
-  RETURN NEW;
+  IF NOT EXISTS (
+    SELECT 1 FROM letter_recipients
+    WHERE letter_id = p_letter_id AND user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'not_a_recipient';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM letter_recipients
+    WHERE letter_id = p_letter_id AND user_id = auth.uid() AND liked = TRUE
+  ) THEN
+    RETURN; -- idempotent
+  END IF;
+
+  UPDATE letter_recipients
+  SET liked = TRUE
+  WHERE letter_id = p_letter_id AND user_id = auth.uid();
+
+  UPDATE letters
+  SET like_count   = like_count + 1,
+      travel_count = travel_count + 1
+  WHERE id = p_letter_id
+    AND status = 'active'
+    AND expires_at > NOW();
 END;
 $$;
 
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
-
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+-- Accept a connection request and create the conversation.
+-- Returns the new conversation ID so the caller can navigate directly.
+CREATE OR REPLACE FUNCTION accept_connection_request(p_request_id UUID)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_req   connection_requests%ROWTYPE;
+  v_conv_id UUID;
 BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
+  SELECT * INTO v_req FROM connection_requests WHERE id = p_request_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'not_found';
+  END IF;
+
+  IF v_req.author_id != auth.uid() THEN
+    RAISE EXCEPTION 'not_authorized';
+  END IF;
+
+  IF v_req.status != 'pending' THEN
+    RAISE EXCEPTION 'not_pending';
+  END IF;
+
+  UPDATE connection_requests SET status = 'accepted' WHERE id = p_request_id;
+
+  INSERT INTO conversations (connection_request_id, user_a_id, user_b_id)
+  VALUES (p_request_id, v_req.author_id, v_req.requester_id)
+  RETURNING id INTO v_conv_id;
+
+  RETURN v_conv_id;
 END;
 $$;
-
-CREATE TRIGGER content_items_updated_at
-  BEFORE UPDATE ON content_items
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER user_profiles_updated_at
-  BEFORE UPDATE ON user_profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER user_streaks_updated_at
-  BEFORE UPDATE ON user_streaks
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();

@@ -1,116 +1,80 @@
-export type ComplexityLevel = 'beginner' | 'intermediate' | 'advanced';
-
-export type ContentFormat = 'video' | 'text_card' | 'audio';
-
-export interface Topic {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  icon_name: string;
-  color_primary: string;
-  color_secondary: string;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface SubTopic {
-  id: string;
-  topic_id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface ContentItem {
-  id: string;
-  sub_topic_id: string;
-  title: string;
-  body_text: string | null;
-  complexity_level: ComplexityLevel;
-  format: ContentFormat;
-  video_url: string | null;
-  audio_url: string | null;
-  thumbnail_url: string | null;
-  duration_seconds: number;
-  tags: string[];
-  is_published: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface QuizQuestion {
-  id: string;
-  content_item_id: string;
-  prompt_text: string;
-  choices: [string, string, string, string];
-  correct_answer_index: 0 | 1 | 2 | 3;
-  explanation: string | null;
-  trigger_at_second: number | null;
-  created_at: string;
-}
+export type LetterStatus = 'active' | 'expired' | 'removed_reported';
+export type ConnectionStatus = 'pending' | 'accepted' | 'declined';
+export type ConversationStatus = 'active' | 'left_by_a' | 'left_by_b' | 'blocked';
+export type ReportTargetType = 'letter' | 'conversation' | 'message';
+export type ReportStatus = 'open' | 'reviewed_ok' | 'reviewed_removed';
 
 export interface UserProfile {
   id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  onboarded: boolean;
+  nickname: string;
+  age_confirmed: boolean;
+  accepts_requests: boolean;
+  is_moderator: boolean;
   created_at: string;
-  updated_at: string;
 }
 
-export interface UserTopicInterest {
+export interface Letter {
   id: string;
-  user_id: string;
-  topic_id: string;
-  interest_score: number;
-  explicit_score: number;
-  implicit_score: number;
-  last_updated: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  expires_at: string;
+  status: LetterStatus;
+  like_count: number;
+  travel_count: number;
+  recipient_cap: number;
+  dislike_count: number;
+  last_delivered_at: string | null;
+  approved_for_obituary: boolean;
 }
 
-export interface UserProgress {
+export interface LetterWithNickname extends Letter {
+  author_nickname: string;
+}
+
+export interface LetterRecipient {
   id: string;
+  letter_id: string;
   user_id: string;
-  content_item_id: string;
-  watched: boolean;
-  watch_percent: number;
-  quiz_answered: boolean;
-  quiz_answered_correctly: boolean | null;
-  time_spent_seconds: number;
-  viewed_at: string;
-  completed_at: string | null;
+  seen_at: string | null;
+  liked: boolean;
+  disliked: boolean;
 }
 
-export interface UserStreak {
+export interface ConnectionRequest {
   id: string;
-  user_id: string;
-  current_streak: number;
-  longest_streak: number;
-  last_activity_at: string | null;
-  streak_started_at: string | null;
-  updated_at: string;
+  letter_id: string;
+  requester_id: string;
+  author_id: string;
+  greeting: string;
+  status: ConnectionStatus;
+  created_at: string;
 }
 
-export interface EnrichedContentItem extends ContentItem {
-  sub_topic: SubTopic & { topic: Topic };
-  quiz_question: QuizQuestion | null;
+export interface Conversation {
+  id: string;
+  connection_request_id: string;
+  user_a_id: string;
+  user_b_id: string;
+  status: ConversationStatus;
+  created_at: string;
 }
 
-export type FeedReason = 'interest' | 'exploration' | 'continuation';
-
-export interface FeedItem {
-  content_item: EnrichedContentItem;
-  score: number;
-  reason: FeedReason;
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  deleted_for_sender: boolean;
 }
 
-export interface RecommendationResult {
-  feed: FeedItem[];
-  fetchedAt: string;
+export interface Report {
+  id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  reporter_id: string;
+  reason: string;
+  status: ReportStatus;
+  created_at: string;
 }
