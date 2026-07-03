@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 
@@ -16,6 +17,7 @@ export default function LettersScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const [myLetters, setMyLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -112,7 +114,7 @@ export default function LettersScreen() {
           <View style={s.card}>
             <View style={s.cardTop}>
               <Text style={[s.cardBody, s.cardBodyFlex]} numberOfLines={3}>{item.body}</Text>
-              <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={8} style={s.deleteBtn}>
+              <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8} style={s.deleteBtn}>
                 <Ionicons name="trash-outline" size={18} color={colors.subtext} />
               </TouchableOpacity>
             </View>

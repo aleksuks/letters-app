@@ -8,6 +8,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { Letter, Report } from "@/types";
 
@@ -20,6 +21,7 @@ type ReportItem = Report & { preview: string; messages?: ConvMessage[] };
 export default function ModerationScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const s = makeStyles(colors);
 
   const [letters, setLetters] = useState<QueueLetter[]>([]);
@@ -161,7 +163,11 @@ export default function ModerationScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={s.backButton}
+          onPress={() => router.back()}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+        >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.title}>Moderation</Text>
@@ -200,7 +206,7 @@ export default function ModerationScreen() {
                     {item.target_type === "letter" ? (
                       <View style={s.actionRow}>
                         <TouchableOpacity
-                          style={[s.actionButton, s.rejectButton]}
+                          style={[s.actionButton, s.rejectButton, largeTouchTargets && s.actionButtonLarge]}
                           onPress={() => resolveLetterReport(item, true)}
                           disabled={actingOn === item.id}
                         >
@@ -208,7 +214,7 @@ export default function ModerationScreen() {
                           <Text style={s.rejectText}>Restore</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[s.actionButton, s.approveButton]}
+                          style={[s.actionButton, s.approveButton, largeTouchTargets && s.actionButtonLarge]}
                           onPress={() => resolveLetterReport(item, false)}
                           disabled={actingOn === item.id}
                         >
@@ -219,21 +225,21 @@ export default function ModerationScreen() {
                     ) : (
                       <View style={s.actionRow}>
                         <TouchableOpacity
-                          style={[s.actionButton, s.rejectButton]}
+                          style={[s.actionButton, s.rejectButton, largeTouchTargets && s.actionButtonLarge]}
                           onPress={() => resolveConversationReport(item, "ignore")}
                           disabled={actingOn === item.id}
                         >
                           <Text style={s.rejectText}>Ignore</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[s.actionButton, s.muteButton]}
+                          style={[s.actionButton, s.muteButton, largeTouchTargets && s.actionButtonLarge]}
                           onPress={() => resolveConversationReport(item, "mute")}
                           disabled={actingOn === item.id}
                         >
                           <Text style={s.muteText}>Mute 2d</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[s.actionButton, s.banButton]}
+                          style={[s.actionButton, s.banButton, largeTouchTargets && s.actionButtonLarge]}
                           onPress={() => confirmBan(item)}
                           disabled={actingOn === item.id}
                         >
@@ -261,7 +267,7 @@ export default function ModerationScreen() {
             </View>
             <View style={s.actionRow}>
               <TouchableOpacity
-                style={[s.actionButton, s.rejectButton]}
+                style={[s.actionButton, s.rejectButton, largeTouchTargets && s.actionButtonLarge]}
                 onPress={() => review(item, false)}
                 disabled={actingOn === item.id}
               >
@@ -269,7 +275,7 @@ export default function ModerationScreen() {
                 <Text style={s.rejectText}>Reject</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.actionButton, s.approveButton]}
+                style={[s.actionButton, s.approveButton, largeTouchTargets && s.actionButtonLarge]}
                 onPress={() => review(item, true)}
                 disabled={actingOn === item.id}
               >
@@ -345,6 +351,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 10,
       paddingVertical: 10,
     },
+    actionButtonLarge: { paddingVertical: 14 },
     rejectButton: { borderWidth: 1, borderColor: colors.border },
     rejectText: { fontSize: 14, color: colors.subtext, fontWeight: "600" },
     approveButton: { backgroundColor: colors.accent },

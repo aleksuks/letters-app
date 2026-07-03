@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { Message } from "@/types";
 
 interface ConversationDetails {
@@ -29,6 +30,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
 
   const [conv, setConv] = useState<ConversationDetails | null>(null);
   const [messages, setMessages] = useState<MessageWithSender[]>([]);
@@ -221,11 +223,11 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.headerName}>{otherNickname()}</Text>
-        <TouchableOpacity onPress={handleMore} hitSlop={8}>
+        <TouchableOpacity onPress={handleMore} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="ellipsis-vertical" size={22} color={colors.text} />
         </TouchableOpacity>
       </View>
@@ -287,7 +289,7 @@ export default function ChatScreen() {
               returnKeyType="default"
             />
             <TouchableOpacity
-              style={[s.sendButton, (!input.trim() || sending) && s.sendButtonDisabled]}
+              style={[s.sendButton, largeTouchTargets && s.sendButtonLarge, (!input.trim() || sending) && s.sendButtonDisabled]}
               onPress={handleSend}
               disabled={!input.trim() || sending}
             >
@@ -366,6 +368,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       justifyContent: "center",
       alignItems: "center",
     },
+    sendButtonLarge: { width: 48, height: 48, borderRadius: 24 },
     sendButtonDisabled: { opacity: 0.4 },
   });
 }

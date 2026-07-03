@@ -11,6 +11,7 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { AnimatedTabBar } from "@/components/tab-bar";
+import { useAccessibility } from "@/contexts/accessibility";
 import {
   TAB_TRANSITION_BLUR,
   TAB_TRANSITION_DURATION,
@@ -22,6 +23,7 @@ import {
 
 export default function TabLayout() {
   const { width } = useWindowDimensions();
+  const { reducedMotion } = useAccessibility();
 
   const position = useSharedValue(0);
   const blurIntensity = useSharedValue(0);
@@ -46,20 +48,25 @@ export default function TabLayout() {
       }
       transitioningRef.current = true;
       notify("start");
-      blurIntensity.value = withSequence(
-        withTiming(TAB_TRANSITION_BLUR, {
-          duration: TAB_TRANSITION_DURATION * 0.35,
-          easing: Easing.out(Easing.quad),
-        }),
-        withTiming(0, {
-          duration: TAB_TRANSITION_DURATION * 0.65,
-          easing: Easing.out(Easing.quad),
-        })
-      );
+      const duration = reducedMotion ? 1 : TAB_TRANSITION_DURATION;
+      // Reduced motion drops the blur pulse entirely rather than shrinking
+      // it — a near-instant blur flash still reads as motion.
+      blurIntensity.value = reducedMotion
+        ? 0
+        : withSequence(
+            withTiming(TAB_TRANSITION_BLUR, {
+              duration: duration * 0.35,
+              easing: Easing.out(Easing.quad),
+            }),
+            withTiming(0, {
+              duration: duration * 0.65,
+              easing: Easing.out(Easing.quad),
+            })
+          );
       position.value = withTiming(
         index,
         {
-          duration: TAB_TRANSITION_DURATION,
+          duration,
           easing: Easing.out(Easing.cubic),
         },
         (finished) => {
@@ -70,7 +77,7 @@ export default function TabLayout() {
         }
       );
     },
-    [position, blurIntensity, notify, finishTransition]
+    [position, blurIntensity, notify, finishTransition, reducedMotion]
   );
 
   const pager = useMemo<TabPagerValue>(

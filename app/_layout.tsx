@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { CommonActions } from "@react-navigation/native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import { ThemeProvider } from "@/contexts/theme";
+import { AccessibilityProvider } from "@/contexts/accessibility";
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -60,17 +62,22 @@ export default function RootLayout() {
   }, [session, segments]);
 
   return (
-    <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
-        <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-        <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-        <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
-      </Stack>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AccessibilityProvider>
+        <ThemeProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+            <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+            <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
+          </Stack>
+        </ThemeProvider>
+      </AccessibilityProvider>
+    </GestureHandlerRootView>
   );
 }

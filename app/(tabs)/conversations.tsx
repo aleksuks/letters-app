@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility } from "@/contexts/accessibility";
 
 interface ConversationItem {
   id: string;
@@ -35,6 +36,7 @@ export default function ConversationsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,13 +132,13 @@ export default function ConversationsScreen() {
                     <Text style={s.greeting}>„{item.greeting}“</Text>
                     <View style={s.cardActions}>
                       <TouchableOpacity
-                        style={s.declineButton}
+                        style={[s.declineButton, largeTouchTargets && s.cardButtonLarge]}
                         onPress={() => handleDecline(item.id)}
                       >
                         <Text style={s.declineText}>Atmesti</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={s.acceptButton}
+                        style={[s.acceptButton, largeTouchTargets && s.cardButtonLarge]}
                         onPress={() => handleAccept(item.id)}
                       >
                         <Text style={s.acceptText}>Priimti</Text>
@@ -202,6 +204,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     letterPreview: { fontSize: 13, color: colors.subtext, fontStyle: "italic" },
     greeting: { fontSize: 15, color: colors.text, marginTop: 4 },
     cardActions: { flexDirection: "row", gap: 10, marginTop: 8 },
+    cardButtonLarge: { paddingVertical: 15 },
     declineButton: {
       flex: 1,
       paddingVertical: 12,

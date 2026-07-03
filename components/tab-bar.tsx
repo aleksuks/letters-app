@@ -1,16 +1,15 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Platform, Pressable, Text, View } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/theme";
-import { useTabPager } from "@/components/tab-pager";
 
-const INDICATOR_SIZE = 40;
+const ICON_BOX = 40;
 
 /**
- * Custom tab bar with a rounded square that slides behind the active tab's
- * icon, driven by the same `position` shared value the page-slide
- * transition uses — the indicator and the page fly-by stay perfectly in
- * sync instead of animating on separate timelines.
+ * Simple tab bar: no sliding indicator, the active tab is just the icon
+ * and label in a darker color. Bottom padding is safe-area-aware so the
+ * icons clear the home indicator on notched/Dynamic Island iPhones
+ * instead of crowding it.
  */
 export function AnimatedTabBar({
   state,
@@ -18,18 +17,7 @@ export function AnimatedTabBar({
   navigation,
 }: BottomTabBarProps) {
   const { colors } = useTheme();
-  const { position, width } = useTabPager();
-  const routeCount = state.routes.length;
-  const slotWidth = width / routeCount;
-
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX:
-          position.value * slotWidth + (slotWidth - INDICATOR_SIZE) / 2,
-      },
-    ],
-  }));
+  const insets = useSafeAreaInsets();
 
   return (
     <View
@@ -38,25 +26,11 @@ export function AnimatedTabBar({
         backgroundColor: colors.tabBar,
         borderTopColor: colors.tabBarBorder,
         borderTopWidth: 1,
-        paddingBottom: Platform.OS === "ios" ? 20 : 8,
+        paddingBottom: Platform.OS === "ios" ? insets.bottom + 10 : 8,
         paddingTop: 8,
-        height: Platform.OS === "ios" ? 80 : 56,
+        height: Platform.OS === "ios" ? 56 + insets.bottom + 10 : 56,
       }}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            position: "absolute",
-            top: 8,
-            width: INDICATOR_SIZE,
-            height: INDICATOR_SIZE,
-            borderRadius: 12,
-            backgroundColor: colors.accent,
-          },
-          indicatorStyle,
-        ]}
-      />
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
@@ -90,15 +64,15 @@ export function AnimatedTabBar({
           >
             <View
               style={{
-                width: INDICATOR_SIZE,
-                height: INDICATOR_SIZE,
+                width: ICON_BOX,
+                height: ICON_BOX,
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
               {options.tabBarIcon?.({
                 focused: isFocused,
-                color: isFocused ? colors.accentText : colors.tabInactive,
+                color: isFocused ? colors.text : colors.tabInactive,
                 size: 24,
               })}
             </View>
@@ -107,7 +81,7 @@ export function AnimatedTabBar({
                 fontSize: 12,
                 fontWeight: "600",
                 marginTop: 4,
-                color: isFocused ? colors.accent : colors.tabInactive,
+                color: isFocused ? colors.text : colors.tabInactive,
               }}
             >
               {label}

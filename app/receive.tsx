@@ -1,10 +1,12 @@
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 import { FoldingLetter } from "@/components/folding-letter";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator, Alert,
@@ -37,6 +39,7 @@ export default function ReceiveScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const [state, setState] = useState<ScreenState>({ phase: "loading" });
 
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -94,13 +97,16 @@ export default function ReceiveScreen() {
 
   async function handleLike() {
     if (state.phase !== "ready" || state.reaction !== "none") return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const { error } = await supabase.rpc("like_letter", { p_letter_id: state.letter.id });
     if (error) { Alert.alert("Klaida", error.message); return; }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setState({ ...state, reaction: "liked" });
   }
 
   async function handleDislike() {
     if (state.phase !== "ready" || state.reaction !== "none") return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const { error } = await supabase.rpc("dislike_letter", { p_letter_id: state.letter.id });
     if (error) { Alert.alert("Klaida", error.message); return; }
     setState({ ...state, reaction: "disliked" });
@@ -144,6 +150,7 @@ export default function ReceiveScreen() {
     setSendingRequest(false);
 
     if (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error.code === "23505") {
         Alert.alert("Leidimo jau prašyta", "Jau išsiuntei užklausą susisiekti su siuntėju.");
       } else if (error.code === "42501") {
@@ -154,6 +161,7 @@ export default function ReceiveScreen() {
       return;
     }
 
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setShowRequestForm(false);
     setGreeting("");
     setRequestSent(true);
@@ -172,7 +180,7 @@ export default function ReceiveScreen() {
   if (state.phase === "empty") {
     return (
       <SafeAreaView style={s.container}>
-        <TouchableOpacity style={s.closeBtn} onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity style={s.closeBtn} onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.center}>
@@ -194,11 +202,11 @@ export default function ReceiveScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.from}>nuo {letter.author?.nickname ?? "nepažįstamasis"}</Text>
-        <TouchableOpacity onPress={confirmReport} hitSlop={8}>
+        <TouchableOpacity onPress={confirmReport} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="flag-outline" size={22} color={colors.subtext} />
         </TouchableOpacity>
       </View>
@@ -256,7 +264,10 @@ export default function ReceiveScreen() {
           {canRequest && !showRequestForm && !requestSent && (
             <TouchableOpacity
               style={s.requestButton}
-              onPress={() => setShowRequestForm(true)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowRequestForm(true);
+              }}
               activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-outline" size={20} color={colors.subtext} />
@@ -285,13 +296,13 @@ export default function ReceiveScreen() {
               />
               <View style={s.greetingRow}>
                 <TouchableOpacity
-                  style={s.cancelButton}
+                  style={[s.cancelButton, largeTouchTargets && s.cancelButtonLarge]}
                   onPress={() => { setShowRequestForm(false); setGreeting(""); }}
                 >
                   <Text style={s.cancelText}>Atšaukti</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[s.sendGreetingButton, (!greeting.trim() || sendingRequest) && s.disabledButton]}
+                  style={[s.sendGreetingButton, largeTouchTargets && s.sendGreetingButtonLarge, (!greeting.trim() || sendingRequest) && s.disabledButton]}
                   onPress={handleSendRequest}
                   disabled={!greeting.trim() || sendingRequest}
                 >
@@ -387,6 +398,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     greetingRow: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
     cancelButton: { paddingHorizontal: 16, paddingVertical: 10 },
+    cancelButtonLarge: { paddingVertical: 14 },
     cancelText: { color: colors.subtext, fontSize: 15 },
     sendGreetingButton: {
       backgroundColor: colors.accent,
@@ -394,6 +406,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       paddingHorizontal: 20,
       paddingVertical: 10,
     },
+    sendGreetingButtonLarge: { paddingVertical: 14 },
     sendGreetingText: { color: colors.accentText, fontWeight: "bold", fontSize: 15 },
     disabledButton: { opacity: 0.4 },
     sentRow: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center", paddingVertical: 8 },

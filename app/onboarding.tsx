@@ -7,11 +7,13 @@ import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 
 export default function OnboardingScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const s = makeStyles(colors);
   const [nickname, setNickname] = useState("");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
@@ -74,6 +76,7 @@ export default function OnboardingScreen() {
           style={s.checkbox}
           onPress={() => setAgeConfirmed(v => !v)}
           activeOpacity={0.7}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
         >
           <View style={[s.checkBox, ageConfirmed && s.checkBoxChecked]}>
             {ageConfirmed && <Text style={s.checkMark}>✓</Text>}

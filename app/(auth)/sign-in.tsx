@@ -5,10 +5,12 @@ import {
 } from "react-native";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 
 export default function SignInScreen() {
   const { signInWithEmail, signUpWithEmail } = useAuth();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const s = makeStyles(colors);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -99,7 +101,10 @@ export default function SignInScreen() {
           <Text style={s.switchText}>
             {isSignUp ? "Jau turi paskyrą? " : "Neturi paskyros? "}
           </Text>
-          <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
+          <TouchableOpacity
+            onPress={() => setIsSignUp(!isSignUp)}
+            hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
+          >
             <Text style={s.switchLink}>{isSignUp ? "Prisijungti" : "Registruotis"}</Text>
           </TouchableOpacity>
         </View>

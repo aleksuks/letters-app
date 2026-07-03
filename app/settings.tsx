@@ -6,6 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 
@@ -13,6 +14,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const s = makeStyles(colors);
 
   const [acceptsRequests, setAcceptsRequests] = useState(true);
@@ -48,7 +50,11 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={s.backButton}
+          onPress={() => router.back()}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+        >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.title}>Nustatymai</Text>
@@ -70,8 +76,26 @@ export default function SettingsScreen() {
               disabled={!loaded}
               trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
               thumbColor="#fff"
+              accessibilityLabel="Leisti užklausas pokalbiams"
+              accessibilityRole="switch"
             />
           </View>
+        </View>
+
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Pritaikymas</Text>
+          <TouchableOpacity
+            style={[s.settingItem, { marginBottom: 0 }]}
+            onPress={() => router.push("/accessibility" as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Pritaikymo neįgaliesiems nustatymai"
+          >
+            <View style={s.settingContent}>
+              <Text style={s.settingLabel}>Pritaikymas neįgaliesiems</Text>
+              <Text style={s.settingDesc}>Animacijos, kontrastas</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
         </View>
 
         <View style={s.section}>

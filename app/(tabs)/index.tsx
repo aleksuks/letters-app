@@ -1,4 +1,5 @@
 import { useTheme } from "@/contexts/theme";
+import { useAccessibility } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
@@ -18,6 +19,7 @@ type SortMode = "recent" | "top";
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const { largeTouchTargets } = useAccessibility();
   const s = makeStyles(colors);
 
   const [sort, setSort] = useState<SortMode>("recent");
@@ -53,13 +55,13 @@ export default function HomeScreen() {
 
             <View style={s.sortRow}>
               <TouchableOpacity
-                style={[s.sortButton, sort === "recent" && s.sortButtonActive]}
+                style={[s.sortButton, largeTouchTargets && s.sortButtonLarge, sort === "recent" && s.sortButtonActive]}
                 onPress={() => setSort("recent")}
               >
                 <Text style={[s.sortText, sort === "recent" && s.sortTextActive]}>Naujausi</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.sortButton, sort === "top" && s.sortButtonActive]}
+                style={[s.sortButton, largeTouchTargets && s.sortButtonLarge, sort === "top" && s.sortButtonActive]}
                 onPress={() => setSort("top")}
               >
                 <Text style={[s.sortText, sort === "top" && s.sortTextActive]}>Populiariausi</Text>
@@ -103,6 +105,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderWidth: 1,
       borderColor: colors.border,
     },
+    sortButtonLarge: { paddingVertical: 14 },
     sortButtonActive: { backgroundColor: colors.accent, borderColor: colors.accent },
     sortText: { fontSize: 14, color: colors.subtext, fontWeight: "600" },
     sortTextActive: { color: colors.accentText },
