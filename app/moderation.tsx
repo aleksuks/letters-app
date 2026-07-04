@@ -31,13 +31,20 @@ export default function ModerationScreen() {
 
   const load = useCallback(() => {
     setLoading(true);
+    // Letters only reach the queue once status flips to 'expired'; run the
+    // sweep first so the queue is complete even during quiet periods with
+    // no receive traffic (which is the other place the sweep runs).
     Promise.all([
       supabase
-        .from("letters")
-        .select("*, author:user_profiles(nickname)")
-        .eq("status", "expired")
-        .eq("obituary_reviewed", false)
-        .order("expires_at", { ascending: true }),
+        .rpc("expire_due_letters")
+        .then(() =>
+          supabase
+            .from("letters")
+            .select("*, author:user_profiles(nickname)")
+            .eq("status", "expired")
+            .eq("obituary_reviewed", false)
+            .order("expires_at", { ascending: true })
+        ),
       loadReports(),
     ]).then(([lettersRes, reportItems]) => {
       setLetters((lettersRes.data as QueueLetter[]) ?? []);

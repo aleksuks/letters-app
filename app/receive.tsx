@@ -7,7 +7,7 @@ import { FoldingLetter } from "@/components/folding-letter";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert,
   Keyboard,
@@ -42,6 +42,13 @@ export default function ReceiveScreen() {
   const { largeTouchTargets } = useAccessibility();
   const [state, setState] = useState<ScreenState>({ phase: "loading" });
 
+  // The receive_letter() claim is provisional until the server hears the
+  // letter was actually shown (open_letter at intro end). If the reader
+  // backs out before that, release_letter returns the delivery slot to the
+  // pool; the server-side reaper covers crashes where this never runs.
+  const claimRef = useRef<{ letterId: string; opened: boolean } | null>(null);
+  const mountedRef = useRef(true);
+
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [greeting, setGreeting] = useState("");
   const [requestSent, setRequestSent] = useState(false);
@@ -64,9 +71,42 @@ export default function ReceiveScreen() {
     fetchLetter();
   }, [user]);
 
+  // Unmount covers every exit path the close button doesn't (hardware back,
+  // swipe-back gesture, auth loss). Refs keep the latest claim visible here.
+  useEffect(() => () => {
+    mountedRef.current = false;
+    releaseIfUnread();
+  }, []);
+
+  function releaseIfUnread() {
+    const claim = claimRef.current;
+    if (!claim || claim.opened) return;
+    claimRef.current = null;
+    // Best-effort: if this never lands, the server-side reaper releases the
+    // stale claim on its own.
+    void supabase.rpc("release_letter", { p_letter_id: claim.letterId });
+  }
+
+  function handleClose() {
+    releaseIfUnread();
+    router.back();
+  }
+
   function handleIntroDone() {
     setIntroDone(true);
     actionsOpacity.value = withTiming(1, { duration: 250 });
+
+    // The reader has seen the letter — confirm the delivery so the claim
+    // becomes permanent. One silent retry; beyond that, reacting confirms
+    // implicitly server-side.
+    const claim = claimRef.current;
+    if (!claim) return;
+    claim.opened = true;
+    void supabase
+      .rpc("open_letter", { p_letter_id: claim.letterId })
+      .then(({ error }) => {
+        if (error) return supabase.rpc("open_letter", { p_letter_id: claim.letterId });
+      });
   }
 
   async function fetchLetter() {
@@ -74,8 +114,8 @@ export default function ReceiveScreen() {
     setState({ phase: "loading" });
 
     // Eligibility (reach cap, hourly pacing, not-own, not-seen) and the
-    // random pick all live in the receive_letter() RPC, which also records
-    // the delivery atomically.
+    // random pick all live in the receive_letter() RPC, which claims the
+    // delivery atomically — provisionally, until open_letter confirms it.
     const { data, error } = await supabase.rpc("receive_letter");
 
     if (error || !data || data.length === 0) {
@@ -84,6 +124,16 @@ export default function ReceiveScreen() {
     }
 
     const row = data[0];
+
+    // The reader backed out while the claim was in flight — the unmount
+    // cleanup already ran with nothing to release, so give the slot back
+    // here instead of stranding it until the reaper.
+    if (!mountedRef.current) {
+      void supabase.rpc("release_letter", { p_letter_id: row.id });
+      return;
+    }
+
+    claimRef.current = { letterId: row.id, opened: false };
     const letter: LetterWithAuthor = {
       ...row,
       author: {
@@ -202,7 +252,7 @@ export default function ReceiveScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity onPress={handleClose} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.from}>nuo {letter.author?.nickname ?? "nepažįstamasis"}</Text>

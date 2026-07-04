@@ -1,6 +1,7 @@
 import { pickBackground } from "@/components/animated-splash";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility } from "@/contexts/accessibility";
+import { useSound, useScrubSound } from "@/hooks/use-sound";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useFonts } from "expo-font";
@@ -73,11 +74,15 @@ const MAX_FOLD_SPEED = 2;
  * land+unfold) only plays once the user taps the sheet, so sending and
  * receiving both feel like something the user does, not something that
  * just happens on screen. Calls onDone when the full sequence finishes;
- * haptics fire at the arrive/fold/land/launch beats.
+ * haptics fire at the arrive/fold/land/launch beats, alongside a whoosh
+ * sound on launch and a chime on arrival.
  */
 export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
   const { colors } = useTheme();
   const { reducedMotion } = useAccessibility();
+  const playSend = useSound(require("@/assets/sounds/send.wav"));
+  const playReceive = useSound(require("@/assets/sounds/receive.wav"));
+  const tear = useScrubSound(require("@/assets/sounds/tear.wav"));
   const { width, height } = useWindowDimensions();
   const [splashTexture] = useState(pickBackground);
   const [fontsLoaded] = useFonts({
@@ -134,6 +139,7 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
   // stomp on fold.value after the ceremony has already taken over.
   const committing = useSharedValue(false);
   const midpointTicked = useSharedValue(false);
+  const lastTearProgress = useSharedValue(0);
 
   function haptic(style: Haptics.ImpactFeedbackStyle) {
     Haptics.impactAsync(style);
@@ -160,6 +166,7 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
   function launch() {
     setPhase("launching");
     haptic(Haptics.ImpactFeedbackStyle.Medium);
+    playSend();
     const flightDelay = d(150);
     const flightDuration = d(650);
     setTimeout(
@@ -198,6 +205,7 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
       return;
     }
     haptic(Haptics.ImpactFeedbackStyle.Light);
+    tear.play();
     fold.value = withDelay(
       d(120),
       withTiming(
@@ -225,10 +233,16 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
     onStart?.();
     if (fromDrag) {
       fold.value = 0;
-      finishOpen();
+      // A one-motion drag reaches completion the instant the finger
+      // releases, with no settle animation like the tap path has — left
+      // alone, finishOpen()'s onDone() would unmount this screen (and its
+      // audio player) immediately, cutting the still-playing tear off
+      // mid-sound instead of letting it finish.
+      setTimeout(finishOpen, tear.remainingMs());
       return;
     }
     haptic(Haptics.ImpactFeedbackStyle.Medium);
+    tear.play();
     fold.value = withDelay(
       d(120),
       withTiming(
@@ -252,6 +266,7 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
   // the reverse build of the send-off.
   function beginArrival() {
     haptic(Haptics.ImpactFeedbackStyle.Heavy);
+    playReceive();
     const flightDuration = d(650);
     setTimeout(
       () => haptic(Haptics.ImpactFeedbackStyle.Medium),
@@ -295,6 +310,7 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
     .activeOffsetY(mode === "send" ? [-10, NEVER] : [-NEVER, 10])
     .onStart(() => {
       midpointTicked.value = false;
+      lastTearProgress.value = fold.value;
     })
     .onUpdate((e) => {
       if (committing.value) return;
@@ -302,6 +318,19 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
         mode === "send"
           ? Math.min(1, Math.max(0, -e.translationY) / FOLD_DRAG_DISTANCE)
           : Math.min(1, Math.max(0, 1 - e.translationY / FOLD_DRAG_DISTANCE));
+
+      // Tear advances while the flap is being peeled further and holds the
+      // instant that reverses — `target` is fold-progress (1 = folded/
+      // closed), which runs opposite to "peeled further" for receive mode
+      // (peeling *opens* it, driving fold down from 1 to 0), so the
+      // direction check is flipped per mode.
+      const peelingFurther =
+        mode === "send" ? target > lastTearProgress.value : target < lastTearProgress.value;
+      const peelingBack =
+        mode === "send" ? target < lastTearProgress.value : target > lastTearProgress.value;
+      if (peelingFurther) runOnJS(tear.advance)();
+      else if (peelingBack) runOnJS(tear.hold)();
+      lastTearProgress.value = target;
 
       const pastMidpoint = mode === "send" ? target > 0.5 : target < 0.5;
       if (pastMidpoint && !midpointTicked.value) {
@@ -335,7 +364,9 @@ export function FoldingLetter({ body, mode, onDone, onStart }: Props) {
       // animation already in flight finish and commit itself.
       if (mode === "send" ? target >= 1 : target <= 0) return;
       // Released before finishing the fold — spring back open (send) or
-      // back closed (receive), i.e. cancel.
+      // back closed (receive), i.e. cancel. The tear sticks back down too,
+      // reset to the start so the next attempt tears fresh from silence.
+      runOnJS(tear.reset)();
       fold.value = withSpring(restFold, { damping: 16, stiffness: 220 });
     });
 

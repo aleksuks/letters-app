@@ -39,6 +39,8 @@ export interface LetterRecipient {
   letter_id: string;
   user_id: string;
   seen_at: string | null;
+  opened_at: string | null;
+  released_at: string | null;
   liked: boolean;
   disliked: boolean;
 }

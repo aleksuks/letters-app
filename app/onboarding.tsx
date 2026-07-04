@@ -35,6 +35,11 @@ export default function OnboardingScreen() {
       if (error) {
         if (error.code === "23505") {
           Alert.alert("Vartotojo vardas užimtas", "Pabandyk kitą.");
+        } else if (error.message.includes("nickname_rejected_moderation")) {
+          Alert.alert(
+            "Netinkamas slapyvardis",
+            "Šis slapyvardis per daug įžeidžiantis. Pasirink kitą."
+          );
         } else {
           throw error;
         }
