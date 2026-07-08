@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { CommonActions } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useFonts } from "expo-font";
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import { ThemeProvider } from "@/contexts/theme";
@@ -12,6 +14,13 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const navRef = useNavigationContainerRef();
+
+  // Kicked off here (rather than lazily inside EnvelopeLetter) so it's
+  // already cached by the time the write/receive ceremony ever mounts —
+  // loading it there instead meant the very first ceremony of a session
+  // could re-render mid-animation the moment the font resolved, landing as
+  // a stutter right as the letter's text became visible.
+  useFonts({ SueEllen: require("@/assets/fonts/SueEllenFrancisco-Regular.ttf") });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -63,21 +72,23 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AccessibilityProvider>
-        <ThemeProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-            <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-            <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
-          </Stack>
-        </ThemeProvider>
-      </AccessibilityProvider>
+      <SafeAreaProvider>
+        <AccessibilityProvider>
+          <ThemeProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="onboarding" />
+              <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+              <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+              <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
+            </Stack>
+          </ThemeProvider>
+        </AccessibilityProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

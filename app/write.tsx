@@ -2,7 +2,7 @@ import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
-import { FoldingLetter } from "@/components/folding-letter";
+import { EnvelopeLetter } from "@/components/envelope-letter";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -10,13 +10,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert, Keyboard, KeyboardAvoidingView, Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput, TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 const MAX_LENGTH = 1000;
@@ -101,9 +101,9 @@ export default function WriteScreen() {
       draftDisabledRef.current = true;
       AsyncStorage.removeItem(DRAFT_KEY);
 
-      // Departure ceremony: the editor is replaced by the written text on a
-      // paper sheet the user taps to fold into an envelope and send flying
-      // (see FoldingLetter), then the screen dismisses itself.
+      // Departure ceremony: the editor is replaced by the letter folding
+      // into an envelope, getting sealed, and sent flying (EnvelopeLetter),
+      // then the screen dismisses itself.
       Keyboard.dismiss();
       setSentBody(body.trim());
     } catch (e) {
@@ -180,8 +180,8 @@ export default function WriteScreen() {
       </KeyboardAvoidingView>
 
       {sentBody !== null && (
-        <Animated.View style={s.sendOverlay} entering={FadeIn.duration(250)}>
-          <FoldingLetter
+        <Animated.View style={s.sendOverlay}>
+          <EnvelopeLetter
             body={sentBody}
             mode="send"
             onStart={() => setFolding(true)}

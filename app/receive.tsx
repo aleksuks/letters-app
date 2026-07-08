@@ -3,7 +3,7 @@ import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
-import { FoldingLetter } from "@/components/folding-letter";
+import { EnvelopeLetter } from "@/components/envelope-letter";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -12,13 +12,14 @@ import {
   ActivityIndicator, Alert,
   Keyboard,
   KeyboardAvoidingView, Platform,
-  SafeAreaView, ScrollView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   FadeOut,
   useAnimatedStyle,
@@ -39,7 +40,7 @@ export default function ReceiveScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { largeTouchTargets } = useAccessibility();
+  const { largeTouchTargets, reducedMotion } = useAccessibility();
   const [state, setState] = useState<ScreenState>({ phase: "loading" });
 
   // The receive_letter() claim is provisional until the server hears the
@@ -55,13 +56,21 @@ export default function ReceiveScreen() {
   const [sendingRequest, setSendingRequest] = useState(false);
   const [introDone, setIntroDone] = useState(false);
 
-  // Arrival animation: a full-screen overlay plays the folded letter flying
-  // in from the bottom and unfolding (FoldingLetter), then cross-fades away
-  // to reveal the reading layout. Action buttons fade in only after that.
+  // Arrival animation: a full-screen overlay plays the envelope arriving,
+  // opening, and giving up the letter (EnvelopeLetter), then cross-fades
+  // away to reveal the reading layout. Action buttons fade in only after.
   const actionsOpacity = useSharedValue(0);
+  // Fades the overlay to solid white as the final pull-free swipe plays out,
+  // so the cut to the reading layout reads as a deliberate flash-to-white
+  // rather than the letter's motion just stopping dead.
+  const whiteFade = useSharedValue(0);
 
   const actionsStyle = useAnimatedStyle(() => ({
     opacity: actionsOpacity.value,
+  }));
+
+  const whiteStyle = useAnimatedStyle(() => ({
+    opacity: whiteFade.value,
   }));
 
   const s = makeStyles(colors);
@@ -374,8 +383,19 @@ export default function ReceiveScreen() {
       </KeyboardAvoidingView>
 
       {!introDone && (
-        <Animated.View style={s.introOverlay} exiting={FadeOut.duration(250)}>
-          <FoldingLetter body={letter.body} mode="receive" onDone={handleIntroDone} />
+        <Animated.View style={s.introOverlay} exiting={FadeOut.duration(reducedMotion ? 1 : 400)}>
+          <EnvelopeLetter
+            body={letter.body}
+            mode="receive"
+            onDone={handleIntroDone}
+            onPulling={() => {
+              whiteFade.value = withTiming(1, { duration: reducedMotion ? 1 : 500 });
+            }}
+          />
+          <Animated.View
+            style={[StyleSheet.absoluteFillObject, s.whiteFlash, whiteStyle]}
+            pointerEvents="none"
+          />
         </Animated.View>
       )}
     </SafeAreaView>
@@ -471,5 +491,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       alignItems: "center",
       justifyContent: "center",
     },
+    whiteFlash: { backgroundColor: "#fff" },
   });
 }

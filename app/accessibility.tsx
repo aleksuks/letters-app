@@ -1,7 +1,8 @@
 import {
-  View, Text, SafeAreaView, TouchableOpacity,
+  View, Text, TouchableOpacity,
   StyleSheet, Switch, ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/contexts/theme";

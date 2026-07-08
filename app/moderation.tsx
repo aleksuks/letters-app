@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator, Alert,
-  FlatList, SafeAreaView, ScrollView, StyleSheet,
+  FlatList, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";

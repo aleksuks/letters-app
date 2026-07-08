@@ -2,6 +2,7 @@
   "expo": {
     "name": "Letters for Strangers",
     "slug": "letters-for-strangers",
+    "owner": "aleksuks",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,6 +11,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "dev.aleksuks.lettersforstrangers",
       "infoPlist": {
         "CADisableMinimumFrameDurationOnPhone": true
       }
@@ -22,7 +24,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "dev.aleksuks.lettersforstrangers"
     },
     "web": {
       "output": "static",
@@ -44,11 +51,24 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3b4053eb-491d-4bb8-bab3-286f64458751"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3b4053eb-491d-4bb8-bab3-286f64458751"
     }
   }
 }

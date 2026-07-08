@@ -26,9 +26,9 @@ export function AnimatedTabBar({
         backgroundColor: colors.tabBar,
         borderTopColor: colors.tabBarBorder,
         borderTopWidth: 1,
-        paddingBottom: Platform.OS === "ios" ? insets.bottom + 10 : 8,
+        paddingBottom: insets.bottom + (Platform.OS === "ios" ? 10 : 8),
         paddingTop: 8,
-        height: Platform.OS === "ios" ? 56 + insets.bottom + 10 : 56,
+        height: 56 + insets.bottom + (Platform.OS === "ios" ? 10 : 8),
       }}
     >
       {state.routes.map((route, index) => {
