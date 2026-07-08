@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility } from "@/contexts/accessibility";
+import { TutorialTip } from "@/components/tutorial-tip";
 
 interface ConversationItem {
   id: string;
@@ -119,6 +120,11 @@ export default function ConversationsScreen() {
         ListHeaderComponent={
           <View>
             <Text style={s.title}>Pokalbiai</Text>
+
+            <TutorialTip
+              id="conversations_intro"
+              text="Jei kas norės su tavimi susisiekti, užklausą matysi čia. Jei nepriimsi, jie to net nesužinos."
+            />
 
             {requests.length > 0 && (
               <View style={s.requestsSection}>

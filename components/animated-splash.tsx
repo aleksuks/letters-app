@@ -52,7 +52,7 @@ export function AnimatedSplash() {
   const [background] = useState(pickBackground);
   const [frameIndex, setFrameIndex] = useState(0);
   const [fontsLoaded] = useFonts({
-    CaveatBrush: require("@/assets/fonts/CaveatBrush-Regular.ttf"),
+    SpecialElite: require("@/assets/fonts/SpecialElite-Regular.ttf"),
   });
 
   useEffect(() => {
@@ -67,7 +67,12 @@ export function AnimatedSplash() {
       {background && <Image source={background} style={StyleSheet.absoluteFill} resizeMode="cover" />}
       <View style={styles.content}>
         <Image source={FRAME_SOURCES[frameIndex]} style={styles.logo} resizeMode="contain" />
-        <Text style={[styles.title, { opacity: fontsLoaded ? 1 : 0 }]}>Laiškelis</Text>
+        <Text
+          key={fontsLoaded ? "loaded" : "loading"}
+          style={[styles.title, { opacity: fontsLoaded ? 1 : 0 }]}
+        >
+          Laiškelis
+        </Text>
       </View>
     </View>
   );
@@ -91,8 +96,8 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 8,
-    fontFamily: "CaveatBrush",
-    fontSize: 48,
+    fontFamily: "SpecialElite",
+    fontSize: 40,
     color: TITLE_COLOR,
     textAlign: "center",
   },

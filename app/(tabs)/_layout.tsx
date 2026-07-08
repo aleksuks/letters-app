@@ -129,7 +129,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="stats"
+          name="letters"
           options={{
             title: "Laiškeliai",
             tabBarIcon: ({ color, size }) => (

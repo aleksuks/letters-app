@@ -4,13 +4,15 @@ import {
 } from "react-native";
 import { TabPage } from "@/components/tab-pager";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
+import { TutorialTip } from "@/components/tutorial-tip";
 import { Letter } from "@/types";
 
 export default function LettersScreen() {
@@ -37,6 +39,26 @@ export default function LettersScreen() {
   }, [user]);
 
   useFocusAfterTransition(load);
+
+  // Guards against a fast double-tap pushing two /receive instances at
+  // once — each claims a different letter server-side (receive_letter() is
+  // atomic per call), but only the topmost screen's dismissal releases its
+  // claim; the other stays mounted underneath with an orphaned, unopened
+  // claim until the server reaper catches it 15 minutes later. Resetting
+  // on focus (not a timer) means the button re-arms exactly when the
+  // receive modal is dismissed and this screen is visible again.
+  const navigatingToReceiveRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      navigatingToReceiveRef.current = false;
+    }, [])
+  );
+
+  function handleReceivePress() {
+    if (navigatingToReceiveRef.current) return;
+    navigatingToReceiveRef.current = true;
+    router.push("/receive" as any);
+  }
 
   function handleDelete(letter: Letter) {
     Alert.alert(
@@ -80,6 +102,11 @@ export default function LettersScreen() {
           <View>
             <Text style={s.title}>Laiškeliai</Text>
 
+            <TutorialTip
+              id="letters_intro"
+              text="Parašyk arba gauk laiškelį iš nepažįstamo! Tavo pasirinkimas."
+            />
+
             <View style={s.actions}>
               <TouchableOpacity
                 style={s.primaryButton}
@@ -92,7 +119,7 @@ export default function LettersScreen() {
 
               <TouchableOpacity
                 style={s.secondaryButton}
-                onPress={() => router.push("/receive" as any)}
+                onPress={handleReceivePress}
                 activeOpacity={0.8}
               >
                 <Ionicons name="mail-open-outline" size={22} color={colors.accent} />

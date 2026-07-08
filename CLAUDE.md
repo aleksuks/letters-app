@@ -59,6 +59,12 @@ implementing any screen or table.
   true — prefix matching covers Lithuanian case endings), created_at.
   Founder-managed via the Supabase dashboard only; RLS with no policies
   keeps the list unreadable from the app so it can't be mined.
+- `notification_outbox`: id, user_id, type (like_milestone | letter_died |
+  letter_obituary | reminder), title, body, data (jsonb), push_token
+  (captured at enqueue time), created_at, sent_at, error. Write-only from
+  triggers/cron (SECURITY DEFINER); RLS enabled with no policies, same
+  founder-only-visibility pattern as `moderation_keywords` — clients never
+  read their own notification history, since there is no in-app inbox.
 
 ## Core business rules to implement
 1. A letter is never shown to its own author, and never shown twice to
@@ -109,9 +115,37 @@ implementing any screen or table.
    rough words passes; slur-spam does not. Thresholds and weights are
    tuning knobs in the migration; the keyword list itself is data, not
    code.
+10. Push notifications exist only for a small, deliberate set of events, and
+    stay gentle by design — no badges, no daily digests, no streaks:
+    - **Like milestones**: an author is notified when their letter's
+      `total_like_count` crosses one of a fixed set of thresholds (1, 2, 3,
+      5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 300, 500, 750,
+      1000 — a tuning knob, `letters.last_notified_like_milestone` tracks
+      the high-water mark so a milestone never fires twice).
+    - **Letter death**: an author is notified once when their letter's
+      `status` flips to `expired` (any path — timed expiry or graveyard
+      vote), independent of the Obituary decision.
+    - **Obituary placement**: a second, separate notification fires only
+      when a moderator later flips `approved_for_obituary` to true — never
+      bundled with the death notification, since moderation is a distinct,
+      asynchronous step (rule 4) and most expired letters never clear it.
+    - **Gentle reminder**: at most one low-frequency nudge to check for new
+      letters, sent only to accounts that have been inactive for a while
+      *and* only when at least one letter is actually receivable by that
+      user right now — never sent into an empty pool. Rate-limited per user
+      (`user_profiles.last_reminder_sent_at`) and can be turned off
+      independently of the other notification types (`reminders_enabled`)
+      since it's the one re-engagement-flavored nudge rather than a status
+      update about the user's own letter.
+    Delivery is push-only (Expo push service) — there is no in-app
+    notification center to read these in later; a missed push is just
+    missed. Enqueueing (DB triggers/cron) is decoupled from sending (an
+    Edge Function draining `notification_outbox`) so a delivery failure
+    never blocks the business-logic transaction that generated it.
 
 ## Explicit v1 non-goals (do not build these yet)
-- No push notifications.
+- No in-app notification center/inbox — see rule 10; push is the only
+  surface, and there's nothing to read inside the app itself.
 - No algorithmic recommendation or mood-based matching.
 - No public user profiles beyond nickname.
 - No ML/NLP content moderation (classifiers, embeddings, third-party

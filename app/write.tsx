@@ -3,6 +3,7 @@ import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { EnvelopeLetter } from "@/components/envelope-letter";
+import { TutorialTip } from "@/components/tutorial-tip";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -145,6 +146,12 @@ export default function WriteScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView style={s.scroll} keyboardShouldPersistTaps="handled">
+          <TutorialTip
+            id="write_intro"
+            text="Nebijok rašyti nuoširdžiai — dalinamasi tik tavo slapyvardžiu."
+            style={s.tip}
+          />
+
           <TextInput
             style={s.input}
             value={body}
@@ -221,6 +228,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     sendButtonDisabled: { opacity: 0.4 },
     sendButtonText: { color: colors.accentText, fontWeight: "bold", fontSize: 15 },
     scroll: { flex: 1 },
+    tip: { marginHorizontal: 20, marginTop: 16 },
     input: {
       color: colors.text,
       fontSize: 18,

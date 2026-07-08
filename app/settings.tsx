@@ -9,6 +9,7 @@ import { useRouter } from "expo-router";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
+import { useTutorial } from "@/contexts/tutorial";
 import { supabase } from "@/lib/supabase";
 
 export default function SettingsScreen() {
@@ -16,20 +17,25 @@ export default function SettingsScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const { resetAll: resetTutorial } = useTutorial();
   const s = makeStyles(colors);
 
   const [acceptsRequests, setAcceptsRequests] = useState(true);
+  const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from("user_profiles")
-      .select("accepts_requests")
+      .select("accepts_requests, reminders_enabled")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
-        if (data) setAcceptsRequests(data.accepts_requests);
+        if (data) {
+          setAcceptsRequests(data.accepts_requests);
+          setRemindersEnabled(data.reminders_enabled);
+        }
         setLoaded(true);
       });
   }, [user]);
@@ -44,6 +50,20 @@ export default function SettingsScreen() {
 
     if (error) {
       setAcceptsRequests(!value);
+      Alert.alert("Klaida", error.message);
+    }
+  }
+
+  async function handleToggleReminders(value: boolean) {
+    if (!user) return;
+    setRemindersEnabled(value);
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ reminders_enabled: value })
+      .eq("id", user.id);
+
+    if (error) {
+      setRemindersEnabled(!value);
       Alert.alert("Klaida", error.message);
     }
   }
@@ -81,6 +101,46 @@ export default function SettingsScreen() {
               accessibilityRole="switch"
             />
           </View>
+        </View>
+
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Pranešimai</Text>
+          <View style={[s.settingItem, { marginBottom: 0 }]}>
+            <View style={s.settingContent}>
+              <Text style={s.settingLabel}>Priminti apie naujus laiškelius</Text>
+              <Text style={s.settingDesc}>
+                Retas, švelnus priminimas — tik jei tikrai yra laiškelis, kurį gali gauti
+              </Text>
+            </View>
+            <Switch
+              value={remindersEnabled}
+              onValueChange={handleToggleReminders}
+              disabled={!loaded}
+              trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
+              thumbColor="#fff"
+              accessibilityLabel="Priminti apie naujus laiškelius"
+              accessibilityRole="switch"
+            />
+          </View>
+        </View>
+
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Pagalba</Text>
+          <TouchableOpacity
+            style={[s.settingItem, { marginBottom: 0 }]}
+            onPress={() => {
+              resetTutorial();
+              Alert.alert("Gerai", "Patarimai vėl pasirodys, kai atidarysi atitinkamus ekranus.");
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Rodyti patarimus iš naujo"
+          >
+            <View style={s.settingContent}>
+              <Text style={s.settingLabel}>Rodyti patarimus iš naujo</Text>
+              <Text style={s.settingDesc}>Grąžina visus paaiškinimus, kuriuos jau uždarei</Text>
+            </View>
+            <Ionicons name="refresh" size={20} color={colors.subtext} />
+          </TouchableOpacity>
         </View>
 
         <View style={s.section}>

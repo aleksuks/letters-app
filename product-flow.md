@@ -122,8 +122,32 @@ stranger, with an optional door to real connection if both sides want it.
   public obituary feed even if well-liked (identifying info, distress
   content that needs a different response, harassment, spam).
 
+### 9. Notifications (push-only, deliberately quiet)
+Staying true to the app's low-friction, low-pressure premise, notifications
+are narrow and never gamify engagement — no badges, streaks, or digests.
+- A letter's author gets a short push when their letter's total like count
+  crosses a milestone (1, 2, 3, 5, 10, 15, then round numbers further out).
+  Each milestone fires once.
+- A letter's author gets a push when their letter dies (travels no more —
+  either it aged out at 7 days or lost a graveyard vote). This is separate
+  from and doesn't wait on moderation.
+- If that letter later clears manual review and is placed in the Obituary,
+  the author gets a second, separate push telling them it's resting there
+  publicly now. Most dead letters never reach this step, so it's genuinely
+  a distinct, less common event from the death notice above.
+- Occasionally, an account that's gone quiet for a while gets a gentle
+  nudge to check for new letters — but only when a letter is actually
+  available for them to receive right now, never a hollow "come back"
+  ping into an empty pool. This one nudge type can be turned off in
+  settings independently of the others, since it's the only one that's
+  about bringing someone back rather than reporting on their own letter.
+- These are real OS-level push notifications (the app needs notification
+  permission), not an in-app inbox — there's nowhere to review past
+  notifications inside the app itself.
+
 ## What v1 deliberately excludes
-- No push notifications (maybe later).
+- No in-app notification center — see Notifications below; push is the
+  only surface, there is nothing to browse inside the app.
 - No public profiles beyond nickname.
 - No algorithmic recommendation/mood-matching (that's the bigger future
   idea, not this one).

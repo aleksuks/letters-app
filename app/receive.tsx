@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 import { EnvelopeLetter } from "@/components/envelope-letter";
+import { TutorialTip } from "@/components/tutorial-tip";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -282,6 +283,13 @@ export default function ReceiveScreen() {
           style={[s.actions, actionsStyle]}
           pointerEvents={introDone ? "auto" : "none"}
         >
+          {introDone && (
+            <TutorialTip
+              id="receive_actions_intro"
+              text="Palaikink laišką, ir leisi jam keliauti toliau. Jei nepatiko, siųsk tiesiai į kapines. Jei nori susisiekti su autoriumi, gali nusiųsti užklausą pabendrauti."
+            />
+          )}
+
           {/* Like / dislike */}
           {reaction === "none" && (
             <View style={s.reactionRow}>

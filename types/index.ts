@@ -13,6 +13,10 @@ export interface UserProfile {
   muted_until: string | null;
   banned_at: string | null;
   created_at: string;
+  push_token: string | null;
+  last_active_at: string;
+  last_reminder_sent_at: string | null;
+  reminders_enabled: boolean;
 }
 
 export interface Letter {
@@ -23,11 +27,15 @@ export interface Letter {
   expires_at: string;
   status: LetterStatus;
   like_count: number;
+  after_like_count: number;
+  total_like_count: number;
   travel_count: number;
   recipient_cap: number;
   dislike_count: number;
   last_delivered_at: string | null;
+  died_at: string | null;
   approved_for_obituary: boolean;
+  last_notified_like_milestone: number;
 }
 
 export interface LetterWithNickname extends Letter {

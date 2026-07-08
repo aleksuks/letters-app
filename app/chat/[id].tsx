@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, FlatList, TextInput,
   TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, Alert, ActivityIndicator,
+  Platform, Alert, ActivityIndicator, Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInLeft, FadeInRight } from "react-native-reanimated";
@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { Message } from "@/types";
+import { TutorialTip } from "@/components/tutorial-tip";
 
 interface ConversationDetails {
   id: string;
@@ -89,6 +90,38 @@ export default function ChatScreen() {
 
     return () => { supabase.removeChannel(channel); };
   }, [id, user]);
+
+  const visibleMessages = useMemo(
+    () => messages.filter(m => !(m.deleted_for_sender && m.sender_id === user?.id)),
+    [messages, user]
+  );
+
+  const handleDeleteForMe = useCallback((messageId: string) => {
+    Alert.alert(
+      "Ištrinti žinutę sau?",
+      "Ji ir toliau bus matoma kitam pokalbio dalyviui.",
+      [
+        { text: "Atšaukti", style: "cancel" },
+        {
+          text: "Ištrinti",
+          style: "destructive",
+          onPress: async () => {
+            setMessages(prev => prev.map(m =>
+              m.id === messageId ? { ...m, deleted_for_sender: true } : m
+            ));
+            const { error } = await supabase.rpc("delete_message_for_me", { p_message_id: messageId });
+            if (error) {
+              // Roll back — the RPC is the source of truth here.
+              setMessages(prev => prev.map(m =>
+                m.id === messageId ? { ...m, deleted_for_sender: false } : m
+              ));
+              Alert.alert("Klaida", error.message);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
 
   async function handleSend() {
     if (!input.trim() || !user || sending) return;
@@ -233,6 +266,12 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </View>
 
+      <TutorialTip
+        id="chat_intro"
+        text="Pokalbis neįpareigoja - gali ištrinti ir išeiti be įspėjimo arba pranešti jei turinys visai nepriimtinas."
+        style={s.tip}
+      />
+
       {conv?.reported_at && (
         <View style={s.reportedBanner}>
           <Ionicons name="flag" size={14} color={colors.subtext} />
@@ -248,7 +287,7 @@ export default function ChatScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <FlatList
-          data={messages}
+          data={visibleMessages}
           keyExtractor={item => item.id}
           inverted
           contentContainerStyle={s.messageList}
@@ -264,14 +303,19 @@ export default function ChatScreen() {
                     : (isOwn ? FadeInRight : FadeInLeft).duration(220)
                 }
               >
-                <View style={[s.bubble, isOwn ? s.bubbleOwn : s.bubbleOther]}>
-                  <Text style={[s.bubbleText, isOwn && s.bubbleTextOwn]}>
-                    {item.body}
-                  </Text>
-                  <Text style={[s.bubbleTime, isOwn && s.bubbleTimeOwn]}>
-                    {formatTime(item.created_at)}
-                  </Text>
-                </View>
+                <Pressable
+                  onLongPress={isOwn ? () => handleDeleteForMe(item.id) : undefined}
+                  delayLongPress={350}
+                >
+                  <View style={[s.bubble, isOwn ? s.bubbleOwn : s.bubbleOther]}>
+                    <Text style={[s.bubbleText, isOwn && s.bubbleTextOwn]}>
+                      {item.body}
+                    </Text>
+                    <Text style={[s.bubbleTime, isOwn && s.bubbleTimeOwn]}>
+                      {formatTime(item.created_at)}
+                    </Text>
+                  </View>
+                </Pressable>
               </Animated.View>
             );
           }}
@@ -317,6 +361,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderBottomColor: colors.tabBarBorder,
     },
     headerName: { fontSize: 17, fontWeight: "600", color: colors.text },
+    tip: { marginHorizontal: 16, marginTop: 12 },
     reportedBanner: {
       flexDirection: "row",
       alignItems: "center",

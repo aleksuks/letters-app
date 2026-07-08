@@ -7,7 +7,7 @@ import { useFonts } from "expo-font";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Svg, { Line, Path, Rect } from "react-native-svg";
+import Svg, { Defs, Image as SvgImage, Line, Path, Pattern, Rect } from "react-native-svg";
 import Animated, {
   Easing,
   interpolate,
@@ -33,6 +33,13 @@ type Props = {
    * timed to the letter's last upward motion instead of cutting in only
    * once `onDone` fires. */
   onPulling?: () => void;
+  /** Receive only: plays the open + pull beats automatically, back to back,
+   * instead of pausing at each one to wait for a swipe or tap — used for
+   * the one-time welcome letter, which presents itself with no gesture
+   * required. The waiting phases still exist (so timing/haptics/sound stay
+   * identical to a manual receive) but their gestures are disabled and the
+   * pulsing "swipe me" prompt never appears, since there's nothing to do. */
+  autoPlay?: boolean;
 };
 
 // The ceremony is a sequence of automatic beats (the envelope/letter moving
@@ -64,11 +71,13 @@ const DRAG_DISTANCE = 110;
 // Effectively "never" for the wrong-direction bound of activeOffsetY, so a
 // pan only ever activates for the one direction that matters per stage.
 const NEVER = 100000;
-// Progress units per second a drag-driven value is allowed to visually
-// travel — high enough that ordinary drags (even fast ones) still read as
-// direct 1:1 finger tracking, but a near-instantaneous jump (a full swipe
-// registered within a single touch event) still gets a barely-perceptible
-// floor duration (~140ms for the full 0..1 range) instead of teleporting.
+// Progress units per second the visual follow is allowed to travel while
+// chasing the finger — capped just high enough that ordinary drags still
+// read as immediate, but a near-instantaneous jump (a full swipe registered
+// within a single touch event) animates into place over a short, visible
+// beat instead of teleporting. Purely cosmetic: it only smooths what's
+// drawn on screen, and is never consulted when deciding whether a drag has
+// committed (see onUpdate below).
 const MAX_DRAG_SPEED = 7;
 // px/s of vertical velocity, in the gesture's forward direction, that counts
 // as a confident flick — lets a fast swipe commit a stage even if the
@@ -76,12 +85,40 @@ const MAX_DRAG_SPEED = 7;
 // flicks are often shorter *and* faster than a deliberate slow drag.
 const FLICK_VELOCITY = 800;
 
+// Recycled-paper grain used to fill the envelope's surfaces (pocket, flap)
+// instead of a flat color — the stroked outlines/creases stay separate
+// <Path>/<Line> strokes on top, untouched by this.
+const PAPER_TEXTURE = require("@/assets/images/paper.jpg");
+
+// One texture tile stretched (cropped, not repeated) to exactly cover a
+// width x height shape — avoids visible seams a true repeating pattern
+// would need a seamless source image for. `id` must be unique within the
+// enclosing <Svg> (each envelope surface is its own separate <Svg> root,
+// so the same id can safely be reused across them).
+function paperFill(id: string, width: number, height: number) {
+  return (
+    <Defs>
+      <Pattern id={id} width={width} height={height} patternUnits="userSpaceOnUse">
+        <SvgImage
+          href={PAPER_TEXTURE}
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          preserveAspectRatio="xMidYMid slice"
+        />
+      </Pattern>
+    </Defs>
+  );
+}
+
 /**
  * Builds the tap-or-drag gesture for one gestured stage of the ceremony
  * (closing the flap, sending it away, opening the flap, pulling the letter
- * out). `value` tracks the finger from `from` to `to` as the user drags
- * (speed-capped only enough to keep a near-instant jump visible); `dragUp`
- * selects which finger direction counts as forward progress. Reaching `to`
+ * out). `value` eases toward the finger's `from`..`to` position as the user
+ * drags (capped-speed, so it stays a visible animation rather than a raw
+ * teleport on a fast swipe); `dragUp` selects which finger direction counts
+ * as forward progress. Reaching `to`
  * mid-drag, or releasing early with a fast enough flick, commits
  * automatically; releasing a slow partial drag springs back to `from`. A
  * plain tap is a full-speed fallback for anyone who can't or doesn't want
@@ -142,18 +179,25 @@ function buildDragStage({
         midpointTicked.value = false;
       }
 
+      // Eased follow purely for how it looks on screen — capped-duration
+      // so a fast swipe still animates instead of teleporting.
       const duration = (Math.abs(target - value.value) / MAX_DRAG_SPEED) * 1000;
-      value.value = withTiming(
-        target,
-        { duration, easing: Easing.linear },
-        (finished) => {
-          if (finished && t >= 1 && !committing.value) {
-            committing.value = true;
-            runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-            runOnJS(onCommit)(true);
-          }
-        }
-      );
+      value.value = withTiming(target, { duration, easing: Easing.linear });
+
+      // Committing is decided directly off the raw drag progress `t`
+      // above, never off whether the eased follow animation has finished
+      // — it used to be gated on that animation's completion callback,
+      // but a fast drag starts a new withTiming on every touch move,
+      // interrupting the previous one before it can ever report
+      // `finished`, so a quick swipe that reached the end of the drag
+      // distance could silently fail to commit. Checking `t` here instead
+      // means the visual catch-up can lag a swipe without the commit
+      // decision ever depending on it.
+      if (t >= 1) {
+        committing.value = true;
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+        runOnJS(onCommit)(true);
+      }
     })
     .onEnd((e) => {
       if (committing.value) return;
@@ -189,19 +233,17 @@ function buildDragStage({
  * envelope arrives, the user tears it open (upward swipe), the letter pops
  * up on its own, and a second upward swipe pulls it free.
  * Calls onDone when the full sequence finishes; haptics and sound effects
- * mark every beat (send/receive whooshes on flight, a woosh layered in as
- * the letter actually flies away, a scrubbing tear on opening).
+ * mark every beat (a woosh as the letter flies away, a scrubbing tear on
+ * opening).
  */
-export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props) {
+export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPlay }: Props) {
   const { colors } = useTheme();
   const { reducedMotion } = useAccessibility();
-  const playSend = useSound(require("@/assets/sounds/send.wav"));
-  const playReceive = useSound(require("@/assets/sounds/receive.wav"));
   const playWoosh = useSound(require("@/assets/sounds/woosh.wav"));
   const tear = useScrubSound(require("@/assets/sounds/tear.wav"));
   const { width, height } = useWindowDimensions();
   const [fontsLoaded] = useFonts({
-    SueEllen: require("@/assets/fonts/SueEllenFrancisco-Regular.ttf"),
+    SpecialElite: require("@/assets/fonts/SpecialElite-Regular.ttf"),
   });
   const [phase, setPhase] = useState<Phase>(mode === "send" ? "entering" : "arriving");
 
@@ -246,11 +288,18 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   // visually rendered there. The group is then shifted up by half that
   // headroom (negative margin) so the envelope itself — not the invisible
   // headroom — ends up sitting at the visual center.
-  const ENVELOPE_H = Math.round(SHEET_H * 1.15);
-  const FLAP_H = Math.round(ENVELOPE_H * 0.58);
+  //
   // The pocket is a little wider than the letter so the paper visibly fits
   // *inside* it rather than sharing its exact silhouette.
   const ENVELOPE_W = SHEET_W + 14;
+  // Fixed, compact aspect ratio — independent of the letter's own height, so
+  // the envelope always reads as an envelope instead of stretching tall for
+  // long letters (it used to be derived from SHEET_H directly, which made it
+  // nearly as tall as it was wide for long letters). A letter taller than
+  // this isn't grown to fit; see TUCKED_Y/TUCKED_VISIBLE_H below, which
+  // clip the excess at the pocket floor instead.
+  const ENVELOPE_H = Math.round(ENVELOPE_W * 0.72);
+  const FLAP_H = Math.round(ENVELOPE_H * 0.58);
   const PAPER_LEFT = (ENVELOPE_W - SHEET_W) / 2;
   // "Fully out": the sheet sits above the envelope with just its bottom
   // edge dipping into the mouth, so it still reads as belonging to it.
@@ -258,12 +307,19 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   const HEADROOM = Math.abs(FULLY_OUT_Y) + 24;
   const GROUP_H = ENVELOPE_H + HEADROOM;
   const ENVELOPE_TOP = HEADROOM;
-  // Tucked letters rest on the envelope floor (translateY relative to the
-  // paper's laid-out position, which is top: ENVELOPE_TOP): the sheet's
-  // bottom edge sits a few px above the pocket's bottom, leaving a sliver
-  // of shaded interior visible above it through the mouth notch — that gap
-  // is what reads as "a letter sitting inside an envelope".
-  const TUCKED_Y = ENVELOPE_H - SHEET_H - 6;
+  // Tucked letters rest just under the envelope's mouth — a small, fixed
+  // inset from the top, not floor-anchored, now that the envelope no longer
+  // grows to match the letter's height.
+  const TUCKED_Y = 6;
+  // How much of the sheet is visible while fully tucked: from the inset
+  // above down to a few px shy of the pocket floor (paperSlotStyle clips
+  // to exactly this via an animated height). Only ever less than SHEET_H
+  // for a letter longer than the envelope — short letters are unaffected,
+  // since this is then just SHEET_H itself.
+  const TUCKED_VISIBLE_H = Math.max(
+    SHEET_PADDING * 2,
+    Math.min(SHEET_H, ENVELOPE_H - TUCKED_Y - 6)
+  );
 
   // Reduced motion keeps the same sequence of beats (so onDone still fires
   // and state stays consistent) but compresses every duration/delay to
@@ -397,7 +453,6 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
     invite.value = withTiming(0, { duration: 150 });
     onStart?.();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    playSend();
     playWoosh();
     const flightDelay = fromDrag ? 0 : d(90);
     const flightDuration = d(450);
@@ -430,7 +485,6 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   // arrival.
   function beginArrival() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    playReceive();
     const flightDuration = d(450);
     setTimeout(
       () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
@@ -452,7 +506,7 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPhase("waitingToOpen");
     committing.value = false;
-    startInvite();
+    if (!autoPlay) startInvite();
   }
 
   function commitOpen(fromDrag: boolean) {
@@ -494,7 +548,7 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   function afterPeek() {
     setPhase("waitingToPull");
     committing.value = false;
-    startInvite();
+    if (!autoPlay) startInvite();
   }
 
   function commitPull(fromDrag: boolean) {
@@ -538,6 +592,27 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Drives autoPlay through the two gestured receive stages on a plain
+  // timer, keyed off `phase` rather than fired inline from arrive()/
+  // afterPeek(). Those functions call setPhase() and a setTimeout scheduled
+  // in that same tick would still close over the *pre-transition* phase —
+  // commitOpen/commitPull each guard on `if (phase !== "waitingTo...")
+  // return`, so a stale closure's timer would silently no-op. Keying this
+  // effect off `phase` guarantees commitOpen/commitPull are called from a
+  // render where phase has actually caught up.
+  useEffect(() => {
+    if (!autoPlay) return;
+    if (phase === "waitingToOpen") {
+      const timer = setTimeout(() => commitOpen(false), d(500));
+      return () => clearTimeout(timer);
+    }
+    if (phase === "waitingToPull") {
+      const timer = setTimeout(() => commitPull(false), d(500));
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, autoPlay]);
+
   const closeGesture = buildDragStage({
     enabled: phase === "waitingToClose",
     value: flap,
@@ -567,7 +642,7 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   });
 
   const openGesture = buildDragStage({
-    enabled: phase === "waitingToOpen",
+    enabled: phase === "waitingToOpen" && !autoPlay,
     value: flap,
     from: 1,
     to: 0,
@@ -580,7 +655,7 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   });
 
   const pullGesture = buildDragStage({
-    enabled: phase === "waitingToPull",
+    enabled: phase === "waitingToPull" && !autoPlay,
     value: emerge,
     from: 0.35,
     to: 1,
@@ -594,10 +669,11 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   const gesture = Gesture.Race(closeGesture, launchGesture, openGesture, pullGesture);
 
   const interactive =
-    phase === "waitingToClose" ||
-    phase === "waitingToSend" ||
-    phase === "waitingToOpen" ||
-    phase === "waitingToPull";
+    !autoPlay &&
+    (phase === "waitingToClose" ||
+      phase === "waitingToSend" ||
+      phase === "waitingToOpen" ||
+      phase === "waitingToPull");
 
   const promptStyle = useAnimatedStyle(() => ({
     opacity: invite.value,
@@ -634,24 +710,31 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
 
   // The paper's vertical slot: send slides it from fully-out (readable,
   // above the envelope) down into the pocket; receive holds it tucked
-  // until pulled, then carries it fully out. Opacity fades the paper's own
-  // sliver-through-the-notch visibility directly off `flap.value`, fully
-  // hidden by the time the flap is close enough to flat to read as
-  // "closed" and fully back by the time it's far enough open to read as
-  // "open". This is simpler and more robust than trying to have the 3D
-  // rotateX flap (which foreshortens as it swings, see flapFrontStyle)
-  // geometrically occlude the notch itself — that left a gap the paper
-  // could show through partway through the swing, and any patch built on
-  // top of that geometry was one more moving part to keep in sync. Fading
-  // the paper directly needs no such sync: it's invisible well before any
-  // rotation-angle gap could expose it.
+  // until pulled, then carries it fully out. No opacity tricks — the
+  // paper is fully opaque and hidden purely by layer order: the pocket
+  // front covers everything below the mouth notch, the tucked sheet's
+  // top sliver stays visible through the notch (that's the "letter
+  // inside" read), and a mid-swing flap covering only part of the notch
+  // is a real envelope's look, not a bug. This is safe only because the
+  // flap's 3D rotation is flattened inside its clip wrappers — see the
+  // flapClip comment for the iOS depth-compositing failure that
+  // otherwise makes these sibling layers z-fight.
+  //
+  // `height` rides along on the same interpolation, animating between the
+  // sheet's full height (clear of the envelope) and TUCKED_VISIBLE_H
+  // (fully tucked) — a no-op for a letter that fits, but for one longer
+  // than the envelope it crops the excess at the pocket floor via the
+  // wrapping view's overflow:hidden instead of letting it hang out below.
   const paperSlotStyle = useAnimatedStyle(() => {
     const y =
       mode === "send"
         ? interpolate(slide.value, [0, 1], [FULLY_OUT_Y, TUCKED_Y])
         : interpolate(emerge.value, [0, 1], [TUCKED_Y, FULLY_OUT_Y]);
-    const opacity = Math.min(1, interpolate(flap.value, [0.5, 1], [1, 0]));
-    return { opacity, transform: [{ translateY: y }] };
+    const tuckedness = mode === "send" ? slide.value : 1 - emerge.value;
+    return {
+      transform: [{ translateY: y }],
+      height: interpolate(tuckedness, [0, 1], [SHEET_H, TUCKED_VISIBLE_H]),
+    };
   });
 
   // The flap rotates on a hinge along the envelope's top edge, from sealed
@@ -660,23 +743,27 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   // envelope flap. Two single-faced copies fake its two sides: the outer
   // face (in front of everything, seals the mouth) renders for the closed
   // half of the swing, the inner face (behind the letter, so paper slides
-  // out in front of it) for the open half. Both copies use the *identical*
-  // hinge transform — a translate/rotate/translate sandwich pivoting at
-  // the shape's own top edge instead of its center. No 180deg pre-flip on
-  // the inner copy: the faces are plain fills with no directional content,
-  // and an extra rotation about the element's center would re-anchor the
-  // silhouette so the open flap rendered apex-down at the hinge instead of
-  // apex-up above it. The visibility handoff is a hard opacity cut at
-  // exactly 90deg, where the flap is edge-on and invisible anyway — which
-  // also sidesteps backfaceVisibility, unreliable on Android for views
-  // with children.
+  // out in front of it) for the open half. The hinge comes from layout,
+  // not a transform sandwich: each face's view is double the flap's
+  // height with the triangle anchored in its bottom half (flapPlane
+  // below), so the view's own center — the pivot RN rotates about — *is*
+  // the hinge line, and the transform stays a bare perspective+rotateX.
+  // That matters on Android, which can't apply an arbitrary 4x4 matrix to
+  // a view: it decomposes the matrix into rotation/translation view props
+  // and drops the z-translation, so the previous translate/rotate/
+  // translate pivot sandwich re-anchored at the center and visibly
+  // detached the flap from its hinge mid-swing (sagging off the top edge
+  // and pinching narrower than the notch); a pure center rotateX survives
+  // the decomposition exactly. No 180deg pre-flip on the inner copy: the
+  // faces are plain fills with no directional content. The visibility
+  // handoff is a hard opacity cut at exactly 90deg, where the flap is
+  // edge-on and invisible anyway — which also sidesteps
+  // backfaceVisibility, unreliable on Android for views with children.
   const flapFrontStyle = useAnimatedStyle(() => ({
     opacity: flap.value >= 0.5 ? 1 : 0,
     transform: [
       { perspective: 1400 },
-      { translateY: -FLAP_H / 2 },
       { rotateX: `${interpolate(flap.value, [0, 1], [180, 0])}deg` },
-      { translateY: FLAP_H / 2 },
     ],
   }));
 
@@ -684,9 +771,7 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
     opacity: flap.value < 0.5 ? 1 : 0,
     transform: [
       { perspective: 1400 },
-      { translateY: -FLAP_H / 2 },
       { rotateX: `${interpolate(flap.value, [0, 1], [180, 0])}deg` },
-      { translateY: FLAP_H / 2 },
     ],
   }));
 
@@ -696,7 +781,7 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
       <Text
         style={{
           color: colors.text,
-          fontFamily: fontsLoaded ? "SueEllen" : undefined,
+          fontFamily: fontsLoaded ? "SpecialElite" : undefined,
           fontSize,
           lineHeight,
         }}
@@ -733,6 +818,13 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   //                   creases running from the bottom corners up to the
   //                   notch apex;
   //   z3 flap front — the flap's outer face, sealing the mouth when closed.
+  // This ordering is only trustworthy because every layer here is FLAT.
+  // The flap's 3D rotation lives inside overflow-hidden wrappers (see
+  //  flapClip below): iOS Core Animation depth-composites siblings in
+  // real 3D the moment any sibling layer has a non-flat transform, and
+  // the coplanar paper/pocket layers then z-fight per frame — the letter
+  // visibly flickered in front of the whole envelope during every flap
+  // swing until the 3D was contained.
   const interior = (
     <Svg
       width={ENVELOPE_W}
@@ -740,13 +832,14 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
       style={{ position: "absolute", top: ENVELOPE_TOP, left: 0, zIndex: 0 }}
       pointerEvents="none"
     >
+      {paperFill("envelopeTexture", ENVELOPE_W, ENVELOPE_H)}
       <Rect
         x={E}
         y={E}
         width={ENVELOPE_W - 2 * E}
         height={ENVELOPE_H - 2 * E}
         rx={R}
-        fill={colors.surface}
+        fill="url(#envelopeTexture)"
         stroke={colors.border}
         strokeWidth={1}
       />
@@ -779,9 +872,10 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
       style={{ position: "absolute", top: ENVELOPE_TOP, left: 0, zIndex: 2 }}
       pointerEvents="none"
     >
+      {paperFill("envelopeTexture", ENVELOPE_W, ENVELOPE_H)}
       <Path
         d={pocketFrontPath}
-        fill={colors.surface}
+        fill="url(#envelopeTexture)"
         stroke={colors.border}
         strokeWidth={1}
         strokeLinejoin="round"
@@ -810,9 +904,10 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
   const flapPath = `M ${E} ${E} L ${ENVELOPE_W - E} ${E} L ${ENVELOPE_W / 2} ${FLAP_H - E} Z`;
   const flapFace = (inner: boolean) => (
     <Svg width={ENVELOPE_W} height={FLAP_H}>
+      {paperFill("flapTexture", ENVELOPE_W, FLAP_H)}
       <Path
         d={flapPath}
-        fill={colors.surface}
+        fill="url(#flapTexture)"
         stroke={colors.border}
         strokeWidth={1}
         strokeLinejoin="round"
@@ -821,12 +916,36 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
     </Svg>
   );
 
-  const flapGeometry = {
+  // Each flap face is a static overflow-hidden wrapper (flapClip) around
+  // the rotating plane (flapPlane). The wrapper is what the rest of the
+  // envelope composites against, and clipping forces the rotated plane
+  // to be flattened into it first — without this, iOS Core Animation
+  // sees a sibling with a non-flat 3D transform and switches the whole
+  // sibling group to true depth compositing, where the paper and pocket
+  // (both at depth 0) z-fight and the letter flickers in front of the
+  // entire envelope on every flap swing. The padding keeps the
+  // perspective-magnified projection (apex swings toward the camera,
+  // scaling up to ~1.13x, and platform camera tuning varies) clear of
+  // the clip edge for the whole swing.
+  const FLAP_PAD = Math.round(FLAP_H * 0.4);
+  const flapClip = {
     position: "absolute",
-    top: ENVELOPE_TOP,
-    left: 0,
+    top: ENVELOPE_TOP - FLAP_H - FLAP_PAD,
+    left: -FLAP_PAD,
+    width: ENVELOPE_W + FLAP_PAD * 2,
+    height: FLAP_H * 2 + FLAP_PAD * 2,
+    overflow: "hidden",
+  } as const;
+  // Double-height with the triangle pushed to the bottom half, so the
+  // view's center — RN's rotation pivot — lands exactly on the hinge
+  // (the envelope's top edge); see the hinge comment above flapFrontStyle.
+  const flapPlane = {
+    position: "absolute",
+    top: FLAP_PAD,
+    left: FLAP_PAD,
     width: ENVELOPE_W,
-    height: FLAP_H,
+    height: FLAP_H * 2,
+    justifyContent: "flex-end",
   } as const;
 
   const promptCopy: Record<string, { label: string; icon: "gesture-swipe-up" | "gesture-swipe-down" }> = {
@@ -866,22 +985,23 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
                 the paper so the letter slides out in front of the open
                 flap and rests against the shaded inside of the pocket. */}
             {interior}
-            <Animated.View
-              style={[{ ...flapGeometry, zIndex: 0 }, flapBackStyle]}
-              pointerEvents="none"
-            >
-              {flapFace(true)}
-            </Animated.View>
+            <View style={{ ...flapClip, zIndex: 0 }} pointerEvents="none">
+              <Animated.View style={[flapPlane, flapBackStyle]}>
+                {flapFace(true)}
+              </Animated.View>
+            </View>
 
             {/* Paper: a single flat sheet, sliding between "fully out"
-                (above the envelope) and "tucked" (resting on the envelope
-                floor, its written face visible through the pocket's mouth
-                notch). surfaceAlt — whiter than the surface-colored
-                envelope — so it stays visibly *a letter* against the
-                shaded pocket interior. */}
+                (above the envelope) and "tucked" (resting just under the
+                envelope's mouth, its written face visible through the
+                pocket's notch). surfaceAlt — whiter than the surface-colored
+                envelope — so it stays visibly *a letter* against the shaded
+                pocket interior. overflow:hidden + the animated height on
+                paperSlotStyle crop a letter taller than the envelope at the
+                pocket floor instead of letting it hang out below. */}
             <Animated.View
               style={[
-                { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, height: SHEET_H, zIndex: 1 },
+                { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 1 },
                 paperSlotStyle,
               ]}
             >
@@ -903,15 +1023,13 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling }: Props
 
             {/* Pocket front (mouth notch cut into its top edge), then the
                 flap's outer face on top of everything for the visible
-                swinging motion — the paper's own opacity (paperSlotStyle
-                above) is what actually keeps it hidden while closed. */}
+                swinging motion. */}
             {pocketFront}
-            <Animated.View
-              style={[{ ...flapGeometry, zIndex: 3 }, flapFrontStyle]}
-              pointerEvents="none"
-            >
-              {flapFace(false)}
-            </Animated.View>
+            <View style={{ ...flapClip, zIndex: 3 }} pointerEvents="none">
+              <Animated.View style={[flapPlane, flapFrontStyle]}>
+                {flapFace(false)}
+              </Animated.View>
+            </View>
           </Animated.View>
         </GestureDetector>
       </View>
