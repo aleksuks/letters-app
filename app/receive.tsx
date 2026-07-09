@@ -7,7 +7,7 @@ import { EnvelopeLetter } from "@/components/envelope-letter";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/lib/haptics";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert,

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Dimensions, Image, ImageSourcePropType, Platform, PixelRatio, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Image, ImageSourcePropType, Platform, PixelRatio, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useFonts } from "expo-font";
+
+const CONTENT_HORIZONTAL_PADDING = 24;
 
 const FRAME_SOURCES: ImageSourcePropType[] = [
   require("@/assets/images/logo-frame-1.png"),
@@ -49,11 +51,25 @@ const BACKGROUND_COLOR = "#E3DAC9";
 const TITLE_COLOR = "#96150D";
 
 export function AnimatedSplash() {
+  // Read the real device width straight from the native constants rather
+  // than trusting the ancestor Flexbox chain (SafeAreaProvider / the Stack
+  // navigator's screen container). On a cold launch those don't always
+  // have their true committed size on the very first layout pass, so a
+  // percentage-of-ancestor width can lock the title's adjustsFontSizeToFit
+  // shrink onto a transient, too-narrow value that never corrects itself.
+  const { width: windowWidth } = useWindowDimensions();
   const [background] = useState(pickBackground);
   const [frameIndex, setFrameIndex] = useState(0);
   const [fontsLoaded] = useFonts({
     SpecialElite: require("@/assets/fonts/SpecialElite-Regular.ttf"),
   });
+  // On Android, `fontsLoaded` can flip true a frame or two before the native
+  // font manager has actually registered the typeface for text measurement.
+  // Rendering the title immediately on that flip sometimes measures the box
+  // against the old (fallback) font metrics and then paints the wider
+  // SpecialElite glyphs into it, clipping the tail of the word. Waiting a
+  // couple of frames lets native settle before Yoga measures the text.
+  const [fontReady, setFontReady] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -62,14 +78,30 @@ export function AnimatedSplash() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => setFontReady(true));
+      return () => cancelAnimationFrame(raf2);
+    });
+    return () => cancelAnimationFrame(raf1);
+  }, [fontsLoaded]);
+
   return (
     <View style={styles.container}>
       {background && <Image source={background} style={StyleSheet.absoluteFill} resizeMode="cover" />}
       <View style={styles.content}>
         <Image source={FRAME_SOURCES[frameIndex]} style={styles.logo} resizeMode="contain" />
         <Text
-          key={fontsLoaded ? "loaded" : "loading"}
-          style={[styles.title, { opacity: fontsLoaded ? 1 : 0 }]}
+          key={fontReady ? "loaded" : "loading"}
+          style={[
+            styles.title,
+            { width: windowWidth - CONTENT_HORIZONTAL_PADDING * 2, opacity: fontReady ? 1 : 0 },
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
+          allowFontScaling={false}
         >
           Laiškelis
         </Text>
@@ -86,7 +118,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   content: {
-    width: "100%",
     alignItems: "center",
     justifyContent: "center",
   },

@@ -6,7 +6,7 @@ import { EnvelopeLetter } from "@/components/envelope-letter";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/lib/haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef, useState } from "react";
 import {

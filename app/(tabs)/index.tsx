@@ -295,7 +295,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       backgroundColor: "rgba(0,0,0,0.3)",
       justifyContent: "flex-end",
       zIndex: 100,
-      elevation: 100,
+      elevation: 20,
     },
     sortMenu: {
       backgroundColor: colors.surface,

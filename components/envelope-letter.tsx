@@ -2,7 +2,7 @@ import { useTheme } from "@/contexts/theme";
 import { useAccessibility } from "@/contexts/accessibility";
 import { useSound, useScrubSound } from "@/hooks/use-sound";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "@/lib/haptics";
 import { useFonts } from "expo-font";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";

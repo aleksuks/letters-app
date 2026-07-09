@@ -10,6 +10,13 @@
         "simulator": true
       },
       "channel": "preview-sim"
+    },
+    "preview-apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "channel": "preview-apk"
     }
   }
 }

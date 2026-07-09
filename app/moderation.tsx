@@ -19,6 +19,19 @@ type ConvMessage = { sender: string; body: string };
 
 type ReportItem = Report & { preview: string; messages?: ConvMessage[] };
 
+type OverviewStats = {
+  active_letters_count: number;
+  total_letters_count: number;
+  obituary_public_count: number;
+  pending_obituary_review: number;
+  open_reports_count: number;
+  total_users_count: number;
+  active_users_24h: number;
+  active_users_7d: number;
+  total_conversations_count: number;
+  total_messages_count: number;
+};
+
 export default function ModerationScreen() {
   const router = useRouter();
   const { colors } = useTheme();
@@ -26,7 +39,9 @@ export default function ModerationScreen() {
   const s = makeStyles(colors);
 
   const [letters, setLetters] = useState<QueueLetter[]>([]);
+  const [activeLetters, setActiveLetters] = useState<QueueLetter[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
+  const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [actingOn, setActingOn] = useState<string | null>(null);
 
@@ -47,9 +62,18 @@ export default function ModerationScreen() {
             .order("expires_at", { ascending: true })
         ),
       loadReports(),
-    ]).then(([lettersRes, reportItems]) => {
+      supabase
+        .from("letters")
+        .select("*, author:user_profiles(nickname)")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase.rpc("moderation_overview_stats").single(),
+    ]).then(([lettersRes, reportItems, activeLettersRes, overviewRes]) => {
       setLetters((lettersRes.data as QueueLetter[]) ?? []);
       setReports(reportItems);
+      setActiveLetters((activeLettersRes.data as QueueLetter[]) ?? []);
+      setOverview((overviewRes.data as OverviewStats) ?? null);
       setLoading(false);
     });
   }, []);
@@ -142,6 +166,11 @@ export default function ModerationScreen() {
     setReports(prev => prev.filter(r => r.id !== report.id));
   }
 
+  function daysLeft(expiresAt: string) {
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }
+
   function confirmBan(report: ReportItem) {
     Alert.alert(
       "Ban this user?",
@@ -188,6 +217,41 @@ export default function ModerationScreen() {
         ListHeaderComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} />}
+
+            {!loading && overview && (
+              <View style={s.statsSection}>
+                <Text style={s.sectionTitle}>Overview</Text>
+                <View style={s.statsGrid}>
+                  <StatTile label="Active letters" value={overview.active_letters_count} s={s} />
+                  <StatTile label="Total letters" value={overview.total_letters_count} s={s} />
+                  <StatTile label="In Obituary" value={overview.obituary_public_count} s={s} />
+                  <StatTile label="Pending review" value={overview.pending_obituary_review} s={s} />
+                  <StatTile label="Open reports" value={overview.open_reports_count} s={s} />
+                  <StatTile label="Total users" value={overview.total_users_count} s={s} />
+                  <StatTile label="Active (24h)" value={overview.active_users_24h} s={s} />
+                  <StatTile label="Active (7d)" value={overview.active_users_7d} s={s} />
+                  <StatTile label="Conversations" value={overview.total_conversations_count} s={s} />
+                  <StatTile label="Messages" value={overview.total_messages_count} s={s} />
+                </View>
+              </View>
+            )}
+
+            {!loading && activeLetters.length > 0 && (
+              <View style={s.reportsSection}>
+                <Text style={s.sectionTitle}>Active letters ({activeLetters.length})</Text>
+                {activeLetters.map(item => (
+                  <View key={item.id} style={s.card}>
+                    <Text style={s.cardBody} numberOfLines={3}>{item.body}</Text>
+                    <View style={s.cardMeta}>
+                      <Text style={s.metaText}>{item.author?.nickname ?? "unknown"}</Text>
+                      <Text style={s.metaText}>
+                        ❤ {item.like_count} · 💀 {item.dislike_count} · {item.travel_count}/{item.recipient_cap} travels · {daysLeft(item.expires_at)}d left
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {!loading && reports.length > 0 && (
               <View style={s.reportsSection}>
@@ -298,6 +362,23 @@ export default function ModerationScreen() {
   );
 }
 
+function StatTile({
+  label,
+  value,
+  s,
+}: {
+  label: string;
+  value: number;
+  s: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View style={s.statTile}>
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
@@ -312,6 +393,22 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     title: { fontSize: 28, fontWeight: "bold", color: colors.text, flex: 1 },
     list: { paddingHorizontal: 16, paddingBottom: 32 },
     empty: { color: colors.subtext, fontSize: 15, marginTop: 4 },
+    statsSection: { marginBottom: 8 },
+    statsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    statTile: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      minWidth: "30%",
+      flexGrow: 1,
+    },
+    statValue: { fontSize: 22, fontWeight: "bold", color: colors.text },
+    statLabel: { fontSize: 12, color: colors.subtext, marginTop: 2 },
     reportsSection: { marginBottom: 8 },
     sectionTitle: {
       fontSize: 13,
