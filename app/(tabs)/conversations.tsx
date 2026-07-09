@@ -192,7 +192,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     container: { flex: 1, backgroundColor: colors.bg },
     title: { fontSize: 32, fontWeight: "bold", color: colors.text, marginTop: 24, marginBottom: 8 },
     center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8 },
-    list: { padding: 16, gap: 2 },
+    list: { paddingHorizontal: 16, paddingBottom: 32, gap: 2 },
     empty: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
     emptyHint: { fontSize: 13, color: colors.subtext },
     requestsSection: { marginTop: 16, marginBottom: 8, gap: 12 },

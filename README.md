@@ -1,1 +1,1 @@
-# Micro Learning App
+# Letters for Strangers app

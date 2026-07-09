@@ -8,12 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenContext, type ScreenProps } from "react-native-screens";
 import Animated, {
   useAnimatedProps,
@@ -122,7 +122,13 @@ export function TabPage({
 
   return (
     <Animated.View style={[{ flex: 1 }, style, animatedStyle]}>
-      <SafeAreaView style={{ flex: 1 }}>{children}</SafeAreaView>
+      {/* Bottom is deliberately excluded: the tab bar (components/tab-bar.tsx)
+          already reserves the bottom inset itself, and the screen container
+          ends exactly where the tab bar begins — adding it here too would
+          double the gap above the tab bar. */}
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+        {children}
+      </SafeAreaView>
       {/* Motion blur while sliding. The overlay translates with the page,
           so the four page overlays tile the viewport seamlessly. On Android
           expo-blur falls back to a subtle translucent tint. */}
