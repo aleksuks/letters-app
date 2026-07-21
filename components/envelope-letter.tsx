@@ -209,7 +209,7 @@ function buildDragStage({
       // short of the full drag distance — real swipes are often shorter
       // and faster than a deliberate slow drag, and requiring the full
       // distance made an otherwise-good swipe silently spring back.
-      if (t < 1 && t > 0.3 && velocity > FLICK_VELOCITY) {
+      if (t < 1 && t > 0.15 && velocity > FLICK_VELOCITY) {
         committing.value = true;
         if (tear) runOnJS(tear.advance)();
         value.value = withTiming(to, { duration: 90, easing: Easing.out(Easing.quad) });
@@ -969,17 +969,24 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
   const prompt = promptCopy[phase];
 
   return (
-    <View style={{ alignItems: "center", gap: 20 }}>
+    // The gesture surface is the whole available screen area, not just the
+    // envelope's own frame. Users swipe wherever their thumb happens to be —
+    // a pan that started a few px off the envelope used to die at
+    // hit-testing (touches outside a view's frame never reach it), which
+    // read as the app randomly ignoring the gesture.
+    <GestureDetector gesture={gesture}>
+      <View
+        style={{ flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", gap: 20 }}
+        accessible={interactive}
+        accessibilityRole={interactive ? "button" : undefined}
+        accessibilityLabel={interactive ? prompt.label : undefined}
+      >
       {/* marginTop shifts the whole (taller-than-the-envelope) group up so
           the envelope itself lands at visual center instead of the extra
           headroom above it — see the ENVELOPE_H/HEADROOM comment above. */}
       <View style={{ width: ENVELOPE_W, height: GROUP_H, marginTop: -HEADROOM / 2 }}>
-        <GestureDetector gesture={gesture}>
           <Animated.View
             style={[{ width: ENVELOPE_W, height: GROUP_H }, containerStyle]}
-            accessible={interactive}
-            accessibilityRole={interactive ? "button" : undefined}
-            accessibilityLabel={interactive ? prompt.label : undefined}
           >
             {/* Envelope interior + the flap's underside: both live behind
                 the paper so the letter slides out in front of the open
@@ -1031,7 +1038,6 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
               </Animated.View>
             </View>
           </Animated.View>
-        </GestureDetector>
       </View>
 
       <Animated.View style={[styles.promptRow, promptStyle]} pointerEvents="none">
@@ -1042,7 +1048,8 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
           </>
         )}
       </Animated.View>
-    </View>
+      </View>
+    </GestureDetector>
   );
 }
 

@@ -18,13 +18,20 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  Easing,
+  FadeIn,
   FadeOut,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 
@@ -37,11 +44,18 @@ type ScreenState =
   | { phase: "empty" }
   | { phase: "ready"; letter: LetterWithAuthor; reaction: Reaction };
 
+// How far (fraction of screen width) the card must be dragged before release
+// commits the reaction; a fast horizontal flick commits from a shorter drag.
+const SWIPE_COMMIT_FRACTION = 0.35;
+const SWIPE_FLICK_VELOCITY = 900;
+const SWIPE_FLICK_MIN_DRAG = 40;
+
 export default function ReceiveScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets, reducedMotion } = useAccessibility();
+  const { width } = useWindowDimensions();
   const [state, setState] = useState<ScreenState>({ phase: "loading" });
 
   // The receive_letter() claim is provisional until the server hears the
@@ -66,6 +80,14 @@ export default function ReceiveScreen() {
   // rather than the letter's motion just stopping dead.
   const whiteFade = useSharedValue(0);
 
+  // Tinder-style reaction swipe: the letter card follows the finger
+  // horizontally; right = forward to someone new (like), left = graveyard
+  // (dislike). Committing flings the card off-screen, then the RPC runs;
+  // if it fails, the card springs back.
+  const cardX = useSharedValue(0);
+  const cardY = useSharedValue(0);
+  const swipeCommitting = useSharedValue(false);
+
   const actionsStyle = useAnimatedStyle(() => ({
     opacity: actionsOpacity.value,
   }));
@@ -74,11 +96,30 @@ export default function ReceiveScreen() {
     opacity: whiteFade.value,
   }));
 
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: cardX.value },
+      { translateY: cardY.value },
+      { rotateZ: `${(cardX.value / width) * 10}deg` },
+    ],
+  }));
+
+  // The two commitment badges fade in with drag distance, Tinder-style:
+  // the heart stamp on a rightward drag, the gravestone on a leftward one.
+  const likeBadgeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(cardX.value, [16, 96], [0, 1], "clamp"),
+  }));
+
+  const dislikeBadgeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(cardX.value, [-96, -16], [1, 0], "clamp"),
+  }));
+
   const s = makeStyles(colors);
 
   useEffect(() => {
     if (!user) return;
     fetchLetter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Unmount covers every exit path the close button doesn't (hardware back,
@@ -102,6 +143,19 @@ export default function ReceiveScreen() {
     router.back();
   }
 
+  // The author deleted the letter while this reader held a claim on it —
+  // the recipient row cascade-deleted, so every reaction RPC fails with
+  // not_a_recipient. Turn that into a human explanation instead of a raw
+  // error, and close the screen since there is nothing left to react to.
+  function letterWithdrawn() {
+    claimRef.current = null;
+    Alert.alert(
+      "Laiškelis atšauktas",
+      "Siuntėjas atšaukė savo laiškelį prieš tau spėjant jį perskaityti.",
+      [{ text: "Gerai", onPress: () => router.back() }]
+    );
+  }
+
   function handleIntroDone() {
     setIntroDone(true);
     actionsOpacity.value = withTiming(1, { duration: 250 });
@@ -115,7 +169,12 @@ export default function ReceiveScreen() {
     void supabase
       .rpc("open_letter", { p_letter_id: claim.letterId })
       .then(({ error }) => {
-        if (error) return supabase.rpc("open_letter", { p_letter_id: claim.letterId });
+        if (!error) return;
+        if (error.message?.includes("not_a_recipient")) {
+          letterWithdrawn();
+          return;
+        }
+        return supabase.rpc("open_letter", { p_letter_id: claim.letterId });
       });
   }
 
@@ -155,22 +214,88 @@ export default function ReceiveScreen() {
     setState({ phase: "ready", letter, reaction: "none" });
   }
 
-  async function handleLike() {
-    if (state.phase !== "ready" || state.reaction !== "none") return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const { error } = await supabase.rpc("like_letter", { p_letter_id: state.letter.id });
-    if (error) { Alert.alert("Klaida", error.message); return; }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setState({ ...state, reaction: "liked" });
+  // Shared by the swipe commit and the button fallbacks. Returns whether
+  // the reaction actually landed, so a flung card can spring back on error.
+  async function react(kind: Exclude<Reaction, "none">): Promise<boolean> {
+    if (state.phase !== "ready" || state.reaction !== "none") return false;
+    Haptics.impactAsync(
+      kind === "liked" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Heavy
+    );
+    const rpc = kind === "liked" ? "like_letter" : "dislike_letter";
+    const { error } = await supabase.rpc(rpc, { p_letter_id: state.letter.id });
+    if (error) {
+      if (error.message?.includes("not_a_recipient")) {
+        letterWithdrawn();
+        return false;
+      }
+      Alert.alert("Klaida", error.message);
+      return false;
+    }
+    if (kind === "liked") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    setState({ ...state, reaction: kind });
+    return true;
   }
 
-  async function handleDislike() {
-    if (state.phase !== "ready" || state.reaction !== "none") return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    const { error } = await supabase.rpc("dislike_letter", { p_letter_id: state.letter.id });
-    if (error) { Alert.alert("Klaida", error.message); return; }
-    setState({ ...state, reaction: "disliked" });
+  // dir: 1 = right (forward to someone new), -1 = left (graveyard).
+  function commitSwipe(dir: 1 | -1) {
+    const kind = dir === 1 ? "liked" : "disliked";
+    if (reducedMotion) {
+      swipeCommitting.value = false;
+      cardX.value = 0;
+      cardY.value = 0;
+      void react(kind);
+      return;
+    }
+    cardX.value = withTiming(dir * width * 1.3, {
+      duration: 280,
+      easing: Easing.out(Easing.quad),
+    });
+    cardY.value = withTiming(cardY.value + 48, { duration: 280 });
+    react(kind).then((ok) => {
+      swipeCommitting.value = false;
+      if (!ok) {
+        cardX.value = withSpring(0, { damping: 18, stiffness: 200 });
+        cardY.value = withSpring(0, { damping: 18, stiffness: 200 });
+      }
+    });
   }
+
+  const swipeEnabled =
+    state.phase === "ready" &&
+    state.reaction === "none" &&
+    introDone &&
+    !showRequestForm;
+
+  const cardPan = Gesture.Pan()
+    .enabled(swipeEnabled)
+    // Horizontal intent activates the swipe; a mostly-vertical drag fails
+    // over to the letter body's own ScrollView so long letters stay readable.
+    .activeOffsetX([-16, 16])
+    .failOffsetY([-24, 24])
+    .onUpdate((e) => {
+      if (swipeCommitting.value) return;
+      cardX.value = e.translationX;
+      cardY.value = e.translationY * 0.2;
+    })
+    .onEnd((e) => {
+      if (swipeCommitting.value) return;
+      const dragged = Math.abs(cardX.value);
+      const fastFlick =
+        Math.abs(e.velocityX) > SWIPE_FLICK_VELOCITY &&
+        dragged > SWIPE_FLICK_MIN_DRAG &&
+        // The flick must agree with the drag direction — a drag right
+        // released while jerking left is a hesitation, not a commit.
+        e.velocityX * cardX.value > 0;
+      if (dragged > width * SWIPE_COMMIT_FRACTION || fastFlick) {
+        swipeCommitting.value = true;
+        runOnJS(commitSwipe)(cardX.value > 0 ? 1 : -1);
+        return;
+      }
+      cardX.value = withSpring(0, { damping: 18, stiffness: 200 });
+      cardY.value = withSpring(0, { damping: 18, stiffness: 200 });
+    });
 
   async function handleReport(reason: string) {
     if (state.phase !== "ready") return;
@@ -213,6 +338,13 @@ export default function ReceiveScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error.code === "23505") {
         Alert.alert("Leidimo jau prašyta", "Jau išsiuntei užklausą susisiekti su siuntėju.");
+      } else if (error.message?.includes("conversation_exists")) {
+        // Deliberately doesn't say who — the letter is anonymous-ish, and
+        // naming the author here would deanonymize their other letters.
+        Alert.alert(
+          "Pokalbis jau vyksta",
+          "Su šio laiškelio autoriumi jau turi pokalbį — atsiverskite jį skiltyje „Pokalbiai“."
+        );
       } else if (error.code === "42501") {
         Alert.alert("Nepriima užklausų", "Šis žmogus šiuo metu nepriima pokalbių užklausų.");
       } else {
@@ -275,9 +407,43 @@ export default function ReceiveScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-          <Text style={s.body}>{letter.body}</Text>
-        </ScrollView>
+        {reaction === "none" ? (
+          <View style={s.cardArea}>
+            <GestureDetector gesture={cardPan}>
+              <Animated.View style={[s.card, cardStyle]}>
+                <ScrollView style={s.cardScroll} contentContainerStyle={s.cardScrollContent}>
+                  <Text style={s.body}>{letter.body}</Text>
+                </ScrollView>
+
+                <Animated.View style={[s.badge, s.likeBadge, likeBadgeStyle]} pointerEvents="none">
+                  <Ionicons name="heart" size={20} color={colors.accent} />
+                  <Text style={s.likeBadgeText}>Persiųsti kitam</Text>
+                </Animated.View>
+
+                <Animated.View style={[s.badge, s.dislikeBadge, dislikeBadgeStyle]} pointerEvents="none">
+                  <MaterialCommunityIcons name="grave-stone" size={20} color={colors.subtext} />
+                  <Text style={s.dislikeBadgeText}>Į kapines</Text>
+                </Animated.View>
+              </Animated.View>
+            </GestureDetector>
+          </View>
+        ) : (
+          <Animated.View style={s.resultArea} entering={reducedMotion ? undefined : FadeIn.duration(250)}>
+            {reaction === "liked" ? (
+              <>
+                <Ionicons name="heart" size={40} color={colors.accent} />
+                <Text style={s.resultTitle}>Persiųstas kitam</Text>
+                <Text style={s.resultHint}>Laiškelis keliauja pas naują nepažįstamąjį.</Text>
+              </>
+            ) : (
+              <>
+                <MaterialCommunityIcons name="grave-stone" size={40} color={colors.subtext} />
+                <Text style={s.resultTitle}>Iškeliavo į kapines</Text>
+                <Text style={s.resultHint}>Trys tokie balsai — ir laiškelis baigia kelionę.</Text>
+              </>
+            )}
+          </Animated.View>
+        )}
 
         <Animated.View
           style={[s.actions, actionsStyle]}
@@ -286,45 +452,37 @@ export default function ReceiveScreen() {
           {introDone && (
             <TutorialTip
               id="receive_actions_intro"
-              text="Palaikink laišką, ir leisi jam keliauti toliau. Jei nepatiko, siųsk tiesiai į kapines. Jei nori susisiekti su autoriumi, gali nusiųsti užklausą pabendrauti."
+              text="Patikusį laišką brauk dešinėn — jis keliaus toliau. Nepatikusį brauk kairėn, tiesiai į kapines. Jei nori susisiekti su autoriumi, gali nusiųsti užklausą pabendrauti."
             />
           )}
 
-          {/* Like / dislike */}
+          {/* Tap fallbacks for the swipe (and the only path with reduced
+              motion or screen readers) — same actions, same labels. */}
           {reaction === "none" && (
-            <View style={s.reactionRow}>
-              <TouchableOpacity
-                style={[s.reactionButton, s.dislikeButton]}
-                onPress={handleDislike}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons name="grave-stone" size={20} color={colors.subtext} />
-                <Text style={s.dislikeText}>Į kapines</Text>
-              </TouchableOpacity>
+            <>
+              <View style={s.reactionRow}>
+                <TouchableOpacity
+                  style={[s.reactionButton, s.dislikeButton]}
+                  onPress={() => commitSwipe(-1)}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Į kapines"
+                >
+                  <MaterialCommunityIcons name="grave-stone" size={20} color={colors.subtext} />
+                  <Text style={s.dislikeText}>Į kapines</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[s.reactionButton, s.likeButton]}
-                onPress={handleLike}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="heart-outline" size={22} color={colors.accent} />
-                <Text style={s.likeText}>Patiko</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {reaction === "liked" && (
-            <View style={s.reactionResultRow}>
-              <Ionicons name="heart" size={18} color={colors.accent} />
-              <Text style={s.reactionResultText}>Patiko - keliauja toliau</Text>
-            </View>
-          )}
-
-          {reaction === "disliked" && (
-            <View style={s.reactionResultRow}>
-              <MaterialCommunityIcons name="grave-stone" size={18} color={colors.subtext} />
-              <Text style={s.reactionResultText}>Iškeliavo į kapines</Text>
-            </View>
+                <TouchableOpacity
+                  style={[s.reactionButton, s.likeButton]}
+                  onPress={() => commitSwipe(1)}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Persiųsti kitam"
+                >
+                  <Ionicons name="heart-outline" size={22} color={colors.accent} />
+                  <Text style={s.likeText}>Persiųsti kitam</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={s.swipeHint}>Brauk laiškelį į šoną arba spausk mygtuką</Text>
+            </>
           )}
 
           {/* Request to talk */}
@@ -414,20 +572,52 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
-    closeBtn: { position: "absolute", top: 56, left: 16, zIndex: 1 },
+    closeBtn: { position: "absolute", top: 72, left: 16, zIndex: 1 },
     header: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      // A little extra headroom so the close button sits comfortably below
+      // the very top edge instead of crowding the status bar.
+      paddingTop: 28,
+      paddingBottom: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     from: { fontSize: 14, color: colors.subtext, fontStyle: "italic" },
-    scroll: { flex: 1 },
-    scrollContent: { padding: 24, paddingTop: 32 },
+    cardArea: { flex: 1, padding: 16 },
+    card: {
+      flex: 1,
+      backgroundColor: colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 18,
+      borderCurve: "continuous",
+      overflow: "hidden",
+    },
+    cardScroll: { flex: 1 },
+    cardScrollContent: { padding: 24, paddingTop: 28 },
     body: { fontSize: 18, color: colors.text, lineHeight: 30 },
+    badge: {
+      position: "absolute",
+      top: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      borderWidth: 2,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.surface,
+    },
+    likeBadge: { left: 16, borderColor: colors.accent, transform: [{ rotateZ: "-8deg" }] },
+    likeBadgeText: { fontSize: 15, fontWeight: "700", color: colors.accent },
+    dislikeBadge: { right: 16, borderColor: colors.subtext, transform: [{ rotateZ: "8deg" }] },
+    dislikeBadgeText: { fontSize: 15, fontWeight: "700", color: colors.subtext },
+    resultArea: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 32 },
+    resultTitle: { fontSize: 20, fontWeight: "700", color: colors.text },
+    resultHint: { fontSize: 14, color: colors.subtext, textAlign: "center" },
     actions: {
       paddingHorizontal: 20,
       paddingTop: 16,
@@ -451,8 +641,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     likeText: { fontSize: 15, color: colors.accent, fontWeight: "600" },
     dislikeButton: { borderColor: colors.border },
     dislikeText: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
-    reactionResultRow: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center", paddingVertical: 14 },
-    reactionResultText: { fontSize: 15, color: colors.subtext },
+    swipeHint: { fontSize: 12, color: colors.subtext, textAlign: "center" },
     requestButton: {
       flexDirection: "row",
       alignItems: "center",

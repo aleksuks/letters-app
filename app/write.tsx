@@ -23,11 +23,22 @@ import Animated, { FadeIn } from "react-native-reanimated";
 const MAX_LENGTH = 1000;
 const DRAFT_KEY = "letters.write.draft";
 
+// Adapted from the most consistently praised prompt sets for connecting
+// strangers: Arthur Aron's "36 questions for increasing closeness" study
+// (perfect day, treasured memory, long-postponed dream, gained quality)
+// and the letter-writing/journaling classics (advice to a younger self,
+// gratitude, encouraging an unknown reader).
 const PROMPTS = [
-  "Kažkas ko niekam nedrįsau pasakyti",
-  "Kaip šiandien man sekėsi",
-  "Ko bijau",
-  "Norėčiau, kad kiti žinotų",
+  "Ką pasakytum jaunesniam sau?",
+  "Ko niekam nedrįsai pasakyti?",
+  "Kaip atrodytų tobula tavo diena?",
+  "Apie ką seniai svajoji, bet vis atidedi?",
+  "Koks prisiminimas tau brangiausias?",
+  "Už ką šiandien esi dėkingas?",
+  "Ko bijai?",
+  "Jei rytoj atsibustum įgijęs vieną naują savybę — kokią?",
+  "Padrąsink žmogų, kuriam šiandien sunku.",
+  "Kas tave neseniai nustebino gerąja prasme?",
 ];
 
 export default function WriteScreen() {
@@ -39,6 +50,10 @@ export default function WriteScreen() {
   const [loading, setLoading] = useState(false);
   const [sentBody, setSentBody] = useState<string | null>(null);
   const [folding, setFolding] = useState(false);
+  // The letter row is inserted before the ceremony plays (so moderation
+  // errors surface immediately); its id lets the cancel button take the
+  // send back by deleting the row while the envelope is still on screen.
+  const sentLetterIdRef = useRef<string | null>(null);
   // Once a letter is actually sent, the draft is gone for good — this stops
   // the unmount-flush below from resurrecting the just-sent text as a draft
   // while the send ceremony plays out and the screen dismisses itself.
@@ -86,19 +101,46 @@ export default function WriteScreen() {
     router.back();
   }
 
+  // Takes back a send while the envelope ceremony is still waiting on the
+  // user (before the launch swipe commits): delete the just-inserted row
+  // and put the editor back exactly as it was. If a fast reader already
+  // claimed the letter, the receive screen explains the withdrawal to them.
+  async function handleCancelSend() {
+    const letterId = sentLetterIdRef.current;
+    sentLetterIdRef.current = null;
+    setSentBody(null);
+    setFolding(false);
+    draftDisabledRef.current = false;
+    if (letterId) {
+      const { error } = await supabase.from("letters").delete().eq("id", letterId);
+      if (error) Alert.alert("Klaida", error.message);
+    }
+  }
+
+  function insertPrompt(p: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Never clobber text the user already typed — append instead.
+    setBody(prev => (prev.trim().length > 0 ? `${prev.trimEnd()}\n\n${p}\n` : `${p}\n`));
+  }
+
   async function handleSubmit() {
     if (!user || !canSubmit) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
 
     try {
-      const { error } = await supabase.from("letters").insert({
-        author_id: user.id,
-        body: body.trim(),
-      });
+      const { data, error } = await supabase
+        .from("letters")
+        .insert({
+          author_id: user.id,
+          body: body.trim(),
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
+      sentLetterIdRef.current = data?.id ?? null;
       draftDisabledRef.current = true;
       AsyncStorage.removeItem(DRAFT_KEY);
 
@@ -167,23 +209,31 @@ export default function WriteScreen() {
           <Text style={[s.counter, remaining < 100 && s.counterWarning]}>
             liko {remaining} simbolių
           </Text>
-
-          <View style={s.prompts}>
-            <Text style={s.promptsLabel}>Pasiūlymai</Text>
-            <View style={s.promptsRow}>
-              {PROMPTS.map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  style={[s.promptChip, largeTouchTargets && s.promptChipLarge]}
-                  onPress={() => setBody(p + "\n\n")}
-                  activeOpacity={0.7}
-                >
-                  <Text style={s.promptChipText}>{p}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
         </ScrollView>
+
+        {/* Docked below the editor, inside the KeyboardAvoidingView, so the
+            suggestions ride on top of the keyboard instead of hiding under
+            it at the bottom of the scroll. */}
+        <View style={s.prompts}>
+          <Text style={s.promptsLabel}>Pasiūlymai</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={s.promptsRow}
+          >
+            {PROMPTS.map((p) => (
+              <TouchableOpacity
+                key={p}
+                style={[s.promptChip, largeTouchTargets && s.promptChipLarge]}
+                onPress={() => insertPrompt(p)}
+                activeOpacity={0.7}
+              >
+                <Text style={s.promptChipText}>{p}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
 
       {sentBody !== null && (
@@ -194,10 +244,20 @@ export default function WriteScreen() {
             onStart={() => setFolding(true)}
             onDone={goBack}
           />
-          {folding && (
+          {folding ? (
             <Animated.Text entering={FadeIn.duration(300)} style={s.sendCaption}>
               Tavo laiškas iškeliavo pas nepažįstamąjį…
             </Animated.Text>
+          ) : (
+            // Available only until the launch swipe commits — after that the
+            // letter has flown and there is nothing left to take back.
+            <TouchableOpacity
+              style={[s.sendCancelButton, largeTouchTargets && s.sendCancelButtonLarge]}
+              onPress={handleCancelSend}
+              activeOpacity={0.7}
+            >
+              <Text style={s.sendCancelText}>Atšaukti</Text>
+            </TouchableOpacity>
           )}
         </Animated.View>
       )}
@@ -229,6 +289,15 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     sendButtonText: { color: colors.accentText, fontWeight: "bold", fontSize: 15 },
     scroll: { flex: 1 },
     tip: { marginHorizontal: 20, marginTop: 16 },
+    sendCancelButton: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 28,
+      paddingVertical: 12,
+    },
+    sendCancelButtonLarge: { paddingVertical: 16 },
+    sendCancelText: { color: colors.subtext, fontSize: 15, fontWeight: "600" },
     input: {
       color: colors.text,
       fontSize: 18,
@@ -244,9 +313,14 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 24,
     },
     counterWarning: { color: colors.red },
-    prompts: { paddingHorizontal: 20, paddingBottom: 40 },
-    promptsLabel: { fontSize: 13, color: colors.subtext, marginBottom: 12 },
-    promptsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    prompts: {
+      paddingTop: 10,
+      paddingBottom: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    promptsLabel: { fontSize: 13, color: colors.subtext, marginBottom: 8, paddingHorizontal: 20 },
+    promptsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
     promptChip: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: 20,
