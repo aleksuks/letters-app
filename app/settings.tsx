@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity,
-  StyleSheet, Switch, ScrollView, Alert,
+  StyleSheet, Switch, ScrollView, Alert, Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,9 +12,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTutorial } from "@/contexts/tutorial";
 import { supabase } from "@/lib/supabase";
 
+const PRIVACY_POLICY_URL = "https://aleksuks.github.io/letters-app/privacy.html";
+const TERMS_OF_SERVICE_URL = "https://aleksuks.github.io/letters-app/terms.html";
+
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
   const { resetAll: resetTutorial } = useTutorial();
@@ -23,6 +26,7 @@ export default function SettingsScreen() {
   const [acceptsRequests, setAcceptsRequests] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -66,6 +70,45 @@ export default function SettingsScreen() {
       setRemindersEnabled(!value);
       Alert.alert("Klaida", error.message);
     }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Ištrinti paskyrą?",
+      "Šis veiksmas negrįžtamas. Bus visam laikui ištrinta Jūsų paskyra, laiškai, pokalbiai ir žinutės.",
+      [
+        { text: "Atšaukti", style: "cancel" },
+        {
+          text: "Tęsti",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Ar tikrai?",
+              "Paskutinis patvirtinimas — šio veiksmo atšaukti nebus galima.",
+              [
+                { text: "Atšaukti", style: "cancel" },
+                {
+                  text: "Ištrinti paskyrą",
+                  style: "destructive",
+                  onPress: confirmDeleteAccount,
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }
+
+  async function confirmDeleteAccount() {
+    setDeleting(true);
+    const { error } = await supabase.rpc("delete_own_account");
+    if (error) {
+      setDeleting(false);
+      Alert.alert("Klaida", error.message);
+      return;
+    }
+    await signOut();
   }
 
   return (
@@ -163,28 +206,47 @@ export default function SettingsScreen() {
           <Text style={s.sectionTitle}>Paskyra</Text>
           <TouchableOpacity
             style={s.settingItem}
-            onPress={() => Alert.alert("Privacy", "Privacy policy coming soon.")}
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+            accessibilityRole="button"
+            accessibilityLabel="Privatumo politika"
           >
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Privacy Policy</Text>
+              <Text style={s.settingLabel}>Privatumo politika</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
           <TouchableOpacity
             style={s.settingItem}
-            onPress={() => Alert.alert("Terms", "Terms of service coming soon.")}
+            onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+            accessibilityRole="button"
+            accessibilityLabel="Naudojimo sąlygos"
           >
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Terms of Service</Text>
+              <Text style={s.settingLabel}>Naudojimo sąlygos</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
-          <View style={[s.settingItem, { marginBottom: 0 }]}>
+          <View style={s.settingItem}>
             <View style={s.settingContent}>
               <Text style={s.settingLabel}>Laiškelio versija</Text>
             </View>
             <Text style={s.versionText}>1.0.0</Text>
           </View>
+          <TouchableOpacity
+            style={[s.settingItem, { marginBottom: 0 }]}
+            onPress={handleDeleteAccount}
+            disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel="Ištrinti paskyrą"
+          >
+            <View style={s.settingContent}>
+              <Text style={[s.settingLabel, s.dangerText]}>
+                {deleting ? "Trinama..." : "Ištrinti paskyrą"}
+              </Text>
+              <Text style={s.settingDesc}>Visam laikui ištrina paskyrą, laiškus, pokalbius ir žinutes</Text>
+            </View>
+            <Ionicons name="trash-outline" size={20} color={colors.red} />
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 32 }} />
@@ -226,6 +288,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     settingContent: { flex: 1 },
     settingLabel: { fontSize: 16, color: colors.text, fontWeight: "500" },
+    dangerText: { color: colors.red },
     settingDesc: { fontSize: 13, color: colors.subtext, marginTop: 4 },
     versionText: { fontSize: 14, color: colors.subtext },
   });

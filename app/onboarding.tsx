@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert,
+  StyleSheet, ActivityIndicator, Alert, Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -9,6 +9,9 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+
+const PRIVACY_POLICY_URL = "https://aleksuks.github.io/letters-app/privacy.html";
+const TERMS_OF_SERVICE_URL = "https://aleksuks.github.io/letters-app/terms.html";
 
 export default function OnboardingScreen() {
   const { user } = useAuth();
@@ -18,9 +21,10 @@ export default function OnboardingScreen() {
   const s = makeStyles(colors);
   const [nickname, setNickname] = useState("");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const canProceed = ageConfirmed && nickname.trim().length >= 2;
+  const canProceed = ageConfirmed && termsAccepted && nickname.trim().length >= 2;
 
   async function handleFinish() {
     if (!user || !canProceed) return;
@@ -89,6 +93,28 @@ export default function OnboardingScreen() {
           </View>
           <Text style={s.checkLabel}>Patvirtinu, jog esu pilnametis.</Text>
         </TouchableOpacity>
+
+        <View style={s.checkboxMulti}>
+          <TouchableOpacity
+            onPress={() => setTermsAccepted(v => !v)}
+            activeOpacity={0.7}
+            hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
+          >
+            <View style={[s.checkBox, termsAccepted && s.checkBoxChecked]}>
+              {termsAccepted && <Text style={s.checkMark}>✓</Text>}
+            </View>
+          </TouchableOpacity>
+          <Text style={[s.checkLabel, s.checkLabelMulti]}>
+            Sutinku su{" "}
+            <Text style={s.link} onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}>
+              naudojimo sąlygomis
+            </Text>
+            {" "}ir{" "}
+            <Text style={s.link} onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}>
+              privatumo politika
+            </Text>.
+          </Text>
+        </View>
       </View>
 
       <View style={s.footer}>
@@ -129,6 +155,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     checkBoxChecked: { backgroundColor: colors.accent, borderColor: colors.accent },
     checkMark: { color: colors.accentText, fontSize: 14, fontWeight: "bold" },
     checkLabel: { fontSize: 15, color: colors.text, marginLeft: 12 },
+    checkboxMulti: { flexDirection: "row", alignItems: "flex-start", marginTop: 16 },
+    checkLabelMulti: { flex: 1, lineHeight: 21 },
+    link: { color: colors.accent, textDecorationLine: "underline" },
     footer: {
       paddingHorizontal: 24, paddingVertical: 24,
       borderTopWidth: 1, borderTopColor: colors.border,
