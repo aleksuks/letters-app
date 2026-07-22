@@ -2,8 +2,12 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/theme";
+import { useUnreadMessages } from "@/contexts/unread-messages";
 
 const ICON_BOX = 40;
+// Route name (from app/(tabs)/conversations.tsx) that carries the unread
+// message badge — the only tab with a meaningful "new since last visit" count.
+const UNREAD_BADGE_ROUTE = "conversations";
 
 /**
  * Simple tab bar: no sliding indicator, the active tab is just the icon
@@ -18,6 +22,7 @@ export function AnimatedTabBar({
 }: BottomTabBarProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { unreadCount } = useUnreadMessages();
 
   return (
     <View
@@ -75,6 +80,26 @@ export function AnimatedTabBar({
                 color: isFocused ? colors.text : colors.tabInactive,
                 size: 24,
               })}
+              {route.name === UNREAD_BADGE_ROUTE && unreadCount > 0 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -2,
+                    right: -6,
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    paddingHorizontal: 3,
+                    backgroundColor: colors.red,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#fff" }}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
             </View>
             <Text
               style={{

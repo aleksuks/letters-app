@@ -833,6 +833,20 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
       pointerEvents="none"
     >
       {paperFill("envelopeTexture", ENVELOPE_W, ENVELOPE_H)}
+      {/* Opaque backing beneath the texture pattern: the pattern fill draws
+          nothing until its source image has decoded, and without this the
+          paper (always opaque, never waiting on an async image) shows
+          straight through every envelope surface for the first frame or
+          two — most visible during the receive fly-in, which starts
+          animating immediately on mount. */}
+      <Rect
+        x={E}
+        y={E}
+        width={ENVELOPE_W - 2 * E}
+        height={ENVELOPE_H - 2 * E}
+        rx={R}
+        fill={colors.surface}
+      />
       <Rect
         x={E}
         y={E}
@@ -873,6 +887,8 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
       pointerEvents="none"
     >
       {paperFill("envelopeTexture", ENVELOPE_W, ENVELOPE_H)}
+      {/* Opaque backing — see the matching comment on `interior` above. */}
+      <Path d={pocketFrontPath} fill={colors.surface} />
       <Path
         d={pocketFrontPath}
         fill="url(#envelopeTexture)"
@@ -905,6 +921,8 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
   const flapFace = (inner: boolean) => (
     <Svg width={ENVELOPE_W} height={FLAP_H}>
       {paperFill("flapTexture", ENVELOPE_W, FLAP_H)}
+      {/* Opaque backing — see the matching comment on `interior` above. */}
+      <Path d={flapPath} fill={colors.surface} />
       <Path
         d={flapPath}
         fill="url(#flapTexture)"

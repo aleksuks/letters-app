@@ -5,7 +5,7 @@ import {
   Platform, Alert, ActivityIndicator, Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, { FadeInLeft, FadeInRight } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +14,7 @@ import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { Message } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
+import { useUnreadMessages } from "@/contexts/unread-messages";
 
 interface ConversationDetails {
   id: string;
@@ -33,6 +34,7 @@ export default function ChatScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const { markRead } = useUnreadMessages();
 
   const [conv, setConv] = useState<ConversationDetails | null>(null);
   const [messages, setMessages] = useState<MessageWithSender[]>([]);
@@ -69,6 +71,8 @@ export default function ChatScreen() {
         historyIds.current = new Set(msgRes.data.map(m => m.id));
       }
       setLoading(false);
+      // Opening the chat is itself "reading" whatever's already here.
+      markRead(id);
     });
 
     // Real-time: new messages
@@ -84,11 +88,15 @@ export default function ChatScreen() {
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [newMsg, ...prev];
           });
+          // The screen is open and the message just landed on it — mark it
+          // read immediately rather than waiting for the next visit.
+          markRead(id);
         }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
   const visibleMessages = useMemo(
@@ -297,13 +305,10 @@ export default function ChatScreen() {
             return (
               <Animated.View
                 style={[s.bubbleRow, isOwn && s.bubbleRowOwn]}
-                entering={
-                  isHistory
-                    ? undefined
-                    : (isOwn ? FadeInRight : FadeInLeft).duration(220)
-                }
+                entering={isHistory ? undefined : FadeIn.duration(220)}
               >
                 <Pressable
+                  style={s.bubbleWrap}
                   onLongPress={isOwn ? () => handleDeleteForMe(item.id) : undefined}
                   delayLongPress={350}
                 >
@@ -374,8 +379,11 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     messageList: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
     bubbleRow: { flexDirection: "row" },
     bubbleRowOwn: { justifyContent: "flex-end" },
+    // Width cap must live on the row's direct child — a percentage on the
+    // inner bubble would resolve against this wrapper's (content-sized)
+    // width, not the row, which mis-measures wrapping and alignment.
+    bubbleWrap: { maxWidth: "80%" },
     bubble: {
-      maxWidth: "80%",
       borderRadius: 18,
       paddingHorizontal: 14,
       paddingVertical: 10,

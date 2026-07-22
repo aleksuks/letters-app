@@ -11,6 +11,7 @@ import { Session } from "@supabase/supabase-js";
 import { ThemeProvider } from "@/contexts/theme";
 import { AccessibilityProvider } from "@/contexts/accessibility";
 import { TutorialProvider } from "@/contexts/tutorial";
+import { UnreadMessagesProvider } from "@/contexts/unread-messages";
 import { registerForPushNotificationsAsync, touchLastActive, notificationDataToRoute } from "@/lib/notifications";
 
 export default function RootLayout() {
@@ -106,17 +107,19 @@ export default function RootLayout() {
         <AccessibilityProvider>
           <ThemeProvider>
             <TutorialProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="onboarding" />
-                <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
-                <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
-                <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
-              </Stack>
+              <UnreadMessagesProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="onboarding" />
+                  <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
+                  <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
+                  <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                  <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                  <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
+                </Stack>
+              </UnreadMessagesProvider>
             </TutorialProvider>
           </ThemeProvider>
         </AccessibilityProvider>

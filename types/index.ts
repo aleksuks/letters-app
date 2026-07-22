@@ -71,6 +71,8 @@ export interface Conversation {
   status: ConversationStatus;
   created_at: string;
   reported_at: string | null;
+  user_a_last_read_at: string;
+  user_b_last_read_at: string;
 }
 
 export interface Message {

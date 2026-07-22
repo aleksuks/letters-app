@@ -14,14 +14,26 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput, TouchableOpacity,
+  TextInput, TouchableOpacity, TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 const MAX_LENGTH = 1000;
 const DRAFT_KEY = "letters.write.draft";
+const INPUT_PADDING = 20;
+const INPUT_LINE_HEIGHT = 28;
+// Suggestions must be visible without scrolling and without fighting the
+// keyboard for space, so they're pinned a few lines below the input's own
+// top edge (roughly where the first couple of typed lines would land)
+// instead of docked at the bottom of the screen where the keyboard used to
+// cover them.
+const PROMPTS_OVERLAY_TOP = INPUT_PADDING + INPUT_LINE_HEIGHT * 3;
+// Suggestions are only useful before the user has started writing — once
+// they've typed a few characters they're mid-thought and the chips would
+// just sit over their text.
+const PROMPTS_HIDE_AT_LENGTH = 3;
 
 // Adapted from the most consistently praised prompt sets for connecting
 // strangers: Arthur Aron's "36 questions for increasing closeness" study
@@ -40,6 +52,19 @@ const PROMPTS = [
   "Padrąsink žmogų, kuriam šiandien sunku.",
   "Kas tave neseniai nustebino gerąja prasme?",
 ];
+const PROMPTS_SHOWN = 3;
+
+// Picks a few prompts at random rather than always the same ones, so the
+// set feels fresh across visits to the screen.
+function pickRandomPrompts(source: string[], count: number) {
+  const pool = [...source];
+  const picked: string[] = [];
+  while (picked.length < count && pool.length > 0) {
+    const i = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(i, 1)[0]);
+  }
+  return picked;
+}
 
 export default function WriteScreen() {
   const router = useRouter();
@@ -60,6 +85,8 @@ export default function WriteScreen() {
   const draftDisabledRef = useRef(false);
   const bodyRef = useRef(body);
   bodyRef.current = body;
+  // Chosen once per screen visit, not re-rolled on every render.
+  const [prompts] = useState(() => pickRandomPrompts(PROMPTS, PROMPTS_SHOWN));
 
   const s = makeStyles(colors);
 
@@ -117,12 +144,6 @@ export default function WriteScreen() {
     }
   }
 
-  function insertPrompt(p: string) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Never clobber text the user already typed — append instead.
-    setBody(prev => (prev.trim().length > 0 ? `${prev.trimEnd()}\n\n${p}\n` : `${p}\n`));
-  }
-
   async function handleSubmit() {
     if (!user || !canSubmit) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -168,6 +189,7 @@ export default function WriteScreen() {
   }
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
@@ -194,46 +216,50 @@ export default function WriteScreen() {
             style={s.tip}
           />
 
-          <TextInput
-            style={s.input}
-            value={body}
-            onChangeText={setBody}
-            placeholder="Brangus gavėjau..."
-            placeholderTextColor={colors.subtext}
-            multiline
-            autoFocus
-            maxLength={MAX_LENGTH}
-            textAlignVertical="top"
-          />
+          <View style={s.inputWrap}>
+            <TextInput
+              style={s.input}
+              value={body}
+              onChangeText={setBody}
+              placeholder="Brangus gavėjau..."
+              placeholderTextColor={colors.subtext}
+              multiline
+              autoFocus
+              maxLength={MAX_LENGTH}
+              textAlignVertical="top"
+            />
+
+            {/* Pinned near the top of the input (not docked at the screen's
+                bottom) so it's visible above the keyboard from the moment
+                the screen opens, and it fades out the instant the user has
+                actually started writing. Purely inspirational — not
+                clickable/insertable — so they read as ideas, not
+                prewritten text to just tap in. */}
+            {body.length < PROMPTS_HIDE_AT_LENGTH && (
+              <Animated.View
+                style={s.promptsOverlay}
+                pointerEvents="none"
+                exiting={FadeOut.duration(300)}
+              >
+                <Text style={s.promptsLabel}>Pasiūlymai</Text>
+                <View style={s.promptsRow}>
+                  {prompts.map((p) => (
+                    <View
+                      key={p}
+                      style={[s.promptChip, largeTouchTargets && s.promptChipLarge]}
+                    >
+                      <Text style={s.promptChipText}>{p}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Animated.View>
+            )}
+          </View>
 
           <Text style={[s.counter, remaining < 100 && s.counterWarning]}>
             liko {remaining} simbolių
           </Text>
         </ScrollView>
-
-        {/* Docked below the editor, inside the KeyboardAvoidingView, so the
-            suggestions ride on top of the keyboard instead of hiding under
-            it at the bottom of the scroll. */}
-        <View style={s.prompts}>
-          <Text style={s.promptsLabel}>Pasiūlymai</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={s.promptsRow}
-          >
-            {PROMPTS.map((p) => (
-              <TouchableOpacity
-                key={p}
-                style={[s.promptChip, largeTouchTargets && s.promptChipLarge]}
-                onPress={() => insertPrompt(p)}
-                activeOpacity={0.7}
-              >
-                <Text style={s.promptChipText}>{p}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
       </KeyboardAvoidingView>
 
       {sentBody !== null && (
@@ -262,6 +288,7 @@ export default function WriteScreen() {
         </Animated.View>
       )}
     </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -298,11 +325,12 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     sendCancelButtonLarge: { paddingVertical: 16 },
     sendCancelText: { color: colors.subtext, fontSize: 15, fontWeight: "600" },
+    inputWrap: { position: "relative" },
     input: {
       color: colors.text,
       fontSize: 18,
-      lineHeight: 28,
-      padding: 20,
+      lineHeight: INPUT_LINE_HEIGHT,
+      padding: INPUT_PADDING,
       minHeight: 280,
     },
     counter: {
@@ -313,14 +341,14 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 24,
     },
     counterWarning: { color: colors.red },
-    prompts: {
-      paddingTop: 10,
-      paddingBottom: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
+    promptsOverlay: {
+      position: "absolute",
+      top: PROMPTS_OVERLAY_TOP,
+      left: 0,
+      right: 0,
     },
     promptsLabel: { fontSize: 13, color: colors.subtext, marginBottom: 8, paddingHorizontal: 20 },
-    promptsRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
+    promptsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 20 },
     promptChip: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: 20,

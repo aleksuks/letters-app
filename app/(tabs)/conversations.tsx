@@ -83,7 +83,16 @@ export default function ConversationsScreen() {
     });
 
     if (error) {
-      Alert.alert("Klaida", error.message);
+      if (error.message?.includes("conversation_exists")) {
+        // Deliberately doesn't say who — naming the requester here would
+        // deanonymize them via whichever conversation already exists.
+        Alert.alert(
+          "Pokalbis jau vyksta",
+          "Su šiuo žmogumi jau turi pokalbį — atsiverk jį skiltyje „Pokalbiai“."
+        );
+      } else {
+        Alert.alert("Klaida", error.message);
+      }
       return;
     }
 
