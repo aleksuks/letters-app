@@ -69,6 +69,11 @@ export function notificationDataToRoute(data: Record<string, unknown> | undefine
     case "like_milestone":
     case "letter_died":
       return "/(tabs)/letters";
+    case "map_like_milestone":
+      // Straight to the letter itself — it lives on the map, not in a tab.
+      return typeof data?.map_letter_id === "string"
+        ? `/map-letter?id=${data.map_letter_id}`
+        : "/(tabs)/map";
     default:
       return null;
   }

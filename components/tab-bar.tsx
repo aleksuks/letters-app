@@ -15,6 +15,12 @@ const UNREAD_BADGE_ROUTE = "conversations";
  * icons clear the home indicator on notched/Dynamic Island iPhones
  * instead of crowding it.
  */
+// Extra clearance below the safe-area inset, on top of what the OS already
+// reserves for the home indicator (iOS) / gesture-nav pill (Android). Android's
+// gesture bar sits right at the edge of insets.bottom, so it needs more
+// breathing room than iOS's indicator does to avoid feeling cramped.
+const EXTRA_BOTTOM_CLEARANCE = Platform.OS === "ios" ? 10 : 20;
+
 export function AnimatedTabBar({
   state,
   descriptors,
@@ -31,9 +37,9 @@ export function AnimatedTabBar({
         backgroundColor: colors.tabBar,
         borderTopColor: colors.tabBarBorder,
         borderTopWidth: 1,
-        paddingBottom: insets.bottom + (Platform.OS === "ios" ? 10 : 8),
+        paddingBottom: insets.bottom + EXTRA_BOTTOM_CLEARANCE,
         paddingTop: 8,
-        height: 56 + insets.bottom + (Platform.OS === "ios" ? 10 : 8),
+        height: 56 + insets.bottom + EXTRA_BOTTOM_CLEARANCE,
       }}
     >
       {state.routes.map((route, index) => {

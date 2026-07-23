@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, Switch, ScrollView, Alert, Linking,
 } from "react-native";
+import Constants from "expo-constants";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -15,6 +16,8 @@ import { supabase } from "@/lib/supabase";
 const PRIVACY_POLICY_URL = "https://aleksuks.github.io/letters-app/privacy.html";
 const TERMS_OF_SERVICE_URL = "https://aleksuks.github.io/letters-app/terms.html";
 
+const APP_VERSION = Constants.expoConfig?.version ?? "—";
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
@@ -25,6 +28,7 @@ export default function SettingsScreen() {
 
   const [acceptsRequests, setAcceptsRequests] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
+  const [activityNotificationsEnabled, setActivityNotificationsEnabled] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -32,13 +36,14 @@ export default function SettingsScreen() {
     if (!user) return;
     supabase
       .from("user_profiles")
-      .select("accepts_requests, reminders_enabled")
+      .select("accepts_requests, reminders_enabled, activity_notifications_enabled")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
         if (data) {
           setAcceptsRequests(data.accepts_requests);
           setRemindersEnabled(data.reminders_enabled);
+          setActivityNotificationsEnabled(data.activity_notifications_enabled);
         }
         setLoaded(true);
       });
@@ -68,6 +73,20 @@ export default function SettingsScreen() {
 
     if (error) {
       setRemindersEnabled(!value);
+      Alert.alert("Klaida", error.message);
+    }
+  }
+
+  async function handleToggleActivityNotifications(value: boolean) {
+    if (!user) return;
+    setActivityNotificationsEnabled(value);
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ activity_notifications_enabled: value })
+      .eq("id", user.id);
+
+    if (error) {
+      setActivityNotificationsEnabled(!value);
       Alert.alert("Klaida", error.message);
     }
   }
@@ -147,7 +166,40 @@ export default function SettingsScreen() {
         </View>
 
         <View style={s.section}>
+          <Text style={s.sectionTitle}>Privatumas</Text>
+          <TouchableOpacity
+            style={[s.settingItem, { marginBottom: 0 }]}
+            onPress={() => router.push("/blocked-users" as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Blokuoti vartotojai"
+          >
+            <View style={s.settingContent}>
+              <Text style={s.settingLabel}>Blokuoti vartotojai</Text>
+              <Text style={s.settingDesc}>Peržiūrėk ir atblokuok užblokuotus žmones</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={s.section}>
           <Text style={s.sectionTitle}>Pranešimai</Text>
+          <View style={s.settingItem}>
+            <View style={s.settingContent}>
+              <Text style={s.settingLabel}>Laiškelio kelionė</Text>
+              <Text style={s.settingDesc}>
+                Pranešimai apie patiktukus, laiškelio pabaigą ir patekimą į „Kapinių“ skiltį
+              </Text>
+            </View>
+            <Switch
+              value={activityNotificationsEnabled}
+              onValueChange={handleToggleActivityNotifications}
+              disabled={!loaded}
+              trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
+              thumbColor="#fff"
+              accessibilityLabel="Pranešimai apie laiškelio kelionę"
+              accessibilityRole="switch"
+            />
+          </View>
           <View style={[s.settingItem, { marginBottom: 0 }]}>
             <View style={s.settingContent}>
               <Text style={s.settingLabel}>Priminti apie naujus laiškelius</Text>
@@ -230,7 +282,7 @@ export default function SettingsScreen() {
             <View style={s.settingContent}>
               <Text style={s.settingLabel}>Laiškelio versija</Text>
             </View>
-            <Text style={s.versionText}>1.0.0</Text>
+            <Text style={s.versionText}>{APP_VERSION}</Text>
           </View>
           <TouchableOpacity
             style={[s.settingItem, { marginBottom: 0 }]}

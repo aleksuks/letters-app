@@ -98,9 +98,15 @@ export function useTabPager(): TabPagerValue {
  */
 export function TabPage({
   style,
+  edges = ["top", "left", "right"],
   children,
 }: {
   style?: StyleProp<ViewStyle>;
+  /** Safe-area edges to reserve inside this page. Defaults to top/left/right
+   * (bottom is always excluded — see note below). Pass a subset to let a
+   * screen render full-bleed under the notch/status bar; that screen is
+   * then responsible for clearing insets itself for any floating content. */
+  edges?: ("top" | "left" | "right")[];
   children: ReactNode;
 }) {
   const { position, blurIntensity, width } = useTabPager();
@@ -126,7 +132,7 @@ export function TabPage({
           already reserves the bottom inset itself, and the screen container
           ends exactly where the tab bar begins — adding it here too would
           double the gap above the tab bar. */}
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+      <SafeAreaView style={{ flex: 1 }} edges={edges}>
         {children}
       </SafeAreaView>
       {/* Motion blur while sliding. The overlay translates with the page,

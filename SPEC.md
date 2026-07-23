@@ -1,17 +1,38 @@
-# Micro Learning App
-# Product Specification: Micro-Learning App
+# Letters for Strangers ("Laiškelis") — Spec
 
-## Core Overview
-A mobile-first micro-learning platform targeting adolescents. It uses a high-dopamine vertical video feed format featuring "satisfying" backgrounds or relevant stock footage paired with text overlays, automated voiceovers, and instant interactive comprehension checks. Comprehension checks shouldn't be questions that need answers, but more like engagement prompts like "what do you think will happen next?" Content should be generated according to topic. Viewers are shown topics that are known to be of interest, with an occasional insert of something else to see if they find that engaging too.
+> This file previously held the spec of the micro-learning app this repo
+> was repurposed from; that content is gone along with the product.
 
-## Tech Stack
-- **Frontend:** React Native with Expo (TypeScript)
-- **Styling:** NativeWind (Tailwind CSS)
-- **Navigation:** Expo Router (File-based)
-- **Backend & Database:** Supabase (Auth, PostgreSQL database, Storage for MP4s/MP3s)
+The product is an anonymous-ish letter-sharing app for a Lithuanian
+audience, with two letter kinds:
 
-## MVP Scope & Content Architecture
-1. **Vertical Dual-Layer Video Feed:** Full-screen vertical swipe interface utilizing `expo-video`. Videos will feature a hybrid format (either automated stock footage or text and voiceover "satisfying content" loops).
-2. **Text & Audio Synchronization:** Dynamic caption overlays timed alongside an automated AI voiceover track.
-3. **Interactive Quiz Overlay:** At the right time, a prompt asks the viewer a question designed to drive engagement and critical thought, rather than actually seeking an answer.
-4. **Basic User Progress:** A profile tab tracking user engagement metrics (videos completed, streak count).
+1. **Pool letters** — written to no one in particular, dealt at random to
+   strangers, traveling further when liked, dying after 7 days into a
+   public, pre-moderated "Obituary" leaderboard.
+2. **Map letters** — pinned to a chosen spot on a Lithuania-only map,
+   addressed to someone the author encountered there, living 30 days.
+   Hotspot clusters when zoomed out, floating letter squares when zoomed
+   in.
+
+Both kinds share the request-to-talk → private nickname chat flow, the
+send-time keyword moderation gate, and a single founder-reviewed report
+queue.
+
+The authoritative documents are:
+
+- `product-flow.md` — full product flow, screen by screen, plus explicit
+  v1 non-goals.
+- `CLAUDE.md` — target schema, core business rules (distribution
+  mechanics, moderation, notifications, privacy rails), and engineering
+  conventions.
+- `ux-plan.md` — UX craft plan and the reasoning behind the emotional
+  design choices.
+
+## Tech stack
+
+- **Frontend:** React Native with Expo (TypeScript), Expo Router
+- **Backend:** Supabase (auth, Postgres with RLS + SQL functions,
+  realtime for chat), Expo push notifications via an Edge Function
+- **Map:** MapLibre GL JS in a WebView (`lib/map-html.ts`), vector tiles
+  from OpenFreeMap — no native map SDK, no API keys, works in Expo Go and
+  EAS builds alike

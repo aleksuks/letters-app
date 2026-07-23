@@ -121,3 +121,26 @@ Phase 2 (first-run + empty states) and Phase 5 (accessibility) first — cheap,
 high-impact, and they touch every screen. Then Phase 1 ceremonies, Phase 3
 feedback loops, Phase 6 instrumentation, and packaging last, written as you
 go in a running `decisions.md`.
+
+## Addendum (2026-07-22) — Map letters
+
+The map tab ("Žemėlapis", added with migration 031) extends the same
+design stance to a second surface:
+
+- **The map is a place, not a feed.** Letters appear as floating paper
+  squares at street level and warm hotspot circles from afar — browsing is
+  spatial wandering, not scrolling. No sorting, no ranking, no counts
+  beyond the cluster number.
+- **Ceremony carries over.** Placing a letter reuses the fold-and-release
+  send ritual; the wax-seal pin drop marks the spot before writing.
+- **Calm carries over.** Likes exist (something funny or honest deserves
+  a nod) but never rank anything — no leaderboard, no reach. A liked
+  square wears a tiny heart and a well-loved one glows, and the author
+  gets the same quiet milestone push as pool letters — but a map letter's
+  death is silent, and nothing else about it ever pings anyone. The only
+  "growth loop" is the human one (recognizing yourself in a letter and
+  answering).
+- **Privacy you can see.** The app never asks for location permission —
+  placement is a deliberate tap. This is worth calling out explicitly in
+  the case study: a map feature with zero GPS is a strong example of
+  drawing the anonymity line deliberately.

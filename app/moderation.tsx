@@ -30,6 +30,7 @@ type OverviewStats = {
   active_users_7d: number;
   total_conversations_count: number;
   total_messages_count: number;
+  active_map_letters_count: number;
 };
 
 export default function ModerationScreen() {
@@ -88,11 +89,15 @@ export default function ModerationScreen() {
     if (!openReports || openReports.length === 0) return [];
 
     const letterIds = openReports.filter(r => r.target_type === "letter").map(r => r.target_id);
+    const mapLetterIds = openReports.filter(r => r.target_type === "map_letter").map(r => r.target_id);
     const convIds = openReports.filter(r => r.target_type === "conversation").map(r => r.target_id);
 
-    const [lettersRes, convsRes, messagesRes] = await Promise.all([
+    const [lettersRes, mapLettersRes, convsRes, messagesRes] = await Promise.all([
       letterIds.length
         ? supabase.from("letters").select("id, body").in("id", letterIds)
+        : Promise.resolve({ data: [] as { id: string; body: string }[] }),
+      mapLetterIds.length
+        ? supabase.from("map_letters").select("id, body").in("id", mapLetterIds)
         : Promise.resolve({ data: [] as { id: string; body: string }[] }),
       convIds.length
         ? supabase
@@ -115,6 +120,7 @@ export default function ModerationScreen() {
     type MessageRow = { conversation_id: string; body: string; sender: { nickname: string } | null };
 
     const letterPreviews = new Map((lettersRes.data ?? []).map(l => [l.id, l.body]));
+    const mapLetterPreviews = new Map((mapLettersRes.data ?? []).map(l => [l.id, l.body]));
     const convPreviews = new Map(
       ((convsRes.data ?? []) as ConvPreview[]).map(c => [c.id, `${c.user_a?.nickname ?? "?"} ↔ ${c.user_b?.nickname ?? "?"}`])
     );
@@ -131,7 +137,9 @@ export default function ModerationScreen() {
       preview:
         r.target_type === "letter"
           ? letterPreviews.get(r.target_id) ?? "(laiškas nerastas)"
-          : convPreviews.get(r.target_id) ?? "(pokalbis nerastas)",
+          : r.target_type === "map_letter"
+            ? mapLetterPreviews.get(r.target_id) ?? "(laiškas nerastas)"
+            : convPreviews.get(r.target_id) ?? "(pokalbis nerastas)",
       messages: r.target_type === "conversation" ? convMessages.get(r.target_id) ?? [] : undefined,
     }));
   }
@@ -223,6 +231,7 @@ export default function ModerationScreen() {
                 <Text style={s.sectionTitle}>Overview</Text>
                 <View style={s.statsGrid}>
                   <StatTile label="Active letters" value={overview.active_letters_count} s={s} />
+                  <StatTile label="Map letters" value={overview.active_map_letters_count} s={s} />
                   <StatTile label="Total letters" value={overview.total_letters_count} s={s} />
                   <StatTile label="In Obituary" value={overview.obituary_public_count} s={s} />
                   <StatTile label="Pending review" value={overview.pending_obituary_review} s={s} />
@@ -275,7 +284,7 @@ export default function ModerationScreen() {
                         )}
                       </ScrollView>
                     )}
-                    {item.target_type === "letter" ? (
+                    {item.target_type === "letter" || item.target_type === "map_letter" ? (
                       <View style={s.actionRow}>
                         <TouchableOpacity
                           style={[s.actionButton, s.rejectButton, largeTouchTargets && s.actionButtonLarge]}

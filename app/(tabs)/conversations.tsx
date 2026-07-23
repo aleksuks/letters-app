@@ -25,11 +25,13 @@ interface ConversationItem {
 
 interface RequestItem {
   id: string;
-  letter_id: string;
+  letter_id: string | null;
+  map_letter_id: string | null;
   requester_id: string;
   greeting: string;
   created_at: string;
   letter: { body: string } | null;
+  map_letter: { body: string } | null;
   requester: { nickname: string } | null;
 }
 
@@ -55,7 +57,7 @@ export default function ConversationsScreen() {
         .order("created_at", { ascending: false }),
       supabase
         .from("connection_requests")
-        .select("*, letter:letters(body), requester:user_profiles!requester_id(nickname)")
+        .select("*, letter:letters(body), map_letter:map_letters(body), requester:user_profiles!requester_id(nickname)")
         .eq("author_id", user.id)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
@@ -142,7 +144,7 @@ export default function ConversationsScreen() {
                   <View key={item.id} style={s.card}>
                     <Text style={s.nickname}>{item.requester?.nickname ?? "nepažįstamasis"}</Text>
                     <Text style={s.letterPreview} numberOfLines={2}>
-                      re: „{item.letter?.body ?? ""}“
+                      re: „{item.letter?.body ?? item.map_letter?.body ?? ""}“
                     </Text>
                     <Text style={s.greeting}>„{item.greeting}“</Text>
                     <View style={s.cardActions}>

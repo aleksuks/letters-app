@@ -1,7 +1,7 @@
 export type LetterStatus = 'active' | 'expired' | 'removed_reported';
 export type ConnectionStatus = 'pending' | 'accepted' | 'declined';
 export type ConversationStatus = 'active' | 'left_by_a' | 'left_by_b' | 'blocked';
-export type ReportTargetType = 'letter' | 'conversation' | 'message';
+export type ReportTargetType = 'letter' | 'conversation' | 'message' | 'map_letter';
 export type ReportStatus = 'open' | 'reviewed_ok' | 'reviewed_removed';
 
 export interface UserProfile {
@@ -17,6 +17,7 @@ export interface UserProfile {
   last_active_at: string;
   last_reminder_sent_at: string | null;
   reminders_enabled: boolean;
+  activity_notifications_enabled: boolean;
 }
 
 export interface Letter {
@@ -53,9 +54,28 @@ export interface LetterRecipient {
   disliked: boolean;
 }
 
+export interface MapLetter {
+  id: string;
+  author_id: string;
+  body: string;
+  lat: number;
+  lng: number;
+  created_at: string;
+  expires_at: string;
+  status: LetterStatus;
+  like_count: number;
+}
+
+export interface MapLetterWithNickname extends MapLetter {
+  author_nickname: string;
+  author_accepts_requests: boolean;
+}
+
 export interface ConnectionRequest {
   id: string;
-  letter_id: string;
+  // Exactly one of letter_id / map_letter_id is set (see migration 031).
+  letter_id: string | null;
+  map_letter_id: string | null;
   requester_id: string;
   author_id: string;
   greeting: string;

@@ -25,11 +25,18 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { TabPage } from "@/components/tab-pager";
+import { DoubleTapLike } from "@/components/double-tap-like";
 
 type ObituaryLetter = Letter & { author: { nickname: string } | null };
 type SortMode = "popular" | "recent" | "original";
+type PopularPeriod = "all" | "month" | "week";
 
-const SORT_MODES: SortMode[] = ["popular", "recent", "original"];
+type SortOption = {
+  key: string;
+  sort: SortMode;
+  period: PopularPeriod;
+  label: string;
+};
 
 const SORT_COLUMN: Record<SortMode, string> = {
   popular: "total_like_count",
@@ -37,11 +44,22 @@ const SORT_COLUMN: Record<SortMode, string> = {
   original: "like_count",
 };
 
-const SORT_LABEL: Record<SortMode, string> = {
-  popular: "Populiariausi",
-  recent: "Naujausi",
-  original: "Daugiausiai surinkę dar beskraidant",
+// TUNING KNOB: "this week"/"this month" popular windows are rolling day
+// counts, anchored on died_at (when the letter actually landed in the
+// Obituary), not created_at or individual like timestamps — like_count
+// has no per-like timestamp to filter on.
+const PERIOD_DAYS: Partial<Record<PopularPeriod, number>> = {
+  month: 30,
+  week: 7,
 };
+
+const SORT_OPTIONS: SortOption[] = [
+  { key: "popular_all", sort: "popular", period: "all", label: "Populiariausi (visų laikų)" },
+  { key: "popular_month", sort: "popular", period: "month", label: "Populiariausi (šį mėnesį)" },
+  { key: "popular_week", sort: "popular", period: "week", label: "Populiariausi (šią savaitę)" },
+  { key: "recent", sort: "recent", period: "all", label: "Naujausi" },
+  { key: "original", sort: "original", period: "all", label: "Daugiausiai surinkę dar beskraidant" },
+];
 
 const ITEM_HEIGHT = 60;
 const ITEM_HEIGHT_LARGE = 78;
@@ -59,7 +77,8 @@ export default function HomeScreen() {
   const itemHeight = largeTouchTargets ? ITEM_HEIGHT_LARGE : ITEM_HEIGHT;
 
   const { height: windowHeight } = useWindowDimensions();
-  const [sort, setSort] = useState<SortMode>("popular");
+  const [sortKey, setSortKey] = useState<string>(SORT_OPTIONS[0].key);
+  const sortOption = SORT_OPTIONS.find((o) => o.key === sortKey) ?? SORT_OPTIONS[0];
   const [sortMenuVisible, setSortMenuVisible] = useState(false);
   const backdropOpacity = useSharedValue(0);
   const sheetY = useSharedValue(windowHeight);
@@ -68,14 +87,22 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [givenAfterLikes, setGivenAfterLikes] = useState<Set<string>>(new Set());
 
-  const load = useCallback((mode: SortMode) => {
+  const load = useCallback((option: SortOption) => {
     setLoading(true);
-    supabase
+    let query = supabase
       .from("letters")
       .select("*, author:user_profiles(nickname)")
       .eq("status", "expired")
-      .eq("approved_for_obituary", true)
-      .order(SORT_COLUMN[mode], { ascending: false })
+      .eq("approved_for_obituary", true);
+
+    const periodDays = PERIOD_DAYS[option.period];
+    if (periodDays !== undefined) {
+      const cutoff = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+      query = query.gte("died_at", cutoff.toISOString());
+    }
+
+    query
+      .order(SORT_COLUMN[option.sort], { ascending: false })
       .then(async ({ data }) => {
         const rows = (data as ObituaryLetter[]) ?? [];
         setLetters(rows);
@@ -95,7 +122,7 @@ export default function HomeScreen() {
       });
   }, []);
 
-  useFocusAfterTransition(useCallback(() => load(sort), [load, sort]));
+  useFocusAfterTransition(useCallback(() => load(sortOption), [load, sortOption]));
 
   const giveAfterLike = useCallback(async (letterId: string) => {
     if (givenAfterLikes.has(letterId)) return;
@@ -117,13 +144,13 @@ export default function HomeScreen() {
   }, [givenAfterLikes]);
 
   const openSortMenu = useCallback(() => {
-    indicatorY.value = SORT_MODES.indexOf(sort) * itemHeight;
+    indicatorY.value = SORT_OPTIONS.findIndex((o) => o.key === sortKey) * itemHeight;
     sheetY.value = windowHeight;
     backdropOpacity.value = 0;
     setSortMenuVisible(true);
     backdropOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
     sheetY.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) });
-  }, [sort, itemHeight, windowHeight, indicatorY, sheetY, backdropOpacity]);
+  }, [sortKey, itemHeight, windowHeight, indicatorY, sheetY, backdropOpacity]);
 
   const closeSortMenu = useCallback(() => {
     backdropOpacity.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.cubic) });
@@ -132,9 +159,9 @@ export default function HomeScreen() {
     });
   }, [windowHeight, backdropOpacity, sheetY]);
 
-  const selectSort = useCallback((mode: SortMode) => {
-    setSort(mode);
-    const targetY = SORT_MODES.indexOf(mode) * itemHeight;
+  const selectSort = useCallback((key: string) => {
+    setSortKey(key);
+    const targetY = SORT_OPTIONS.findIndex((o) => o.key === key) * itemHeight;
     indicatorY.value = withTiming(targetY, { duration: 240, easing: Easing.out(Easing.cubic) });
     // Give the indicator a moment to land on the new option before the
     // sheet dismisses, so the selection is actually visible.
@@ -182,15 +209,15 @@ export default function HomeScreen() {
             <Text style={s.subtitle}>Šiems laiškeliams kelionė jau baigta.</Text>
 
             <TutorialTip
-              id="obituary_intro"
-              text="Čia ilsisi laiškeliai, kurių kelionė jau baigta. Laiškeliai nustoja keliauti, kai juos išbalsuoja arba praėjus savaitei."
+              id="obituary_intro_v2"
+              text="Čia ilsisi laiškeliai, kurių kelionė jau baigta. Laiškeliai nustoja keliauti, kai juos išbalsuoja arba praėjus savaitei. Dukart bakstelėk laiškelį — paliksi jam širdelę."
             />
 
             <TouchableOpacity
               style={[s.sortDropdownButton, largeTouchTargets && s.sortDropdownButtonLarge]}
               onPress={openSortMenu}
             >
-              <Text style={s.sortDropdownText}>{SORT_LABEL[sort]}</Text>
+              <Text style={s.sortDropdownText}>{sortOption.label}</Text>
               <Text style={s.sortDropdownChevron}>▾</Text>
             </TouchableOpacity>
 
@@ -207,7 +234,10 @@ export default function HomeScreen() {
           const lived = daysLived(item);
           const given = givenAfterLikes.has(item.id);
           return (
-            <View style={s.card}>
+            // Double-tap anywhere on the letter drops a big heart where the
+            // finger landed and gives the post-mortem like; the small button
+            // stays as the screen-reader-friendly (and discoverable) path.
+            <DoubleTapLike onLike={() => giveAfterLike(item.id)} style={s.card}>
               <Text style={s.cardBody}>{item.body}</Text>
               <View style={s.cardMeta}>
                 <View style={s.cardMetaLeft}>
@@ -226,11 +256,11 @@ export default function HomeScreen() {
                     disabled={given}
                     accessibilityLabel="Skirti širdelę po mirties"
                   >
-                    <Text style={s.heartText}>🤍 {item.after_like_count}</Text>
+                    <Text style={s.heartText}>{given ? "❤" : "🤍"} {item.after_like_count}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            </DoubleTapLike>
           );
         }}
       />
@@ -247,17 +277,17 @@ export default function HomeScreen() {
               <Animated.View
                 style={[s.sortMenuIndicator, { height: itemHeight }, indicatorStyle]}
               />
-              {SORT_MODES.map((mode) => (
+              {SORT_OPTIONS.map((option) => (
                 <TouchableOpacity
-                  key={mode}
+                  key={option.key}
                   style={[s.sortMenuItem, { height: itemHeight }]}
-                  onPress={() => selectSort(mode)}
+                  onPress={() => selectSort(option.key)}
                 >
                   <Text
-                    style={[s.sortMenuItemText, sort === mode && s.sortMenuItemTextActive]}
+                    style={[s.sortMenuItemText, sortKey === option.key && s.sortMenuItemTextActive]}
                     numberOfLines={2}
                   >
-                    {SORT_LABEL[mode]}
+                    {option.label}
                   </Text>
                 </TouchableOpacity>
               ))}

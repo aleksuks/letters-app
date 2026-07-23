@@ -77,6 +77,11 @@ stranger, with an optional door to real connection if both sides want it.
 - Active (still-alive) letters are never shown on the public main screen —
   only in the private write/receive flow. This keeps the public surface
   small and pre-moderated.
+- Readers can leave a post-mortem heart on an Obituary letter (an
+  "afterlike", tracked separately from hearts earned in flight): double-
+  tap the letter and a big heart pops where the finger landed — the same
+  gesture as liking a map letter. A small heart button remains as the
+  screen-reader-accessible path.
 
 ### 6. Connection requests
 - From a received letter, recipient can tap "Request to talk," write a
@@ -127,7 +132,9 @@ Staying true to the app's low-friction, low-pressure premise, notifications
 are narrow and never gamify engagement — no badges, streaks, or digests.
 - A letter's author gets a short push when their letter's total like count
   crosses a milestone (1, 2, 3, 5, 10, 15, then round numbers further out).
-  Each milestone fires once.
+  Each milestone fires once. Map letters get the same milestone pushes
+  (tapping one opens the letter on the map); it's the only notification a
+  map letter ever produces — its expiry is silent.
 - A letter's author gets a push when their letter dies (travels no more —
   either it aged out at 7 days or lost a graveyard vote). This is separate
   from and doesn't wait on moderation.
@@ -145,9 +152,58 @@ are narrow and never gamify engagement — no badges, streaks, or digests.
   permission), not an in-app inbox — there's nowhere to review past
   notifications inside the app itself.
 
+### 10. Map letters ("vietos laiškeliai")
+A second, parallel way to leave a letter: pinned to a real place instead
+of dealt to a random stranger. The emotional premise: you crossed paths
+with someone — at a bus stop, a concert, a park bench — and never got the
+chance to say thanks, sorry, or anything at all. So you leave the words at
+that spot, and whoever browses the map (ideally the person themselves) can
+find and read them.
+
+- **The map**: a new "Žemėlapis" tab showing Lithuania only (the map is
+  hard-bounded — you cannot pan or place outside the country). Zoomed
+  out, letters aggregate into warm "hotspot" circles with a count; tapping
+  one zooms toward its letters. Zoomed in (city-block level), each letter
+  becomes a small floating paper square; tapping it opens the letter.
+- **Placing**: tap "Palikti laiškelį", then tap the exact spot on the map
+  (a wax-seal pin drops), then write. Placement is always a deliberate
+  map tap — the app never reads device GPS, so there is no location
+  permission and no location tracking at all. The same send-time keyword
+  moderation gate as pool letters applies.
+- **Reading**: the map is a public, shared surface (unlike pool letters,
+  which are dealt privately), and letters are readable right on it —
+  zoomed in, each one renders as a mini letter (paper card, typewriter
+  font, the text itself, signed with the author's nickname). A short
+  letter shows in full and never opens into another screen; a long one
+  shows its first lines and a single tap opens the full reading view.
+- **Liking**: double-tap a letter — a big heart pops exactly where the
+  finger landed — a small nod for something funny or honest. Works on
+  short letters directly on the map and inside the opened reading view
+  for long ones. One like per reader, no unlike, never on your own, and
+  the like changes nothing about the letter's fate: no extra reach (there
+  is none), no longer life. The author gets the same quiet milestone push
+  a pool letter earns (see Notifications); on the map a liked letter
+  shows its small heart count and a well-loved one glows softly. Never a
+  ranking, never a leaderboard.
+- **Answering**: the reader can "Atsiliepti autoriui" — the same
+  request-to-talk flow as pool letters (greeting → author accepts or
+  declines → private nickname chat), with the same blocking, duplicate-
+  conversation, and accepts-requests safeguards, since this is the whole
+  point: the addressee recognizing themselves and answering.
+- **Lifecycle**: a map letter lives 30 days (longer than pool letters —
+  the person it's meant for may not open the app for weeks), then quietly
+  disappears. No dislikes, no travel counts, no Obituary, no
+  notifications for any map-letter event. The author sees their own
+  letters on the map (marked) and can remove them early.
+- **Safety**: reporting a map letter removes it from the map immediately
+  pending founder review, through the same single review queue as
+  everything else.
+
 ## What v1 deliberately excludes
 - No in-app notification center — see Notifications below; push is the
   only surface, there is nothing to browse inside the app.
+- No device GPS or location permission — map letters are placed and found
+  by panning the map, never by tracking where the user is.
 - No public profiles beyond nickname.
 - No algorithmic recommendation/mood-matching (that's the bigger future
   idea, not this one).

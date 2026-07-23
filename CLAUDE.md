@@ -23,6 +23,13 @@ clear manual moderation appear on a public leaderboard ("Obituary").
 Recipients can request a private conversation with a letter's author;
 if accepted, a nickname-based in-app chat opens with basic safety controls.
 
+A second letter kind exists alongside the random pool: **map letters** —
+letters pinned to a chosen spot on a Lithuania-only map, addressed to
+someone the author saw or encountered there but never got to thank or
+apologize to. They are publicly browsable by any signed-in user (hotspot
+clusters zoomed out, individual letter squares zoomed in), live 30 days,
+and support the same request-to-talk flow so the addressee can answer.
+
 Full flow detail lives in `product-flow.md` in this repo — read it before
 implementing any screen or table.
 
@@ -44,8 +51,25 @@ implementing any screen or table.
   same person twice, and powers the "don't show me my own letter" rule.
   A released row does not count as "seen" — the claim was abandoned before
   reading, so the same user may receive that letter again.
-- `connection_requests`: id, letter_id, requester_id, author_id, greeting
-  (text), status (pending | accepted | declined), created_at.
+- `map_letters`: id, author_id, body, lat, lng (double precision, CHECK
+  constrained to Lithuania's bounding box), created_at, expires_at
+  (created_at + 30 days — longer than pool letters, since the person a map
+  letter is aimed at may not open the app for weeks), status (reuses
+  `letter_status`), like_count, last_notified_like_milestone. Likes exist
+  (`map_letter_likes`: one per reader, never on your own letter, no
+  unlike — a nod for something funny or honest) but carry no distribution
+  mechanics: no reach, no lifespan extension, no ranking. They do notify
+  the author via the same milestone ladder as pool letters (rule 10).
+  No dislike/travel machinery and no Obituary —
+  the map itself is the public surface, and letters simply vanish on
+  expiry. Placement is always a deliberate map tap; device GPS is never
+  read, so no location tracking exists to leak.
+- `connection_requests`: id, letter_id (nullable), map_letter_id
+  (nullable — exactly one of the two is set, CHECK-enforced), requester_id,
+  author_id, greeting (text), status (pending | accepted | declined),
+  created_at. A single table for both letter kinds so the accepts_requests
+  policy, block trigger, duplicate-conversation trigger, and accept flow
+  apply identically.
 - `conversations`: id, connection_request_id, user_a_id, user_b_id,
   status (active | left_by_a | left_by_b | blocked), created_at.
 - `messages`: id, conversation_id, sender_id, body, created_at,
@@ -60,7 +84,8 @@ implementing any screen or table.
   Founder-managed via the Supabase dashboard only; RLS with no policies
   keeps the list unreadable from the app so it can't be mined.
 - `notification_outbox`: id, user_id, type (like_milestone | letter_died |
-  letter_obituary | reminder), title, body, data (jsonb), push_token
+  letter_obituary | reminder | map_like_milestone), title, body, data
+  (jsonb), push_token
   (captured at enqueue time), created_at, sent_at, error. Write-only from
   triggers/cron (SECURITY DEFINER); RLS enabled with no policies, same
   founder-only-visibility pattern as `moderation_keywords` — clients never
@@ -121,7 +146,12 @@ implementing any screen or table.
       `total_like_count` crosses one of a fixed set of thresholds (1, 2, 3,
       5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 300, 500, 750,
       1000 — a tuning knob, `letters.last_notified_like_milestone` tracks
-      the high-water mark so a milestone never fires twice).
+      the high-water mark so a milestone never fires twice). Map letters
+      mirror this with their own type (`map_like_milestone`, migration
+      033): same ladder, same high-water column on `map_letters`, same
+      `activity_notifications_enabled` gate, but a tap deep-links to the
+      map letter itself. It is the only notification map letters ever
+      produce — their expiry stays silent.
     - **Letter death**: an author is notified once when their letter's
       `status` flips to `expired` (any path — timed expiry or graveyard
       vote), independent of the Obituary decision.
@@ -143,6 +173,32 @@ implementing any screen or table.
     Edge Function draining `notification_outbox`) so a delivery failure
     never blocks the business-logic transaction that generated it.
 
+11. Map letters (migration 031) follow the same safety rails as pool
+    letters wherever they overlap: the send-time keyword gate (rule 9)
+    runs via the same trigger function; reporting is a status flip into
+    the same single review queue (`report_map_letter()`, target_type
+    `map_letter`, resolved through `resolve_report()`); connection
+    requests reuse the shared table and all its triggers (rules 5–7).
+    Where they differ is deliberate: any signed-in user may read any
+    active map letter (RLS `map_letters_read_active`), coordinates are
+    hard-bounded to Lithuania (DB CHECK + map UI bounds), expiry is 30
+    days via `expire_due_map_letters()` (lazy in `get_map_letters()` +
+    the shared pg_cron sweep), there are no reach caps or pacing, and
+    likes (`like_map_letter()`, migration 032) carry no distribution
+    mechanics — their only effects are the author's milestone push (rule
+    10) and a subtle visual on the map. The map UI is a WebView MapLibre
+    GL map (`lib/map-html.ts`, vector tiles from OpenFreeMap, no API key;
+    the Lithuania-only crop mask is `lib/lt-border.ts`) — hotspot
+    clusters when zoomed out, readable
+    mini-letters (paper card, typewriter font, body + signature) when
+    zoomed in. Short letters (≤180 chars, tuning knob) show in full and
+    are not openable — double-tapping one pops a big heart at the tap
+    point and likes it; long letters show clamped and a tap opens the
+    detail screen, which carries the same double-tap-to-like (shared
+    `components/double-tap-like.tsx`, also used for Obituary afterlikes).
+    Own letters are always openable (delete lives there), never likeable.
+    A well-loved letter (10+ likes, tuning knob) glows softly.
+
 ## Explicit v1 non-goals (do not build these yet)
 - No in-app notification center/inbox — see rule 10; push is the only
   surface, and there's nothing to read inside the app itself.
@@ -153,6 +209,12 @@ implementing any screen or table.
   (rule 9, migration 007) is in scope; human judgment beyond it stays
   manual-review only.
 - No multi-moderator tooling — assume a single founder reviewer.
+- No device GPS / location permission anywhere: map letters are placed
+  and browsed by panning a map, never by reading the user's position. No
+  "letters near me" notifications, no geofencing, no location history.
+- No dislikes on map letters, and no map-letter leaderboard — likes are a
+  quiet appreciation counter, never a ranking signal; map letters are
+  one-to-one messages in spirit, not content competing for reach.
 
 ## Engineering conventions
 - Prefer Supabase row-level security policies over client-side checks for
