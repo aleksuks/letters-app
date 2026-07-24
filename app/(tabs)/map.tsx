@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
+  View, Text, TouchableOpacity, TextInput, FlatList, StyleSheet, ActivityIndicator,
 } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { useRouter } from "expo-router";
@@ -15,12 +15,13 @@ import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { buildMapHtml, type MapHtmlLetter } from "@/lib/map-html";
+import { searchPlaces, type PlaceMatch } from "@/lib/place-search";
 import * as Haptics from "@/lib/haptics";
 import type { MapLetterWithNickname } from "@/types";
 
 type WebMessage =
   | { type: "ready" }
-  | { type: "letterTap"; id: string }
+  | { type: "letterTap"; id: string; openRequest?: boolean }
   | { type: "likeTap"; id: string }
   | { type: "placePick"; lat: number; lng: number };
 
@@ -35,6 +36,11 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [placeMode, setPlaceMode] = useState(false);
   const [picked, setPicked] = useState<{ lat: number; lng: number } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  // Local, offline place-name search (lib/place-search.ts) — no geocoding
+  // service, so this is a cheap synchronous scan safe to run per keystroke.
+  const results = useMemo(() => searchPlaces(query), [query]);
   // The letters live in a ref (not state) because their only consumer is the
   // WebView injection below — re-rendering the RN tree for them is wasted.
   const lettersRef = useRef<MapLetterWithNickname[]>([]);
@@ -89,7 +95,10 @@ export default function MapScreen() {
       pushLetters();
     } else if (msg.type === "letterTap") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push({ pathname: "/map-letter", params: { id: msg.id } });
+      router.push({
+        pathname: "/map-letter",
+        params: msg.openRequest ? { id: msg.id, openRequest: "1" } : { id: msg.id },
+      });
     } else if (msg.type === "likeTap") {
       // The heart already popped in the WebView (optimistic); the RPC is
       // idempotent, so a re-tap on an already-liked letter is harmless.
@@ -101,6 +110,23 @@ export default function MapScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setPicked({ lat: msg.lat, lng: msg.lng });
     }
+  }
+
+  function openSearch() {
+    setSearchOpen(true);
+  }
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setQuery("");
+  }
+
+  function selectPlace(place: PlaceMatch) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    webRef.current?.injectJavaScript(
+      `window.flyTo && window.flyTo(${place.lat}, ${place.lng}); true;`
+    );
+    closeSearch();
   }
 
   function setWebPlaceMode(on: boolean) {
@@ -156,12 +182,79 @@ export default function MapScreen() {
         </View>
       )}
 
-      {!placeMode && (
+      {!placeMode && !searchOpen && (
         <TutorialTip
           id="map_intro_v2"
           text="Čia guli laiškeliai, palikti konkrečiose vietose — kažkam, kas ten buvo. Priartink ir paskaityk, o jei laiškelis patiko — bakstelėk jį du kartus."
-          style={{ ...s.tip, top: overlayTop }}
+          style={{ ...s.tip, top: overlayTop, right: 56 }}
         />
+      )}
+
+      {!placeMode && !searchOpen && (
+        <TouchableOpacity
+          style={[s.searchButton, { top: overlayTop }]}
+          onPress={openSearch}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Ieškoti vietos žemėlapyje"
+        >
+          <Ionicons name="search" size={19} color={colors.text} />
+        </TouchableOpacity>
+      )}
+
+      {searchOpen && (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(120)}
+          style={[s.searchWrap, { top: overlayTop }]}
+        >
+          <View style={s.searchBar}>
+            <Ionicons name="search" size={17} color={colors.subtext} />
+            <TextInput
+              style={s.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Miestas, miestelis, kaimas..."
+              placeholderTextColor={colors.subtext}
+              autoFocus
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            <TouchableOpacity
+              onPress={closeSearch}
+              hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+              accessibilityRole="button"
+              accessibilityLabel="Uždaryti paiešką"
+            >
+              <Ionicons name="close" size={20} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
+
+          {query.trim().length >= 2 && (
+            <View style={s.searchResults}>
+              {results.length === 0 ? (
+                <Text style={s.searchEmpty}>Vietų nerasta</Text>
+              ) : (
+                <FlatList
+                  data={results}
+                  keyExtractor={(item, i) => `${item.name}-${item.lat}-${item.lng}-${i}`}
+                  keyboardShouldPersistTaps="handled"
+                  ItemSeparatorComponent={() => <View style={s.searchResultSep} />}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={s.searchResultRow}
+                      onPress={() => selectPlace(item)}
+                    >
+                      <Ionicons name="location-outline" size={16} color={colors.subtext} />
+                      <Text style={s.searchResultText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+            </View>
+          )}
+        </Animated.View>
       )}
 
       {placeMode && (
@@ -220,6 +313,71 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       justifyContent: "center",
     },
     tip: { position: "absolute", left: 12, right: 12 },
+    searchButton: {
+      position: "absolute",
+      right: 12,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
+    },
+    searchWrap: { position: "absolute", left: 12, right: 12 },
+    searchBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
+    },
+    searchInput: { flex: 1, fontSize: 15, color: colors.text, padding: 0 },
+    searchResults: {
+      marginTop: 6,
+      maxHeight: 260,
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
+    },
+    searchResultRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+    },
+    searchResultSep: { height: 1, backgroundColor: colors.border },
+    searchResultText: { fontSize: 14, color: colors.text },
+    searchEmpty: {
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      fontSize: 13,
+      color: colors.subtext,
+      textAlign: "center",
+    },
     placeBanner: {
       position: "absolute",
       left: 12,

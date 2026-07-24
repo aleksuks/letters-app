@@ -124,21 +124,33 @@ export default function HomeScreen() {
 
   useFocusAfterTransition(useCallback(() => load(sortOption), [load, sortOption]));
 
-  const giveAfterLike = useCallback(async (letterId: string) => {
-    if (givenAfterLikes.has(letterId)) return;
-    setGivenAfterLikes((prev) => new Set(prev).add(letterId));
+  const toggleAfterLike = useCallback(async (letterId: string) => {
+    const wasGiven = givenAfterLikes.has(letterId);
+    setGivenAfterLikes((prev) => {
+      const next = new Set(prev);
+      if (wasGiven) next.delete(letterId); else next.add(letterId);
+      return next;
+    });
     setLetters((prev) =>
-      prev.map((l) => (l.id === letterId ? { ...l, after_like_count: l.after_like_count + 1 } : l))
+      prev.map((l) =>
+        l.id === letterId
+          ? { ...l, after_like_count: Math.max(0, l.after_like_count + (wasGiven ? -1 : 1)) }
+          : l
+      )
     );
     const { error } = await supabase.rpc("give_after_like", { p_letter_id: letterId });
     if (error) {
       setGivenAfterLikes((prev) => {
         const next = new Set(prev);
-        next.delete(letterId);
+        if (wasGiven) next.add(letterId); else next.delete(letterId);
         return next;
       });
       setLetters((prev) =>
-        prev.map((l) => (l.id === letterId ? { ...l, after_like_count: Math.max(0, l.after_like_count - 1) } : l))
+        prev.map((l) =>
+          l.id === letterId
+            ? { ...l, after_like_count: Math.max(0, l.after_like_count + (wasGiven ? 1 : -1)) }
+            : l
+        )
       );
     }
   }, [givenAfterLikes]);
@@ -237,7 +249,7 @@ export default function HomeScreen() {
             // Double-tap anywhere on the letter drops a big heart where the
             // finger landed and gives the post-mortem like; the small button
             // stays as the screen-reader-friendly (and discoverable) path.
-            <DoubleTapLike onLike={() => giveAfterLike(item.id)} style={s.card}>
+            <DoubleTapLike onLike={() => toggleAfterLike(item.id)} style={s.card}>
               <Text style={s.cardBody}>{item.body}</Text>
               <View style={s.cardMeta}>
                 <View style={s.cardMetaLeft}>
@@ -252,9 +264,8 @@ export default function HomeScreen() {
                   <Text style={s.heartText}>❤ {item.like_count}</Text>
                   <TouchableOpacity
                     style={[s.afterLikeButton, largeTouchTargets && s.afterLikeButtonLarge]}
-                    onPress={() => giveAfterLike(item.id)}
-                    disabled={given}
-                    accessibilityLabel="Skirti širdelę po mirties"
+                    onPress={() => toggleAfterLike(item.id)}
+                    accessibilityLabel={given ? "Atšaukti širdelę po mirties" : "Skirti širdelę po mirties"}
                   >
                     <Text style={s.heartText}>{given ? "❤" : "🤍"} {item.after_like_count}</Text>
                   </TouchableOpacity>

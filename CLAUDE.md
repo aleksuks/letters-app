@@ -56,8 +56,8 @@ implementing any screen or table.
   (created_at + 30 days — longer than pool letters, since the person a map
   letter is aimed at may not open the app for weeks), status (reuses
   `letter_status`), like_count, last_notified_like_milestone. Likes exist
-  (`map_letter_likes`: one per reader, never on your own letter, no
-  unlike — a nod for something funny or honest) but carry no distribution
+  (`map_letter_likes`: one per reader, never on your own letter, toggleable
+  — a second tap withdraws it, migration 035) but carry no distribution
   mechanics: no reach, no lifespan extension, no ranking. They do notify
   the author via the same milestone ladder as pool letters (rule 10).
   No dislike/travel machinery and no Obituary —

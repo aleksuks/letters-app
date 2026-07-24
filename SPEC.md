@@ -27,6 +27,8 @@ The authoritative documents are:
   conventions.
 - `ux-plan.md` — UX craft plan and the reasoning behind the emotional
   design choices.
+- `remaining-steps.md` — current status snapshot and the list of
+  remaining work, phase by phase.
 
 ## Tech stack
 

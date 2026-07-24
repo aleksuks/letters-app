@@ -17,10 +17,14 @@ import { LT_BORDER_RINGS } from "@/lib/lt-border";
 // is a mini letter — actual paper card, typewriter font, the text itself
 // and who left it — readable in place without opening anything.
 //
-//   - Short letters show in full and are NOT openable: double-tapping one
-//     pops a big heart right where the finger landed and likes it.
+//   - Short letters show in full, so there's nothing left to "open" by
+//     reading: a single tap goes straight to the contact prompt on the
+//     detail screen, while a double-tap within the window instead pops a
+//     big heart right where the finger landed and toggles the like (a
+//     second double-tap removes it).
 //   - Long letters show clamped with a "read on" hint; a single tap opens
-//     the detail screen, where the same double-tap-to-like lives.
+//     the detail screen to read, where the same double-tap-to-like/unlike
+//     lives.
 //   - Your own letters are always openable (that's where delete lives)
 //     and never likeable.
 //
@@ -30,12 +34,15 @@ import { LT_BORDER_RINGS } from "@/lib/lt-border";
 // RN <-> web contract:
 //   web -> RN (window.ReactNativeWebView.postMessage, JSON):
 //     { type: "ready" }                    — map booted, safe to inject data
-//     { type: "letterTap", id }            — open the detail screen
-//     { type: "likeTap", id }              — double-tap like on a short letter
+//     { type: "letterTap", id, openRequest }  — open the detail screen;
+//       openRequest is true when a short letter's single tap should land
+//       straight on the contact-the-author form instead of the plain read view
+//     { type: "likeTap", id }              — double-tap on a short letter; toggles like/unlike server-side
 //     { type: "placePick", lat, lng }      — user tapped a spot in place mode
 //   RN -> web (injectJavaScript):
 //     window.setLetters([{ id, lat, lng, own, likes, body, nick }])
 //     window.setPlaceMode(true | false)
+//     window.flyTo(lat, lng)               — pan/zoom to a searched place
 
 // Lithuania bounding box — mirrors the CHECK constraint in migration 031.
 export const LITHUANIA_BOUNDS = {
@@ -215,12 +222,18 @@ export function buildMapHtml(colors: ThemeColors): string {
   map.touchZoomRotate.disableRotation();
   map.touchPitch.disable();
 
-  // Crop the neighbours: a paper-colored mask over everything that isn't
-  // Lithuania (GPU fill layer — always rendered in full, unlike Leaflet's
-  // viewport-clipped SVG), plus a delicate outline of the border. Rings
-  // are simplified to ~400 m, close enough that border towns stay
-  // uncovered; near-solid fill keeps the cut honest where simplification
-  // shaves a bend.
+  // Crop the neighbours, in two parts:
+  //  1. A solid paper-colored fill over every fill/line feature (land,
+  //     water, roads) that isn't Lithuania, plus a delicate border outline
+  //     — inserted *below* the basemap's label layers rather than appended
+  //     on top, so it can never paint over a label.
+  //  2. Every label/POI layer gets a spatial filter that drops features
+  //     whose point falls outside the exact border, so a foreign place
+  //     name (e.g. Sovetsk, just over the Russian side) is genuinely never
+  //     drawn — not hidden under paint — while a Lithuanian town right on
+  //     the coast (e.g. Palanga) still renders its label in full even
+  //     where the text overhangs the sea, since nothing sits on top of it.
+  // Rings are simplified to ~400 m.
   var LT_RINGS_LATLNG = ${JSON.stringify(LT_BORDER_RINGS)};
   var ltRings = LT_RINGS_LATLNG.map(function (ring) {
     var r = ring.map(function (p) { return [p[1], p[0]]; });
@@ -228,8 +241,18 @@ export function buildMapHtml(colors: ThemeColors): string {
     return r;
   });
   var MASK_OUTER = [[15, 50], [32, 50], [32, 59], [15, 59], [15, 50]];
+  var LT_MULTIPOLYGON = {
+    type: "MultiPolygon",
+    coordinates: ltRings.map(function (r) { return [r]; }),
+  };
 
   map.on("load", function () {
+    var baseLayers = map.getStyle().layers || [];
+    var firstSymbolId;
+    for (var i = 0; i < baseLayers.length; i++) {
+      if (baseLayers[i].type === "symbol") { firstSymbolId = baseLayers[i].id; break; }
+    }
+
     map.addSource("lt-mask", {
       type: "geojson",
       data: {
@@ -241,8 +264,8 @@ export function buildMapHtml(colors: ThemeColors): string {
       id: "lt-mask-fill",
       type: "fill",
       source: "lt-mask",
-      paint: { "fill-color": "${colors.bg}", "fill-opacity": 0.93 },
-    });
+      paint: { "fill-color": "${colors.bg}", "fill-opacity": 1 },
+    }, firstSymbolId);
     map.addSource("lt-border", {
       type: "geojson",
       data: {
@@ -255,7 +278,17 @@ export function buildMapHtml(colors: ThemeColors): string {
       type: "line",
       source: "lt-border",
       paint: { "line-color": "${colors.subtext}", "line-width": 1.2, "line-opacity": 0.45 },
+    }, firstSymbolId);
+
+    // Drop every label/POI feature outside the exact border so foreign
+    // place names never draw at all, instead of relying on paint order.
+    baseLayers.forEach(function (layer) {
+      if (layer.type !== "symbol" && layer.type !== "circle") return;
+      var existing = map.getFilter(layer.id);
+      var withinLt = ["within", LT_MULTIPOLYGON];
+      map.setFilter(layer.id, existing ? ["all", existing, withinLt] : withinLt);
     });
+
     send({ type: "ready" });
   });
 
@@ -337,6 +370,7 @@ export function buildMapHtml(colors: ThemeColors): string {
           (l.likes > 0 ? '<span class="clikes">\\u2665 ' + l.likes + "</span>" : "") +
         "</div>";
       var lastTap = 0;
+      var singleTapTimer = null;
       el.addEventListener("click", function (e) {
         e.stopPropagation();
         if (placeMode) return;
@@ -344,17 +378,23 @@ export function buildMapHtml(colors: ThemeColors): string {
           send({ type: "letterTap", id: l.id });
           return;
         }
-        // Short letters are fully readable in place: single taps do
-        // nothing, a double tap is the like.
+        // Short letters are fully readable in place, so a single tap has
+        // nothing to "open" for reading — instead it goes straight to the
+        // contact prompt. A second tap within the window cancels that and
+        // likes instead, so the double-tap-to-like gesture still works.
         var now = Date.now();
         if (now - lastTap < DOUBLE_TAP_MS) {
           lastTap = 0;
-          if (!l.own) {
-            heartBurst(e.clientX, e.clientY);
-            send({ type: "likeTap", id: l.id });
-          }
+          if (singleTapTimer) { clearTimeout(singleTapTimer); singleTapTimer = null; }
+          heartBurst(e.clientX, e.clientY);
+          send({ type: "likeTap", id: l.id });
         } else {
           lastTap = now;
+          var tapId = l.id;
+          singleTapTimer = setTimeout(function () {
+            singleTapTimer = null;
+            send({ type: "letterTap", id: tapId, openRequest: true });
+          }, DOUBLE_TAP_MS);
         }
       });
       return new maplibregl.Marker({ element: wrapped(el), anchor: "center" })
@@ -540,6 +580,12 @@ export function buildMapHtml(colors: ThemeColors): string {
   window.setPlaceMode = function (on) {
     placeMode = on;
     if (!on && pickMarker) { pickMarker.remove(); pickMarker = null; }
+  };
+
+  // Local place search (lib/place-search.ts) resolves a typed name to a
+  // lat/lng on the RN side; this just does the camera move.
+  window.flyTo = function (lat, lng) {
+    map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), CARD_ZOOM), duration: 900 });
   };
 </script>
 </body>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -27,7 +27,7 @@ export default function MapLetterScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, openRequest } = useLocalSearchParams<{ id: string; openRequest?: string }>();
   const [letter, setLetter] = useState<LoadedMapLetter | null | undefined>(undefined);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -35,6 +35,7 @@ export default function MapLetterScreen() {
   const [greeting, setGreeting] = useState("");
   const [sendingRequest, setSendingRequest] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   const s = makeStyles(colors);
 
@@ -63,25 +64,33 @@ export default function MapLetterScreen() {
   const isOwn = letter != null && letter.author_id === user?.id;
   const canRequest = letter != null && !isOwn && letter.author?.accepts_requests !== false;
 
+  // Short letters are shown in full right on the map, so a tap there skips
+  // straight to the contact prompt instead of landing on a read view with
+  // nothing left to read.
+  useEffect(() => {
+    if (openRequest === "1" && canRequest) setShowRequestForm(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [letter, openRequest]);
+
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString("lt-LT", { month: "long", day: "numeric" });
   }
 
   // Fired by the double-tap gesture on the paper. The heart burst plays
-  // regardless (re-affirming an existing like is part of the gesture);
-  // only a first like actually writes.
+  // either way; the RPC toggles, so a second tap withdraws the like.
   async function handleLike() {
-    if (!letter || liked) return;
-    // Optimistic: the RPC is idempotent and only fails in edge states
-    // (letter just expired/reported), where reverting is honest enough.
-    setLiked(true);
-    setLikeCount((c) => c + 1);
+    if (!letter) return;
+    const wasLiked = liked;
+    // Optimistic: the RPC toggles server-side too, and only fails in edge
+    // states (letter just expired/reported), where reverting is honest enough.
+    setLiked(!wasLiked);
+    setLikeCount((c) => c + (wasLiked ? -1 : 1));
     const { error } = await supabase.rpc("like_map_letter", {
       p_map_letter_id: letter.id,
     });
     if (error) {
-      setLiked(false);
-      setLikeCount((c) => c - 1);
+      setLiked(wasLiked);
+      setLikeCount((c) => c + (wasLiked ? 1 : -1));
       if (error.message?.includes("letter_not_active")) {
         Alert.alert("Laiškelio nebėra", "Šis laiškelis jau pasibaigė.");
       } else if (!error.message?.includes("cannot_like_own")) {
@@ -212,7 +221,11 @@ export default function MapLetterScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={s.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
           <DoubleTapLike disabled={isOwn} onLike={handleLike} style={s.paper}>
             <Text style={s.body}>{letter.body}</Text>
             <Text style={s.signature}>— {letter.author?.nickname ?? "nepažįstamasis"}</Text>
@@ -223,8 +236,12 @@ export default function MapLetterScreen() {
             {likeCount > 0 ? ` · ❤ ${likeCount}` : ""}
           </Text>
 
-          {!isOwn && !liked && (
-            <Text style={s.likeHint}>Patiko? Bakstelėk laiškelį du kartus.</Text>
+          {!isOwn && (
+            <Text style={s.likeHint}>
+              {liked
+                ? "Patiko. Bakstelėk dar kartą du kartus, jei nori atšaukti."
+                : "Patiko? Bakstelėk laiškelį du kartus."}
+            </Text>
           )}
 
           {isOwn ? (
@@ -256,6 +273,7 @@ export default function MapLetterScreen() {
                 multiline
                 autoFocus
                 maxLength={300}
+                onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)}
               />
               <View style={s.requestActions}>
                 <TouchableOpacity
