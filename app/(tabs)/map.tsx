@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, TextInput, FlatList, StyleSheet, ActivityIndicator,
 } from "react-native";
@@ -83,6 +83,46 @@ export default function MapScreen() {
 
   useFocusAfterTransition(load);
 
+  // The map's "ready" message only fires once MapLibre's own `load` event
+  // fires, which depends on the CDN script, style JSON, and tiles all
+  // resolving. On a rare flaky connection one of those hangs or fails
+  // silently and "ready" never arrives, leaving the spinner stuck forever —
+  // this is the "map doesn't load until I restart the app" report, since
+  // nothing else ever prompts a retry. A watchdog timeout reloads the
+  // WebView if it hasn't booted within a generous window.
+  const READY_TIMEOUT_MS = 15000;
+  const readyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const armReadyTimeout = useCallback(() => {
+    if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
+    readyTimeoutRef.current = setTimeout(() => {
+      webRef.current?.reload();
+    }, READY_TIMEOUT_MS);
+  }, []);
+
+  useEffect(() => {
+    armReadyTimeout();
+    return () => {
+      if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
+    };
+  }, [armReadyTimeout]);
+
+  function handleWebLoadStart() {
+    // Fires on the initial load and on every reload() — including the ones
+    // triggered below — so it's the single place that resets "booting"
+    // state and re-arms the watchdog.
+    setWebReady(false);
+    armReadyTimeout();
+  }
+
+  function handleWebProcessCrash() {
+    // iOS WKWebView content process / Android renderer process died —
+    // usually a rare memory-pressure eviction, not a coding error. The
+    // WebView survives but shows blank; only an explicit reload recovers.
+    setWebReady(false);
+    webRef.current?.reload();
+  }
+
   function handleMessage(event: WebViewMessageEvent) {
     let msg: WebMessage;
     try {
@@ -91,6 +131,7 @@ export default function MapScreen() {
       return;
     }
     if (msg.type === "ready") {
+      if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
       setWebReady(true);
       pushLetters();
     } else if (msg.type === "letterTap") {
@@ -165,6 +206,9 @@ export default function MapScreen() {
         style={s.web}
         originWhitelist={["*"]}
         onMessage={handleMessage}
+        onLoadStart={handleWebLoadStart}
+        onContentProcessDidTerminate={handleWebProcessCrash}
+        onRenderProcessGone={handleWebProcessCrash}
         // Subresources (Leaflet CDN, tiles) don't go through this — only
         // top-frame navigations do. The initial html-string load is
         // about:blank/data:, so blocking http(s) here only stops taps on
@@ -185,7 +229,7 @@ export default function MapScreen() {
       {!placeMode && !searchOpen && (
         <TutorialTip
           id="map_intro_v2"
-          text="Čia guli laiškeliai, palikti konkrečiose vietose — kažkam, kas ten buvo. Priartink ir paskaityk, o jei laiškelis patiko — bakstelėk jį du kartus."
+          text="Čia išdėlioti laiškeliai, kurie ieško savo gavėjo konkrečioje vietoje, galbūt ten sutiktam žmogui, o galbūt įspėti būsimus. Gali pasižvalgyti, o patikusiems uždėti širdutę. Jei manai, kad laiškelis tau, gali su rašytoju susisiekti."
           style={{ ...s.tip, top: overlayTop, right: 56 }}
         />
       )}

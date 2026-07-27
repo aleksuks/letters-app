@@ -22,6 +22,7 @@ export default function LettersScreen() {
   const { largeTouchTargets } = useAccessibility();
   const [myLetters, setMyLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const s = makeStyles(colors);
 
@@ -82,6 +83,15 @@ export default function LettersScreen() {
     );
   }
 
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   function daysLeft(expiresAt: string) {
     const diff = new Date(expiresAt).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
@@ -104,7 +114,7 @@ export default function LettersScreen() {
 
             <TutorialTip
               id="letters_intro"
-              text="Parašyk arba gauk laiškelį iš nepažįstamo! Tavo pasirinkimas."
+              text="Čia gali parašyti arba gauti laiškelį iš atsitiktinio žmogaus."
             />
 
             <View style={s.actions}>
@@ -140,7 +150,9 @@ export default function LettersScreen() {
         renderItem={({ item }) => (
           <View style={s.card}>
             <View style={s.cardTop}>
-              <Text style={[s.cardBody, s.cardBodyFlex]} numberOfLines={3}>{item.body}</Text>
+              <TouchableOpacity style={s.cardBodyFlex} onPress={() => toggleExpanded(item.id)} activeOpacity={0.7}>
+                <Text style={s.cardBody} numberOfLines={expandedIds.has(item.id) ? undefined : 3}>{item.body}</Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8} style={s.deleteBtn}>
                 <Ionicons name="trash-outline" size={18} color={colors.subtext} />
               </TouchableOpacity>

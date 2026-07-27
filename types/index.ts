@@ -7,6 +7,7 @@ export type ReportStatus = 'open' | 'reviewed_ok' | 'reviewed_removed';
 export interface UserProfile {
   id: string;
   nickname: string;
+  avatar_emoji: string;
   age_confirmed: boolean;
   accepts_requests: boolean;
   is_moderator: boolean;

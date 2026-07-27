@@ -452,7 +452,7 @@ export default function ReceiveScreen() {
           {introDone && (
             <TutorialTip
               id="receive_actions_intro"
-              text="Patikusį laišką brauk dešinėn — jis keliaus toliau. Nepatikusį brauk kairėn, tiesiai į kapines. Jei nori susisiekti su autoriumi, gali nusiųsti užklausą pabendrauti."
+              text="Jei laiškelis patiko, brauk jį dešinėn ir jis keliaus pas kitą gavėją. Jei jis dėmesio nevertas, brauk kairėn, ir siųsim jį į kapines. Jei nori pabendrauti su autoriumi, gali nusiųsti užklausą."
             />
           )}
 
@@ -467,7 +467,7 @@ export default function ReceiveScreen() {
                   activeOpacity={0.7}
                   accessibilityLabel="Į kapines"
                 >
-                  <MaterialCommunityIcons name="grave-stone" size={20} color={colors.subtext} />
+                  <MaterialCommunityIcons name="grave-stone" size={20} color={colors.text} />
                   <Text style={s.dislikeText}>Į kapines</Text>
                 </TouchableOpacity>
 
@@ -640,7 +640,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     likeButton: { borderColor: colors.accent },
     likeText: { fontSize: 15, color: colors.accent, fontWeight: "600" },
     dislikeButton: { borderColor: colors.border },
-    dislikeText: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
+    dislikeText: { fontSize: 15, color: colors.text, fontWeight: "600" },
     swipeHint: { fontSize: 12, color: colors.subtext, textAlign: "center" },
     requestButton: {
       flexDirection: "row",

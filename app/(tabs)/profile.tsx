@@ -2,11 +2,13 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { TabPage } from "@/components/tab-pager";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/contexts/theme";
+import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { supabase } from "@/lib/supabase";
 import { UserProfile } from "@/types";
+import { AvatarCircle } from "@/components/avatar-circle";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -16,7 +18,7 @@ export default function ProfileScreen() {
 
   const s = makeStyles(colors);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!user) return;
     supabase
       .from("user_profiles")
@@ -26,12 +28,18 @@ export default function ProfileScreen() {
       .then(({ data }) => setProfile(data));
   }, [user]);
 
+  useFocusAfterTransition(load);
+
   function handleSettings() {
     router.push("/settings");
   }
 
   function handleModeration() {
     router.push("/moderation");
+  }
+
+  function handleChangeAvatar() {
+    router.push("/avatar-picker" as any);
   }
 
   function handleAtsijungti() {
@@ -47,9 +55,12 @@ export default function ProfileScreen() {
         <Text style={s.title}>Profilis</Text>
 
         <View style={s.profileSection}>
-          <View style={s.avatar}>
-            <Ionicons name="person" size={48} color="white" />
-          </View>
+          <TouchableOpacity onPress={handleChangeAvatar} activeOpacity={0.7}>
+            <AvatarCircle emoji={profile?.avatar_emoji ?? "🦊"} size={96} />
+            <View style={s.avatarEditBadge}>
+              <Ionicons name="pencil" size={14} color={colors.accentText} />
+            </View>
+          </TouchableOpacity>
           <Text style={s.nickname}>{profile?.nickname ?? "…"}</Text>
         </View>
 
@@ -91,11 +102,16 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     content: { flex: 1, paddingHorizontal: 16 },
     title: { fontSize: 32, fontWeight: "bold", color: colors.text, marginTop: 24 },
     profileSection: { marginTop: 32, alignItems: "center" },
-    avatar: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
+    avatarEditBadge: {
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
       backgroundColor: colors.accent,
+      borderWidth: 2,
+      borderColor: colors.bg,
       justifyContent: "center",
       alignItems: "center",
     },

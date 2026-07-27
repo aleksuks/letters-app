@@ -12,6 +12,7 @@ import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility } from "@/contexts/accessibility";
 import { TutorialTip } from "@/components/tutorial-tip";
+import { AvatarCircle } from "@/components/avatar-circle";
 
 interface ConversationItem {
   id: string;
@@ -19,8 +20,8 @@ interface ConversationItem {
   user_b_id: string;
   status: string;
   created_at: string;
-  user_a: { nickname: string } | null;
-  user_b: { nickname: string } | null;
+  user_a: { nickname: string; avatar_emoji: string } | null;
+  user_b: { nickname: string; avatar_emoji: string } | null;
 }
 
 interface RequestItem {
@@ -32,7 +33,7 @@ interface RequestItem {
   created_at: string;
   letter: { body: string } | null;
   map_letter: { body: string } | null;
-  requester: { nickname: string } | null;
+  requester: { nickname: string; avatar_emoji: string } | null;
 }
 
 export default function ConversationsScreen() {
@@ -51,13 +52,13 @@ export default function ConversationsScreen() {
     Promise.all([
       supabase
         .from("conversations")
-        .select("*, user_a:user_profiles!user_a_id(nickname), user_b:user_profiles!user_b_id(nickname)")
+        .select("*, user_a:user_profiles!user_a_id(nickname, avatar_emoji), user_b:user_profiles!user_b_id(nickname, avatar_emoji)")
         .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
         .eq("status", "active")
         .order("created_at", { ascending: false }),
       supabase
         .from("connection_requests")
-        .select("*, letter:letters(body), map_letter:map_letters(body), requester:user_profiles!requester_id(nickname)")
+        .select("*, letter:letters(body), map_letter:map_letters(body), requester:user_profiles!requester_id(nickname, avatar_emoji)")
         .eq("author_id", user.id)
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
@@ -73,6 +74,11 @@ export default function ConversationsScreen() {
   function otherNickname(conv: ConversationItem) {
     if (conv.user_a_id === user?.id) return conv.user_b?.nickname ?? "nepažįstamasis";
     return conv.user_a?.nickname ?? "nepažįstamasis";
+  }
+
+  function otherAvatar(conv: ConversationItem) {
+    if (conv.user_a_id === user?.id) return conv.user_b?.avatar_emoji ?? "🦊";
+    return conv.user_a?.avatar_emoji ?? "🦊";
   }
 
   function formatDate(iso: string) {
@@ -134,7 +140,7 @@ export default function ConversationsScreen() {
 
             <TutorialTip
               id="conversations_intro"
-              text="Jei kas norės su tavimi susisiekti, užklausą matysi čia. Jei nepriimsi, jie to net nesužinos."
+              text="Jei kas norės su tavimi pabendrauti, užklausa bus čia. Priėmus prasidės pokalbis, o atsisakius užklausa tiesiog dings, ir siuntėjas to net nesužinos."
             />
 
             {requests.length > 0 && (
@@ -142,7 +148,10 @@ export default function ConversationsScreen() {
                 <Text style={s.sectionTitle}>Užklausos susisiekti</Text>
                 {requests.map(item => (
                   <View key={item.id} style={s.card}>
-                    <Text style={s.nickname}>{item.requester?.nickname ?? "nepažįstamasis"}</Text>
+                    <View style={s.cardHeader}>
+                      <AvatarCircle emoji={item.requester?.avatar_emoji ?? "🦊"} size={32} />
+                      <Text style={s.nickname}>{item.requester?.nickname ?? "nepažįstamasis"}</Text>
+                    </View>
                     <Text style={s.letterPreview} numberOfLines={2}>
                       re: „{item.letter?.body ?? item.map_letter?.body ?? ""}“
                     </Text>
@@ -183,9 +192,7 @@ export default function ConversationsScreen() {
             onPress={() => router.push(`/chat/${item.id}` as any)}
             activeOpacity={0.7}
           >
-            <View style={s.avatar}>
-              <Ionicons name="person" size={22} color={colors.accentText} />
-            </View>
+            <AvatarCircle emoji={otherAvatar(item)} size={44} />
             <View style={s.rowContent}>
               <Text style={s.rowName}>{otherNickname(item)}</Text>
               <Text style={s.rowDate}>{formatDate(item.created_at)}</Text>
@@ -217,6 +224,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginTop: 8,
     },
     card: { backgroundColor: colors.surface, borderRadius: 14, padding: 16, gap: 8 },
+    cardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
     nickname: { fontSize: 16, fontWeight: "700", color: colors.text },
     letterPreview: { fontSize: 13, color: colors.subtext, fontStyle: "italic" },
     greeting: { fontSize: 15, color: colors.text, marginTop: 4 },
@@ -247,14 +255,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       gap: 14,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-    },
-    avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.accent,
-      justifyContent: "center",
-      alignItems: "center",
     },
     rowContent: { flex: 1 },
     rowName: { fontSize: 16, fontWeight: "600", color: colors.text },

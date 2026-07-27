@@ -116,6 +116,7 @@ export default function RootLayout() {
                   <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
                   <Stack.Screen name="blocked-users" options={{ animation: "slide_from_right" }} />
                   <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
+                  <Stack.Screen name="avatar-picker" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
                   <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
                   <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
                   <Stack.Screen name="map-write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />

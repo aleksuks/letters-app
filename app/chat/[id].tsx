@@ -15,6 +15,7 @@ import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { Message } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { useUnreadMessages } from "@/contexts/unread-messages";
+import { AvatarCircle } from "@/components/avatar-circle";
 
 interface ConversationDetails {
   id: string;
@@ -22,8 +23,8 @@ interface ConversationDetails {
   user_b_id: string;
   status: string;
   reported_at: string | null;
-  user_a: { nickname: string } | null;
-  user_b: { nickname: string } | null;
+  user_a: { nickname: string; avatar_emoji: string } | null;
+  user_b: { nickname: string; avatar_emoji: string } | null;
 }
 
 type MessageWithSender = Message & { sender: { nickname: string } | null };
@@ -55,7 +56,7 @@ export default function ChatScreen() {
     Promise.all([
       supabase
         .from("conversations")
-        .select("*, user_a:user_profiles!user_a_id(nickname), user_b:user_profiles!user_b_id(nickname)")
+        .select("*, user_a:user_profiles!user_a_id(nickname, avatar_emoji), user_b:user_profiles!user_b_id(nickname, avatar_emoji)")
         .eq("id", id)
         .single(),
       supabase
@@ -177,6 +178,13 @@ export default function ChatScreen() {
       : conv.user_a?.nickname ?? "nepažįstamasis";
   }
 
+  function otherAvatar() {
+    if (!conv || !user) return "🦊";
+    return conv.user_a_id === user.id
+      ? conv.user_b?.avatar_emoji ?? "🦊"
+      : conv.user_a?.avatar_emoji ?? "🦊";
+  }
+
   function otherUserId() {
     if (!conv || !user) return null;
     return conv.user_a_id === user.id ? conv.user_b_id : conv.user_a_id;
@@ -268,7 +276,10 @@ export default function ChatScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.headerName}>{otherNickname()}</Text>
+        <View style={s.headerIdentity}>
+          <AvatarCircle emoji={otherAvatar()} size={28} />
+          <Text style={s.headerName}>{otherNickname()}</Text>
+        </View>
         <TouchableOpacity onPress={handleMore} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
           <Ionicons name="ellipsis-vertical" size={22} color={colors.text} />
         </TouchableOpacity>
@@ -365,6 +376,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderBottomWidth: 1,
       borderBottomColor: colors.tabBarBorder,
     },
+    headerIdentity: { flexDirection: "row", alignItems: "center", gap: 8 },
     headerName: { fontSize: 17, fontWeight: "600", color: colors.text },
     tip: { marginHorizontal: 16, marginTop: 12 },
     reportedBanner: {
