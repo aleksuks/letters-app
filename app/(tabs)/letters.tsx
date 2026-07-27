@@ -153,9 +153,21 @@ export default function LettersScreen() {
               <TouchableOpacity style={s.cardBodyFlex} onPress={() => toggleExpanded(item.id)} activeOpacity={0.7}>
                 <Text style={s.cardBody} numberOfLines={expandedIds.has(item.id) ? undefined : 3}>{item.body}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8} style={s.deleteBtn}>
-                <Ionicons name="trash-outline" size={18} color={colors.subtext} />
-              </TouchableOpacity>
+              <View style={s.cardActions}>
+                {item.status === "expired" && (
+                  <TouchableOpacity
+                    onPress={() => router.push(`/letter-grave?id=${item.id}` as any)}
+                    hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+                    style={s.graveBtn}
+                    accessibilityLabel="Peržiūrėti laiškelio kapą"
+                  >
+                    <Text style={s.graveIcon}>🪦</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8} style={s.deleteBtn}>
+                  <Ionicons name="trash-outline" size={18} color={colors.subtext} />
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={s.cardMeta}>
               <View style={s.metaStat}>
@@ -232,6 +244,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 12,
     },
     cardBodyFlex: { flex: 1 },
+    cardActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+    graveBtn: { padding: 2 },
+    graveIcon: { fontSize: 18 },
     deleteBtn: { padding: 2 },
     cardMeta: { flexDirection: "row", alignItems: "center", gap: 14 },
     metaStat: { flexDirection: "row", alignItems: "center", gap: 4 },
