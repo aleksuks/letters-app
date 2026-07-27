@@ -254,7 +254,7 @@ export default function ModerationScreen() {
                     <View style={s.cardMeta}>
                       <Text style={s.metaText}>{item.author?.nickname ?? "unknown"}</Text>
                       <Text style={s.metaText}>
-                        ❤ {item.like_count} · 💀 {item.dislike_count} · {item.travel_count}/{item.recipient_cap} travels · {daysLeft(item.expires_at)}d left
+                        ❤ {item.like_count} · 💀 {item.dislike_count} · {item.travel_count} travels · {daysLeft(item.expires_at)}d left
                       </Text>
                     </View>
                   </View>

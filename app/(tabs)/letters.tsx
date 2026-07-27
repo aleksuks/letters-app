@@ -13,6 +13,8 @@ import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { TutorialTip } from "@/components/tutorial-tip";
+import { FlyingLetter } from "@/components/flying-letter";
+import { DrawingView } from "@/components/drawing-view";
 import { Letter } from "@/types";
 
 export default function LettersScreen() {
@@ -151,7 +153,20 @@ export default function LettersScreen() {
           <View style={s.card}>
             <View style={s.cardTop}>
               <TouchableOpacity style={s.cardBodyFlex} onPress={() => toggleExpanded(item.id)} activeOpacity={0.7}>
-                <Text style={s.cardBody} numberOfLines={expandedIds.has(item.id) ? undefined : 3}>{item.body}</Text>
+                {item.body.trim().length > 0 && (
+                  <Text style={s.cardBody} numberOfLines={expandedIds.has(item.id) ? undefined : 3}>{item.body}</Text>
+                )}
+                {/* A thumbnail while collapsed, full size once expanded — the
+                    row stays scannable but the picture is still reachable
+                    without opening anything. */}
+                {item.drawing && (
+                  <View style={s.cardDrawing}>
+                    <DrawingView
+                      drawing={item.drawing}
+                      size={expandedIds.has(item.id) ? 200 : 64}
+                    />
+                  </View>
+                )}
               </TouchableOpacity>
               <View style={s.cardActions}>
                 {item.status === "expired" && (
@@ -162,6 +177,19 @@ export default function LettersScreen() {
                     accessibilityLabel="Peržiūrėti laiškelio kapą"
                   >
                     <Text style={s.graveIcon}>🪦</Text>
+                  </TouchableOpacity>
+                )}
+                {/* Same slot the headstone occupies once the journey ends, so
+                    the row's state is legible at a glance: drifting envelope
+                    while it travels, stone once it doesn't. */}
+                {item.status === "active" && (
+                  <TouchableOpacity
+                    onPress={() => router.push(`/letter-flight?id=${item.id}` as any)}
+                    hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+                    style={s.graveBtn}
+                    accessibilityLabel="Peržiūrėti keliaujantį laiškelį"
+                  >
+                    <FlyingLetter size={18} />
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8} style={s.deleteBtn}>
@@ -244,6 +272,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 12,
     },
     cardBodyFlex: { flex: 1 },
+    cardDrawing: { marginBottom: 12 },
     cardActions: { flexDirection: "row", alignItems: "center", gap: 6 },
     graveBtn: { padding: 2 },
     graveIcon: { fontSize: 18 },

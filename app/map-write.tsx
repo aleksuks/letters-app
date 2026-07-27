@@ -13,6 +13,8 @@ import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { EnvelopeLetter } from "@/components/envelope-letter";
+import { DrawingCanvas } from "@/components/drawing-canvas";
+import { Drawing, emptyDrawing, isDrawingEmpty } from "@/lib/drawing";
 import * as Haptics from "@/lib/haptics";
 
 const MAX_LENGTH = 600;
@@ -29,7 +31,10 @@ export default function MapWriteScreen() {
   const { largeTouchTargets } = useAccessibility();
   const params = useLocalSearchParams<{ lat: string; lng: string }>();
   const [body, setBody] = useState("");
+  const [drawing, setDrawing] = useState<Drawing>(emptyDrawing);
+  const [drawingOpen, setDrawingOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
   const [sentBody, setSentBody] = useState<string | null>(null);
   const [folding, setFolding] = useState(false);
   // Inserted before the ceremony plays (so moderation errors surface
@@ -41,8 +46,12 @@ export default function MapWriteScreen() {
   const lat = Number(params.lat);
   const lng = Number(params.lng);
   const remaining = MAX_LENGTH - body.length;
+  const hasDrawing = !isDrawingEmpty(drawing);
+  // Same rule as the pool write screen: a picture may stand alone, words on
+  // their own still have to amount to something.
   const canSubmit =
-    body.trim().length >= 10 && body.length <= MAX_LENGTH &&
+    body.length <= MAX_LENGTH &&
+    (hasDrawing || body.trim().length >= 10) &&
     Number.isFinite(lat) && Number.isFinite(lng);
 
   async function handleCancelSend() {
@@ -64,7 +73,13 @@ export default function MapWriteScreen() {
     try {
       const { data, error } = await supabase
         .from("map_letters")
-        .insert({ author_id: user.id, body: body.trim(), lat, lng })
+        .insert({
+          author_id: user.id,
+          body: body.trim(),
+          drawing: hasDrawing ? drawing : null,
+          lat,
+          lng,
+        })
         .select("id")
         .single();
 
@@ -111,7 +126,7 @@ export default function MapWriteScreen() {
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <ScrollView style={s.scroll} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={scrollRef} style={s.scroll} keyboardShouldPersistTaps="handled">
             <View style={s.placeNote}>
               <Ionicons name="location" size={16} color={colors.accent} />
               <Text style={s.placeNoteText}>
@@ -134,6 +149,39 @@ export default function MapWriteScreen() {
             <Text style={[s.counter, remaining < 60 && s.counterWarning]}>
               liko {remaining} simbolių
             </Text>
+
+            {!drawingOpen ? (
+              <TouchableOpacity
+                style={[s.drawToggle, largeTouchTargets && s.drawToggleLarge]}
+                // See write.tsx: the tray is below the fold and the keyboard
+                // would sit on top of it.
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setDrawingOpen(true);
+                  setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={s.drawToggleIcon}>🖍️</Text>
+                <Text style={s.drawToggleText}>Pridėti piešinį</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={s.drawSection}>
+                <View style={s.drawHeader}>
+                  <Text style={s.drawTitle}>Piešinys</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setDrawing(emptyDrawing());
+                      setDrawingOpen(false);
+                    }}
+                    hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+                  >
+                    <Text style={s.drawRemove}>Pašalinti</Text>
+                  </TouchableOpacity>
+                </View>
+                <DrawingCanvas value={drawing} onChange={setDrawing} />
+              </View>
+            )}
           </ScrollView>
         </KeyboardAvoidingView>
 
@@ -141,6 +189,7 @@ export default function MapWriteScreen() {
           <Animated.View style={s.sendOverlay}>
             <EnvelopeLetter
               body={sentBody}
+              drawing={hasDrawing ? drawing : null}
               mode="send"
               onStart={() => setFolding(true)}
               onDone={() => router.back()}
@@ -216,6 +265,36 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 24,
     },
     counterWarning: { color: colors.red },
+    drawToggle: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginHorizontal: 20,
+      marginBottom: 32,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceAlt,
+    },
+    drawToggleLarge: { paddingVertical: 20 },
+    drawToggleIcon: { fontSize: 18 },
+    drawToggleText: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
+    drawSection: { paddingHorizontal: 20, marginBottom: 32, gap: 12 },
+    drawHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    drawTitle: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.subtext,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    drawRemove: { fontSize: 14, color: colors.subtext },
     sendOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: colors.bg,

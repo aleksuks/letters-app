@@ -65,6 +65,10 @@ export default function MapScreen() {
       lng: l.lng,
       own: l.author_id === user?.id,
       likes: l.like_count,
+      // The drawing itself never crosses into the WebView — only the fact
+      // that there is one. Shipping every letter's strokes to the map would
+      // bloat the payload for something the card can't render anyway.
+      pic: l.drawing != null,
       body: l.body,
       nick: l.author_nickname,
     }));

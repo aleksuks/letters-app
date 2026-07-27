@@ -1,3 +1,5 @@
+import type { Drawing } from '@/lib/drawing';
+
 export type LetterStatus = 'active' | 'expired' | 'removed_reported';
 export type ConnectionStatus = 'pending' | 'accepted' | 'declined';
 export type ConversationStatus = 'active' | 'left_by_a' | 'left_by_b' | 'blocked';
@@ -25,6 +27,8 @@ export interface Letter {
   id: string;
   author_id: string;
   body: string;
+  /** Crayon strokes, or null for a text-only letter (migration 038). */
+  drawing: Drawing | null;
   created_at: string;
   expires_at: string;
   status: LetterStatus;
@@ -32,7 +36,6 @@ export interface Letter {
   after_like_count: number;
   total_like_count: number;
   travel_count: number;
-  recipient_cap: number;
   dislike_count: number;
   last_delivered_at: string | null;
   died_at: string | null;
@@ -59,6 +62,8 @@ export interface MapLetter {
   id: string;
   author_id: string;
   body: string;
+  /** Crayon strokes, or null for a text-only letter (migration 038). */
+  drawing: Drawing | null;
   lat: number;
   lng: number;
   created_at: string;

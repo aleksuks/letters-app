@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { Defs, Image as SvgImage, Line, Path, Pattern, Rect } from "react-native-svg";
+import { DrawingView } from "@/components/drawing-view";
+import { isValidDrawing } from "@/lib/drawing";
 import Animated, {
   Easing,
   interpolate,
@@ -24,6 +26,13 @@ import Animated, {
 
 type Props = {
   body: string;
+  /**
+   * The letter's crayon drawing, if it has one. A letter that carries both
+   * text and a picture is pulled out in two beats — the written sheet first,
+   * then the picture behind it. A drawing-only letter has no second beat:
+   * the picture *is* the sheet.
+   */
+  drawing?: unknown;
   mode: "send" | "receive";
   onDone: () => void;
   /** Fired the moment the user commits to actually sending the envelope away. */
@@ -61,6 +70,11 @@ type Phase =
   | "peeking"
   | "waitingToPull"
   | "pulling"
+  // Receive only, and only when the letter carries both text and a picture:
+  // the same peek/wait/pull beats again for the second sheet.
+  | "peekingPicture"
+  | "waitingToPullPicture"
+  | "pullingPicture"
   | "done";
 
 // How far (px) a finger has to travel to carry a gestured stage (closing,
@@ -236,7 +250,7 @@ function buildDragStage({
  * mark every beat (a woosh as the letter flies away, a scrubbing tear on
  * opening).
  */
-export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPlay }: Props) {
+export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling, autoPlay }: Props) {
   const { colors } = useTheme();
   const { reducedMotion } = useAccessibility();
   const playWoosh = useSound(require("@/assets/sounds/woosh.wav"));
@@ -246,6 +260,14 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
     SpecialElite: require("@/assets/fonts/SpecialElite-Regular.ttf"),
   });
   const [phase, setPhase] = useState<Phase>(mode === "send" ? "entering" : "arriving");
+
+  // A letter carries a picture, words, or both. With both, the picture is a
+  // second sheet tucked behind the written one and gets its own pull. With
+  // only a picture there is nothing to read, so it takes the sheet's place
+  // rather than leaving the reader to pull a blank page out first.
+  const hasDrawing = isValidDrawing(drawing) && drawing.strokes.length > 0;
+  const pictureOnSheet = hasDrawing && body.trim().length === 0;
+  const pictureIsSeparate = hasDrawing && !pictureOnSheet && mode === "receive";
 
   const SHEET_W = Math.min(Math.round(width * 0.82), 340);
   const SHEET_PADDING = 18;
@@ -278,7 +300,14 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
   // everyday driver of the shape.
   const MIN_SHEET_H = Math.round(SHEET_W * 0.625);
   const MAX_SHEET_H = Math.round(Math.min(SHEET_W * 0.85, height * 0.45, 300));
-  const SHEET_H = Math.round(Math.min(MAX_SHEET_H, Math.max(MIN_SHEET_H, naturalHeight)));
+  // A sheet showing a picture always takes the tallest allowed box: the
+  // drawing is square, and sizing it off an absent letter's text would leave
+  // it squashed into the minimum height.
+  const SHEET_H = Math.round(
+    pictureOnSheet
+      ? MAX_SHEET_H
+      : Math.min(MAX_SHEET_H, Math.max(MIN_SHEET_H, naturalHeight))
+  );
   const maxLines = Math.max(1, Math.floor((SHEET_H - SHEET_PADDING * 2) / lineHeight));
 
   // Envelope geometry. The envelope sits at the bottom of a taller group box
@@ -304,6 +333,10 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
   // "Fully out": the sheet sits above the envelope with just its bottom
   // edge dipping into the mouth, so it still reads as belonging to it.
   const FULLY_OUT_Y = -Math.round(SHEET_H * 0.92);
+  // The picture comes to rest a little lower than the written sheet, so the
+  // letter's top edge stays visible behind it and the pair reads as two
+  // things drawn from one envelope rather than one sheet swapping for another.
+  const PICTURE_OUT_Y = FULLY_OUT_Y + 24;
   const HEADROOM = Math.abs(FULLY_OUT_Y) + 24;
   const GROUP_H = ENVELOPE_H + HEADROOM;
   const ENVELOPE_TOP = HEADROOM;
@@ -337,6 +370,8 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
   // emerge: 0 = tucked inside the envelope, 1 = fully pulled out. Receive
   // only; drives the letter's position from "peeking" onward.
   const emerge = useSharedValue(0);
+  // emergePicture: the same 0..1 for the second sheet, when there is one.
+  const emergePicture = useSharedValue(0);
   // travel: 0 = resting in view, 1 = off-screen (top for send, bottom for
   // receive) — drives the whole envelope group flying on/off screen. Also
   // finger-scrubbed a little at the very start of send's launch (see
@@ -555,7 +590,10 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
     if (phase !== "waitingToPull") return;
     setPhase("pulling");
     invite.value = withTiming(0, { duration: 150 });
-    onPulling?.();
+    // onPulling exists so the host can start its screen transition on the
+    // letter's *last* upward motion. With a picture still to come, this
+    // isn't it — the picture's pull is (see commitPullPicture).
+    if (!pictureIsSeparate) onPulling?.();
     if (fromDrag) {
       emerge.value = 1;
       pullSettle();
@@ -573,7 +611,52 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
   function pullSettle() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // The sheet is a single flat page — nothing to unfold. A short settle
-    // beat with the letter held free of the envelope, then hand off.
+    // beat with the letter held free of the envelope, then either hand off
+    // or start the picture's own peek/pull.
+    setTimeout(() => (pictureIsSeparate ? peekPicture() : finishOpen()), d(150));
+  }
+
+  // ---- RECEIVE, second sheet (text + picture letters only) ----
+
+  function peekPicture() {
+    setPhase("peekingPicture");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    emergePicture.value = withTiming(
+      0.35,
+      { duration: d(200), easing: Easing.out(Easing.cubic) },
+      (finished) => {
+        if (finished) runOnJS(afterPeekPicture)();
+      }
+    );
+  }
+
+  function afterPeekPicture() {
+    setPhase("waitingToPullPicture");
+    committing.value = false;
+    if (!autoPlay) startInvite();
+  }
+
+  function commitPullPicture(fromDrag: boolean) {
+    if (phase !== "waitingToPullPicture") return;
+    setPhase("pullingPicture");
+    invite.value = withTiming(0, { duration: 150 });
+    onPulling?.();
+    if (fromDrag) {
+      emergePicture.value = 1;
+      pictureSettle();
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    emergePicture.value = withDelay(
+      d(50),
+      withTiming(1, { duration: d(260), easing: Easing.out(Easing.cubic) }, (finished) => {
+        if (finished) runOnJS(pictureSettle)();
+      })
+    );
+  }
+
+  function pictureSettle() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setTimeout(() => finishOpen(), d(150));
   }
 
@@ -608,6 +691,10 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
     }
     if (phase === "waitingToPull") {
       const timer = setTimeout(() => commitPull(false), d(500));
+      return () => clearTimeout(timer);
+    }
+    if (phase === "waitingToPullPicture") {
+      const timer = setTimeout(() => commitPullPicture(false), d(500));
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -666,14 +753,33 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
     onCommit: commitPull,
   });
 
-  const gesture = Gesture.Race(closeGesture, launchGesture, openGesture, pullGesture);
+  const pullPictureGesture = buildDragStage({
+    enabled: phase === "waitingToPullPicture" && !autoPlay,
+    value: emergePicture,
+    from: 0.35,
+    to: 1,
+    dragUp: true,
+    committing,
+    midpointTicked,
+    lastProgress,
+    onCommit: commitPullPicture,
+  });
+
+  const gesture = Gesture.Race(
+    closeGesture,
+    launchGesture,
+    openGesture,
+    pullGesture,
+    pullPictureGesture
+  );
 
   const interactive =
     !autoPlay &&
     (phase === "waitingToClose" ||
       phase === "waitingToSend" ||
       phase === "waitingToOpen" ||
-      phase === "waitingToPull");
+      phase === "waitingToPull" ||
+      phase === "waitingToPullPicture");
 
   const promptStyle = useAnimatedStyle(() => ({
     opacity: invite.value,
@@ -737,6 +843,17 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
     };
   });
 
+  // The second sheet's slot. Identical mechanics to paperSlotStyle, on its
+  // own shared value and resting a little lower when out (PICTURE_OUT_Y).
+  const pictureSlotStyle = useAnimatedStyle(() => {
+    const y = interpolate(emergePicture.value, [0, 1], [TUCKED_Y, PICTURE_OUT_Y]);
+    const tuckedness = 1 - emergePicture.value;
+    return {
+      transform: [{ translateY: y }],
+      height: interpolate(tuckedness, [0, 1], [SHEET_H, TUCKED_VISIBLE_H]),
+    };
+  });
+
   // The flap rotates on a hinge along the envelope's top edge, from sealed
   // (apex down over the mouth, 0deg) to standing fully open above the
   // pocket (180deg, apex up) — visible in both rest states, like a real
@@ -776,6 +893,12 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
   }));
 
   const sheetFace = { width: SHEET_W, height: SHEET_H, padding: SHEET_PADDING } as const;
+  const PICTURE_SIZE = Math.min(SHEET_W, SHEET_H) - SHEET_PADDING * 2;
+  const pictureFace = (
+    <View style={[sheetFace, { alignItems: "center", justifyContent: "center" }]}>
+      <DrawingView drawing={drawing} size={PICTURE_SIZE} />
+    </View>
+  );
   const sheetText = (
     <View style={sheetFace}>
       <Text
@@ -792,6 +915,9 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
       </Text>
     </View>
   );
+  // A drawing-only letter puts the picture on the sheet itself — there is no
+  // blank page to pull out ahead of it.
+  const sheetContent = pictureOnSheet ? pictureFace : sheetText;
 
   // Warm near-black (the palette's text tone) at low alpha — layered over
   // the envelope surface it shades the pocket interior and the flap's
@@ -983,6 +1109,10 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
       label: "Brūkštelėkite aukštyn, kad ištrauktumėte laišką",
       icon: "gesture-swipe-up",
     },
+    waitingToPullPicture: {
+      label: "Brūkštelėkite aukštyn, kad ištrauktumėte piešinį",
+      icon: "gesture-swipe-up",
+    },
   };
   const prompt = promptCopy[phase];
 
@@ -1042,9 +1172,39 @@ export function EnvelopeLetter({ body, mode, onDone, onStart, onPulling, autoPla
                   borderCurve: "continuous",
                 }}
               >
-                {sheetText}
+                {sheetContent}
               </View>
             </Animated.View>
+
+            {/* The picture, when it's a second sheet. Same zIndex as the
+                written one and rendered after it, so it sits in front once
+                both are out — while tucked, both are behind the pocket front
+                either way, and once out they're clear of the envelope
+                entirely, so document order is the only thing deciding which
+                of the two is on top. */}
+            {pictureIsSeparate && (
+              <Animated.View
+                style={[
+                  { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 1 },
+                  pictureSlotStyle,
+                ]}
+              >
+                <View
+                  style={{
+                    width: SHEET_W,
+                    height: SHEET_H,
+                    overflow: "hidden",
+                    backgroundColor: colors.surfaceAlt,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 12,
+                    borderCurve: "continuous",
+                  }}
+                >
+                  {pictureFace}
+                </View>
+              </Animated.View>
+            )}
 
             {/* Pocket front (mouth notch cut into its top edge), then the
                 flap's outer face on top of everything for the visible

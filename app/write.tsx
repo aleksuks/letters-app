@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { EnvelopeLetter } from "@/components/envelope-letter";
 import { TutorialTip } from "@/components/tutorial-tip";
+import { DrawingCanvas } from "@/components/drawing-canvas";
+import { Drawing, emptyDrawing, isDrawingEmpty, isValidDrawing } from "@/lib/drawing";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "@/lib/haptics";
@@ -22,6 +24,10 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 const MAX_LENGTH = 1000;
 const DRAFT_KEY = "letters.write.draft";
+const DRAFT_DRAWING_KEY = "letters.write.draft.drawing";
+// TUNING KNOB: a text-only letter still has to be a letter. A letter that
+// carries a drawing may say nothing at all — the picture is the message.
+const MIN_TEXT_LENGTH = 10;
 const INPUT_PADDING = 20;
 const INPUT_LINE_HEIGHT = 28;
 // Suggestions must be visible without scrolling and without fighting the
@@ -72,6 +78,8 @@ export default function WriteScreen() {
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
   const [body, setBody] = useState("");
+  const [drawing, setDrawing] = useState<Drawing>(emptyDrawing);
+  const [drawingOpen, setDrawingOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sentBody, setSentBody] = useState<string | null>(null);
   const [folding, setFolding] = useState(false);
@@ -85,13 +93,21 @@ export default function WriteScreen() {
   const draftDisabledRef = useRef(false);
   const bodyRef = useRef(body);
   bodyRef.current = body;
+  const drawingRef = useRef(drawing);
+  drawingRef.current = drawing;
+  const scrollRef = useRef<ScrollView>(null);
   // Chosen once per screen visit, not re-rolled on every render.
   const [prompts] = useState(() => pickRandomPrompts(PROMPTS, PROMPTS_SHOWN));
 
   const s = makeStyles(colors);
 
   const remaining = MAX_LENGTH - body.length;
-  const canSubmit = body.trim().length >= 10 && body.length <= MAX_LENGTH;
+  const hasDrawing = !isDrawingEmpty(drawing);
+  // Text, drawing, or both — but a letter with no picture still has to carry
+  // enough words to be worth someone's claim.
+  const canSubmit =
+    body.length <= MAX_LENGTH &&
+    (hasDrawing || body.trim().length >= MIN_TEXT_LENGTH);
 
   // Restore whatever was left unsent last time (e.g. the screen was closed —
   // via the X button, the native swipe-down-to-dismiss gesture on the modal,
@@ -99,6 +115,20 @@ export default function WriteScreen() {
   useEffect(() => {
     AsyncStorage.getItem(DRAFT_KEY).then((saved) => {
       if (saved) setBody(saved);
+    });
+    // An unsent drawing is worth more to its author than an unsent sentence,
+    // so it survives a closed screen the same way the text does.
+    AsyncStorage.getItem(DRAFT_DRAWING_KEY).then((saved) => {
+      if (!saved) return;
+      try {
+        const parsed = JSON.parse(saved);
+        if (isValidDrawing(parsed) && parsed.strokes.length > 0) {
+          setDrawing(parsed);
+          setDrawingOpen(true);
+        }
+      } catch {
+        // A corrupt draft is not worth surfacing — start with clean paper.
+      }
     });
   }, []);
 
@@ -109,9 +139,11 @@ export default function WriteScreen() {
       if (draftDisabledRef.current) return;
       if (body.trim().length > 0) AsyncStorage.setItem(DRAFT_KEY, body);
       else AsyncStorage.removeItem(DRAFT_KEY);
+      if (isDrawingEmpty(drawing)) AsyncStorage.removeItem(DRAFT_DRAWING_KEY);
+      else AsyncStorage.setItem(DRAFT_DRAWING_KEY, JSON.stringify(drawing));
     }, 400);
     return () => clearTimeout(t);
-  }, [body]);
+  }, [body, drawing]);
 
   // Final flush on unmount, so the very last keystroke before dismissal
   // (before the debounce above had a chance to fire) isn't lost.
@@ -120,6 +152,9 @@ export default function WriteScreen() {
       if (draftDisabledRef.current) return;
       if (bodyRef.current.trim().length > 0) {
         AsyncStorage.setItem(DRAFT_KEY, bodyRef.current);
+      }
+      if (!isDrawingEmpty(drawingRef.current)) {
+        AsyncStorage.setItem(DRAFT_DRAWING_KEY, JSON.stringify(drawingRef.current));
       }
     };
   }, []);
@@ -155,6 +190,7 @@ export default function WriteScreen() {
         .insert({
           author_id: user.id,
           body: body.trim(),
+          drawing: hasDrawing ? drawing : null,
         })
         .select("id")
         .single();
@@ -164,6 +200,7 @@ export default function WriteScreen() {
       sentLetterIdRef.current = data?.id ?? null;
       draftDisabledRef.current = true;
       AsyncStorage.removeItem(DRAFT_KEY);
+      AsyncStorage.removeItem(DRAFT_DRAWING_KEY);
 
       // Departure ceremony: the editor is replaced by the letter folding
       // into an envelope, getting sealed, and sent flying (EnvelopeLetter),
@@ -209,7 +246,7 @@ export default function WriteScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView style={s.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} style={s.scroll} keyboardShouldPersistTaps="handled">
           <TutorialTip
             id="write_intro"
             text="Nebijok rašyti nuoširdžiai — dalinamasi tik tavo slapyvardžiu."
@@ -259,6 +296,45 @@ export default function WriteScreen() {
           <Text style={[s.counter, remaining < 100 && s.counterWarning]}>
             liko {remaining} simbolių
           </Text>
+
+          {/* A picture is optional and stays folded away until asked for, so
+              the blank page is still a blank page and not a choice of two
+              tools. Once opened it lives below the text: a letter with both
+              reads top to bottom, words then drawing. */}
+          {!drawingOpen ? (
+            <TouchableOpacity
+              style={[s.drawToggle, largeTouchTargets && s.drawToggleLarge]}
+              // The canvas and its colour tray sit below the fold; leaving the
+              // keyboard up covers them entirely.
+              onPress={() => {
+                Keyboard.dismiss();
+                setDrawingOpen(true);
+                // After layout has actually grown by the canvas's height —
+                // scrolling in the same tick lands on the old content size.
+                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={s.drawToggleIcon}>🖍️</Text>
+              <Text style={s.drawToggleText}>Pridėti piešinį</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={s.drawSection}>
+              <View style={s.drawHeader}>
+                <Text style={s.drawTitle}>Piešinys</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setDrawing(emptyDrawing());
+                    setDrawingOpen(false);
+                  }}
+                  hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+                >
+                  <Text style={s.drawRemove}>Pašalinti</Text>
+                </TouchableOpacity>
+              </View>
+              <DrawingCanvas value={drawing} onChange={setDrawing} />
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -266,6 +342,7 @@ export default function WriteScreen() {
         <Animated.View style={s.sendOverlay}>
           <EnvelopeLetter
             body={sentBody}
+            drawing={hasDrawing ? drawing : null}
             mode="send"
             onStart={() => setFolding(true)}
             onDone={goBack}
@@ -341,6 +418,36 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 24,
     },
     counterWarning: { color: colors.red },
+    drawToggle: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginHorizontal: 20,
+      marginBottom: 32,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceAlt,
+    },
+    drawToggleLarge: { paddingVertical: 20 },
+    drawToggleIcon: { fontSize: 18 },
+    drawToggleText: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
+    drawSection: { paddingHorizontal: 20, marginBottom: 32, gap: 12 },
+    drawHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    drawTitle: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.subtext,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    drawRemove: { fontSize: 14, color: colors.subtext },
     promptsOverlay: {
       position: "absolute",
       top: PROMPTS_OVERLAY_TOP,

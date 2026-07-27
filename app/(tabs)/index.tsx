@@ -1,5 +1,5 @@
 import { useTheme } from "@/contexts/theme";
-import { useAccessibility } from "@/contexts/accessibility";
+import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
@@ -26,6 +26,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { TabPage } from "@/components/tab-pager";
 import { DoubleTapLike } from "@/components/double-tap-like";
+import { DrawingView } from "@/components/drawing-view";
 
 type ObituaryLetter = Letter & { author: { nickname: string } | null };
 type SortMode = "popular" | "recent" | "original";
@@ -76,7 +77,7 @@ export default function HomeScreen() {
   const s = makeStyles(colors);
   const itemHeight = largeTouchTargets ? ITEM_HEIGHT_LARGE : ITEM_HEIGHT;
 
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [sortKey, setSortKey] = useState<string>(SORT_OPTIONS[0].key);
   const sortOption = SORT_OPTIONS.find((o) => o.key === sortKey) ?? SORT_OPTIONS[0];
   const [sortMenuVisible, setSortMenuVisible] = useState(false);
@@ -250,23 +251,42 @@ export default function HomeScreen() {
             // finger landed and gives the post-mortem like; the small button
             // stays as the screen-reader-friendly (and discoverable) path.
             <DoubleTapLike onLike={() => toggleAfterLike(item.id)} style={s.card}>
-              <Text style={s.cardBody}>{item.body}</Text>
+              {item.body.trim().length > 0 && (
+                <Text style={s.cardBody}>{item.body}</Text>
+              )}
+              {item.drawing && (
+                <View style={s.cardDrawing}>
+                  <DrawingView drawing={item.drawing} size={Math.min(windowWidth - 96, 260)} />
+                </View>
+              )}
               <View style={s.cardMeta}>
                 <View style={s.cardMetaLeft}>
-                  <Text style={s.cardAuthor}>{item.author?.nickname ?? "nežinomas"}</Text>
+                  <Text style={s.cardAuthor} numberOfLines={1}>
+                    {item.author?.nickname ?? "nežinomas"}
+                  </Text>
                   {lived !== null && (
                     <Text style={s.metaText}>
                       {lived === 0 ? "gyveno < 1 d." : `gyveno ${lived} d.`}
                     </Text>
                   )}
                 </View>
+                {/* Two hearts are meaningless side by side — a new reader has
+                    no way to know one was earned in flight and the other
+                    after burial. Labelling them as two stacked lines mirrors
+                    the author/lifespan pair opposite, so the card reads as
+                    four facts in two columns rather than a row of icons. */}
                 <View style={s.cardMetaRight}>
-                  <Text style={s.heartText}>❤ {item.like_count}</Text>
+                  <View style={s.metaCountRow}>
+                    <Text style={s.metaCountLabel}>surinko beskraidant:</Text>
+                    <Text style={s.heartText}>❤ {item.like_count}</Text>
+                  </View>
                   <TouchableOpacity
-                    style={[s.afterLikeButton, largeTouchTargets && s.afterLikeButtonLarge]}
+                    style={[s.metaCountRow, s.afterLikeButton, largeTouchTargets && s.afterLikeButtonLarge]}
                     onPress={() => toggleAfterLike(item.id)}
+                    hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 6}
                     accessibilityLabel={given ? "Atšaukti širdelę po mirties" : "Skirti širdelę po mirties"}
                   >
+                    <Text style={s.metaCountLabel}>surinko patekus į kapines:</Text>
                     <Text style={s.heartText}>{given ? "❤" : "🤍"} {item.after_like_count}</Text>
                   </TouchableOpacity>
                 </View>
@@ -378,17 +398,20 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 12,
     },
     cardBody: { fontSize: 15, color: colors.text, lineHeight: 22, marginBottom: 12 },
+    cardDrawing: { alignItems: "center", marginBottom: 12 },
     cardMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    cardMetaLeft: { gap: 2 },
-    cardMetaRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+    // The left column shrinks (a long nickname truncates) so the labelled
+    // counts on the right always keep their full width and stay aligned.
+    cardMetaLeft: { gap: 2, flexShrink: 1 },
+    cardMetaRight: { alignItems: "flex-end", gap: 3 },
+    metaCountRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    metaCountLabel: { fontSize: 11, color: colors.subtext, opacity: 0.7 },
     cardAuthor: { fontSize: 13, color: colors.subtext, fontStyle: "italic" },
     metaText: { fontSize: 12, color: colors.subtext, opacity: 0.7 },
     heartText: { fontSize: 13, color: colors.subtext },
-    afterLikeButton: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 12,
-    },
-    afterLikeButtonLarge: { paddingVertical: 10 },
+    // Vertical padding only — horizontal padding would push this row's right
+    // edge out of line with the unlabelled row above it.
+    afterLikeButton: { paddingVertical: 2, borderRadius: 12 },
+    afterLikeButtonLarge: { paddingVertical: 8 },
   });
 }

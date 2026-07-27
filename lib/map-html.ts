@@ -58,6 +58,8 @@ export interface MapHtmlLetter {
   lng: number;
   own: boolean;
   likes: number;
+  /** True when the letter carries a drawing — shows the "picture inside" badge. */
+  pic: boolean;
   body: string;
   nick: string;
 }
@@ -128,6 +130,17 @@ export function buildMapHtml(colors: ThemeColors): string {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .clikes { font-size: 9.5px; color: ${colors.accent}; white-space: nowrap; }
+  .cright { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+  /* "There's a picture inside" — the framed-picture glyph with a small plus
+     riding on its shoulder. The card can't show the drawing itself (it would
+     dominate a 120px paper square and make the map a gallery), so this is the
+     promise that opening the letter gets you one. */
+  .cpic { position: relative; font-size: 10px; line-height: 1; }
+  .cplus {
+    position: absolute; top: -3px; right: -5px;
+    font-size: 8px; font-weight: 700; color: ${colors.accent};
+    font-family: system-ui, sans-serif;
+  }
   .cmore { font-size: 9px; color: ${colors.subtext}; margin-top: 3px; font-family: system-ui, sans-serif; }
   @keyframes bob {
     0%, 100% { transform: translateY(0) rotate(var(--rot)); }
@@ -317,6 +330,7 @@ export function buildMapHtml(colors: ThemeColors): string {
       id: l.id,
       own: l.own,
       likes: l.likes,
+      pic: !!l.pic,
       body: l.body,
       nick: l.nick,
       lat: l.lat + (((h % 100) / 100) - 0.5) * 0.00012,
@@ -357,7 +371,10 @@ export function buildMapHtml(colors: ThemeColors): string {
     detach(cardMarkers);
     cardMarkers = letters.map(function (l) {
       var isLong = l.body.length > SHORT_MAX;
-      var openable = l.own || isLong;
+      // A picture only exists on the detail screen, so a letter carrying one
+      // always has something left to open — even a short letter whose text
+      // is already fully readable here.
+      var openable = l.own || isLong || l.pic;
       var el = document.createElement("div");
       el.className = "card" + (l.own ? " own" : "") + (l.likes >= LOVED_LIKES ? " loved" : "");
       el.style.setProperty("--rot", l.rot + "deg");
@@ -367,7 +384,10 @@ export function buildMapHtml(colors: ThemeColors): string {
         (isLong ? '<div class="cmore">skaityti toliau\\u2026</div>' : "") +
         '<div class="cfoot">' +
           '<span class="csig">\\u2014 ' + esc(l.nick) + "</span>" +
-          (l.likes > 0 ? '<span class="clikes">\\u2665 ' + l.likes + "</span>" : "") +
+          '<span class="cright">' +
+            (l.pic ? '<span class="cpic" aria-label="Yra piesinys">\\uD83D\\uDDBC\\uFE0F<span class="cplus">+</span></span>' : "") +
+            (l.likes > 0 ? '<span class="clikes">\\u2665 ' + l.likes + "</span>" : "") +
+          "</span>" +
         "</div>";
       var lastTap = 0;
       var singleTapTimer = null;

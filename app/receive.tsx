@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 import { EnvelopeLetter } from "@/components/envelope-letter";
+import { DrawingView } from "@/components/drawing-view";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -412,7 +413,19 @@ export default function ReceiveScreen() {
             <GestureDetector gesture={cardPan}>
               <Animated.View style={[s.card, cardStyle]}>
                 <ScrollView style={s.cardScroll} contentContainerStyle={s.cardScrollContent}>
-                  <Text style={s.body}>{letter.body}</Text>
+                  {letter.body.trim().length > 0 && (
+                    <Text style={s.body}>{letter.body}</Text>
+                  )}
+                  {/* Words then picture, the same order they came out of the
+                      envelope in. */}
+                  {letter.drawing && (
+                    <View style={s.drawingWrap}>
+                      <DrawingView
+                        drawing={letter.drawing}
+                        size={Math.min(width - 96, 300)}
+                      />
+                    </View>
+                  )}
                 </ScrollView>
 
                 <Animated.View style={[s.badge, s.likeBadge, likeBadgeStyle]} pointerEvents="none">
@@ -552,6 +565,7 @@ export default function ReceiveScreen() {
         <Animated.View style={s.introOverlay} exiting={FadeOut.duration(reducedMotion ? 1 : 400)}>
           <EnvelopeLetter
             body={letter.body}
+            drawing={letter.drawing}
             mode="receive"
             onDone={handleIntroDone}
             onPulling={() => {
@@ -599,6 +613,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     cardScroll: { flex: 1 },
     cardScrollContent: { padding: 24, paddingTop: 28 },
     body: { fontSize: 18, color: colors.text, lineHeight: 30 },
+    drawingWrap: { alignItems: "center", marginTop: 20 },
     badge: {
       position: "absolute",
       top: 18,

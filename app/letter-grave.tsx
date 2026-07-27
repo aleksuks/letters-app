@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Pressable, StyleSheet, Text, TouchableOpacity,
+  useWindowDimensions, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -9,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
+import { DrawingView } from "@/components/drawing-view";
 import type { Letter } from "@/types";
 
 // A headstone is stone regardless of the app's warm-paper theme, so the
@@ -22,6 +24,12 @@ const STONE = {
   engrave: "#33302B",
   engraveShadow: "#BEB9AF",
 };
+
+// A drawing is never engraved into the stone — colour crayon cut in granite
+// fights everything this screen is doing. Instead the picture is propped
+// behind the headstone like something left at a grave, with just enough of it
+// showing to be noticed and tapped.
+const PEEK_SIZE = 150;
 
 // Days lived, anchored on the actual death (graveyard vote or timed
 // expiry). died_at should always be set once a letter is expired; the
@@ -47,7 +55,9 @@ export default function LetterGraveScreen() {
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { width: windowWidth } = useWindowDimensions();
   const [letter, setLetter] = useState<Letter | null | undefined>(undefined);
+  const [drawingOpen, setDrawingOpen] = useState(false);
 
   const s = makeStyles(colors);
 
@@ -109,6 +119,23 @@ export default function LetterGraveScreen() {
         <Text style={s.caption}>Šio laiškelio kelionė baigta.</Text>
 
         <Animated.View entering={FadeInDown.duration(500)} style={s.monument}>
+          {/* Rendered before the stone and given no elevation, so it sits
+              behind it on both platforms — Android composites by elevation
+              rather than document order, and the stone's elevation:5 keeps
+              it in front regardless. */}
+          {letter.drawing && (
+            <TouchableOpacity
+              style={s.peek}
+              onPress={() => setDrawingOpen(true)}
+              activeOpacity={0.85}
+              accessibilityLabel="Peržiūrėti prie kapo paliktą piešinį"
+            >
+              <View style={s.peekCard}>
+                <DrawingView drawing={letter.drawing} size={PEEK_SIZE} />
+              </View>
+            </TouchableOpacity>
+          )}
+
           <View style={s.stone}>
             <Text style={s.cross}>†</Text>
 
@@ -141,6 +168,18 @@ export default function LetterGraveScreen() {
           <View style={s.plinth} />
         </Animated.View>
       </View>
+
+      {/* Tap the propped picture to see it whole; tap anywhere to put it back. */}
+      {drawingOpen && letter.drawing && (
+        <Pressable style={s.viewer} onPress={() => setDrawingOpen(false)}>
+          <Animated.View entering={FadeInDown.duration(220)} style={s.viewerCard}>
+            <DrawingView
+              drawing={letter.drawing}
+              size={Math.min(windowWidth - 96, 320)}
+            />
+          </Animated.View>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }
@@ -167,6 +206,45 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     body: { flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: 48 },
     caption: { fontSize: 15, color: colors.subtext, marginBottom: 28, textAlign: "center" },
     monument: { alignItems: "center" },
+    // Offset up and to the right of the stone's 280px face so roughly a third
+    // of the card clears it — enough to read as "there's something back
+    // there" without competing with the epitaph.
+    peek: {
+      position: "absolute",
+      top: -26,
+      right: -44,
+      transform: [{ rotate: "7deg" }],
+    },
+    peekCard: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 3,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 8,
+      shadowColor: "#000",
+      shadowOpacity: 0.16,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 3 },
+    },
+    viewer: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(43, 35, 32, 0.55)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24,
+    },
+    viewerCard: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      shadowColor: "#000",
+      shadowOpacity: 0.3,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 12,
+    },
     stone: {
       width: 280,
       backgroundColor: STONE.face,
@@ -195,8 +273,14 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderBottomRightRadius: 6,
       marginTop: -2,
     },
+    // SpecialElite carries Lithuanian diacritics fine, but its ascenders sit
+    // high in the em box and Android clips the top of the line when no
+    // lineHeight is set — which silently decapitates Š/Ž/ė and makes correctly
+    // spelled labels look misspelled. Every engraved style below therefore
+    // sets an explicit, generous lineHeight.
     cross: {
       fontSize: 30,
+      lineHeight: 40,
       fontFamily: "SpecialElite",
       marginBottom: 18,
       ...engravedText,
@@ -217,10 +301,11 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     stats: { width: 190, gap: 12 },
     statRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-    statLabel: { fontSize: 16, fontFamily: "SpecialElite", ...engravedText },
-    statValue: { fontSize: 18, fontFamily: "SpecialElite", ...engravedText },
+    statLabel: { fontSize: 16, lineHeight: 24, fontFamily: "SpecialElite", ...engravedText },
+    statValue: { fontSize: 18, lineHeight: 26, fontFamily: "SpecialElite", ...engravedText },
     dates: {
       fontSize: 13,
+      lineHeight: 20,
       fontFamily: "SpecialElite",
       marginTop: 24,
       letterSpacing: 1,

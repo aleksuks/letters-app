@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity,
+  useWindowDimensions, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -10,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { DoubleTapLike } from "@/components/double-tap-like";
+import { DrawingView } from "@/components/drawing-view";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import * as Haptics from "@/lib/haptics";
@@ -36,6 +38,7 @@ export default function MapLetterScreen() {
   const [sendingRequest, setSendingRequest] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const { width } = useWindowDimensions();
 
   const s = makeStyles(colors);
 
@@ -227,7 +230,14 @@ export default function MapLetterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <DoubleTapLike disabled={isOwn} onLike={handleLike} style={s.paper}>
-            <Text style={s.body}>{letter.body}</Text>
+            {letter.body.trim().length > 0 && (
+              <Text style={s.body}>{letter.body}</Text>
+            )}
+            {letter.drawing && (
+              <View style={s.drawingWrap}>
+                <DrawingView drawing={letter.drawing} size={Math.min(width - 96, 300)} />
+              </View>
+            )}
             <Text style={s.signature}>— {letter.author?.nickname ?? "nepažįstamasis"}</Text>
           </DoubleTapLike>
 
@@ -334,6 +344,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     body: { fontSize: 17, lineHeight: 26, color: colors.text, fontFamily: "SpecialElite" },
     signature: { fontSize: 15, color: colors.subtext, textAlign: "right", fontFamily: "SpecialElite" },
+    drawingWrap: { alignItems: "center", marginTop: 16, marginBottom: 4 },
     meta: { fontSize: 13, color: colors.subtext, textAlign: "center" },
     likeHint: { fontSize: 12, color: colors.subtext, textAlign: "center", opacity: 0.7 },
     emptyTitle: { fontSize: 18, fontWeight: "700", color: colors.text },

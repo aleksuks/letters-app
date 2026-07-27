@@ -38,11 +38,14 @@ implementing any screen or table.
 - `users`: id, nickname (unique), age_confirmed (bool), created_at.
   No real name, email optional only if needed for auth recovery, no phone
   number collection.
-- `letters`: id, author_id, body (text), created_at, expires_at
+- `letters`: id, author_id, body (text), drawing (jsonb, nullable — crayon
+  strokes, see rule 12), created_at, expires_at
   (created_at + 7 days), status (active | expired | removed_reported),
   like_count (int), dislike_count (int), travel_count (int, counts actual
-  deliveries), recipient_cap (int, ceil(users/16) frozen at send time),
-  last_delivered_at (timestamptz, powers the one-delivery-per-hour pacing).
+  deliveries),
+  last_delivered_at (timestamptz, powers the one-delivery-per-hour pacing —
+  the only limit on how far a letter travels; the old `recipient_cap`
+  column was dropped in migration 037).
 - `letter_recipients`: id, letter_id, user_id, seen_at, opened_at
   (timestamptz, set when the app confirms the letter was actually shown),
   released_at (timestamptz, set when an unopened claim is returned to the
@@ -51,7 +54,8 @@ implementing any screen or table.
   same person twice, and powers the "don't show me my own letter" rule.
   A released row does not count as "seen" — the claim was abandoned before
   reading, so the same user may receive that letter again.
-- `map_letters`: id, author_id, body, lat, lng (double precision, CHECK
+- `map_letters`: id, author_id, body, drawing (jsonb, nullable — same
+  format and rules as on `letters`), lat, lng (double precision, CHECK
   constrained to Lithuania's bounding box), created_at, expires_at
   (created_at + 30 days — longer than pool letters, since the person a map
   letter is aimed at may not open the app for weeks), status (reuses
@@ -94,15 +98,18 @@ implementing any screen or table.
 ## Core business rules to implement
 1. A letter is never shown to its own author, and never shown twice to
    the same recipient (`letter_recipients` enforces this).
-2. Distribution is pull-based and first-come-first-served: a letter can be
-   claimed by `recipient_cap` distinct readers, paced at most one delivery
+2. Distribution is pull-based and first-come-first-served: a letter may be
+   claimed by any number of distinct readers, paced at most one delivery
    per hour (gated on `last_delivered_at`, not creation time, so quiet
-   periods never stack up burst-claimable slots). A like increments
-   `like_count`, which extends total reach by exactly +1 reader — there is
-   no travel ceiling. A dislike is a graveyard vote: the letter dies early
+   periods never stack up burst-claimable slots). There is no reach
+   ceiling — pacing plus the 7-day lifespan bound the total on their own
+   (migration 037 dropped `recipient_cap`). Consequently a like carries no
+   distribution power on pool letters either: `like_count` is a counter, a
+   milestone-push trigger, and an Obituary sort key, exactly as on map
+   letters. A dislike still is a graveyard vote: the letter dies early
    only when dislikes >= 3 AND dislikes > likes. This logic lives in the
    `receive_letter()` / `like_letter()` / `dislike_letter()` SQL functions
-   (migrations 006 + 012). A claim is provisional until the app confirms
+   (migrations 006 + 012, reach removed in 037). A claim is provisional until the app confirms
    the letter was actually shown (`open_letter()`, migration 012); claims
    abandoned before reading are released — explicitly via
    `release_letter()` on exit, or by the `release_stale_claims()` reaper
@@ -198,6 +205,98 @@ implementing any screen or table.
     `components/double-tap-like.tsx`, also used for Obituary afterlikes).
     Own letters are always openable (delete lives there), never likeable.
     A well-loved letter (10+ likes, tuning knob) glows softly.
+
+12. Drawings (migration 038): either letter kind may carry a crude crayon
+    picture instead of, or alongside, its text. A CHECK enforces that a
+    letter has words, a picture, or both — never neither.
+    - **Stored as strokes, not pixels** (`drawing jsonb`): points, palette
+      index, and nib width, re-rendered client-side with react-native-svg
+      (`lib/drawing.ts` for the model and palette, `components/drawing-
+      view.tsx` to render, `components/drawing-canvas.tsx` to draw, and
+      `components/crayon-path.tsx` for the wax look — a stroke is stroked
+      ONCE at the nib width and given its falloff by an SVG filter: a
+      Gaussian blur, then a linear alpha remap (`a' = clamp(GAIN*a - CUT)`)
+      whose negative offset erases the faint tail so the line stays narrow
+      and whose gain restores a solid core. It is stroked twice: the spray
+      above, then a much tighter `CORE_*` pass masked through the same tooth
+      lifted toward white, because a single mask eats the same fraction of
+      wax everywhere and raising alpha in the middle only darkens the specks
+      rather than closing the holes. Both passes are Gaussians, so their sum
+      stays smooth and no boundary shows where one gives way to the other;
+      `CORE_FILL = 0` switches the second pass off and halves the cost. An
+      earlier version approximated
+      the same falloff by stacking four passes of descending width and
+      opacity; four samples of a smooth curve are not a smooth curve, and the
+      steps between passes were plainly visible as concentric bands. Blur is
+      continuous by construction, so there is no banding to tune away.
+      Note that react-native-svg implements only feBlend, feColorMatrix,
+      feComposite, feDropShadow, feFlood, feGaussianBlur, feMerge and
+      feOffset natively — feTurbulence and feComponentTransfer are TS stubs
+      that silently render nothing, so procedural noise and gamma curves are
+      not available. Paper tooth is therefore a single tiled mask, tiling in
+      canvas space so the grain belongs to the paper and two lines crossing
+      the same patch skip the same fibres. The texture
+      (`assets/images/crayon-grain.png`) is *generated*, not
+      downloaded: `scripts/generate-crayon-grain.mjs` builds it from
+      tileable value noise, so it's seamless by construction and carries no
+      third-party licence into a store build. Its octaves are deliberately
+      coarse — the tile is drawn into ~128 of 320 canvas units, so a lattice
+      finer than ~150 cells lands under a pixel per fleck and averages into
+      flat grey. Strokes are batched into runs of consecutive same-colour,
+      same-nib lines (one blur pass per run, and splitting on colour stops
+      the blur bleeding a purple fringe where a red line crosses a blue one),
+      and the in-progress stroke filters in its own pass so a touch sample
+      never re-blurs the whole drawing. Filter AND mask regions are emitted
+      next to the strokes that use them rather than shared from a separate
+      component, because a region is a property of the referenced element: a
+      shared one has to cover the worst case (the whole canvas), which made a
+      short flick allocate the same offscreen buffer as a stroke crossing the
+      page. Per-run regions are also why runs stop merging once the union
+      bbox gets wasteful (`RUN_MERGE_SLACK`) — batching two far-apart strokes
+      would hand them a region spanning both — and why mask regions snap
+      outward to a grid (`REGION_QUANTUM`), so the growing live stroke doesn't
+      rebuild the mask every touch sample. The grain pattern tiles in absolute
+      canvas units, so shrinking a mask region never slides the fibres a
+      stroke sits on. Note also that `INK` is folded into the mask rather than
+      applied as a third filter primitive: multiplying the mask is exactly
+      equivalent to multiplying alpha and costs nothing, where a primitive
+      costs a full extra pass over every run. Finally, the EDITOR (and only
+      the editor) folds finished strokes down to a bitmap every
+      `SNAPSHOT_AFTER` lifts via `Svg.toDataURL()`, so a drag redraws at most
+      that many blurred runs however full the picture is; the canvas re-bakes
+      the previous bitmap plus the new strokes, making each bake O(1) rather
+      than O(strokes). The bitmap is a display cache only — strokes stay
+      vectors on the wire, so what gets sent is unaffected. Two traps here,
+      both of which wipe the canvas rather than warn: (a) the size passed to
+      `toDataURL` is in DIFFERENT UNITS per platform — Android rescales the
+      viewBox to the bitmap so it wants device pixels, while iOS renders the
+      view at its natural geometry into a `bounds.size` canvas measured in
+      POINTS, so passing pixels there strands the drawing in the corner of a
+      9MP PNG that fails to decode; (b) the baked strokes must keep being
+      drawn as vectors until the bitmap reports `onLoad`, so a bake that
+      silently fails costs frame rate instead of the picture. Do not split the
+      live stroke into its own stacked `<Svg>` to save more: it would paint
+      above all older wax and then drop behind it on release. No
+      Storage bucket, no egress, no upload step to half-fail, nothing to
+      sweep on expiry. Colours are stored by index, so the palette may be
+      re-tinted but never reordered.
+    - **The tool set is deliberately crude**: eight colours, three nib sizes,
+      undo, clear. No fill, eraser, layers, or zoom — the picture is a
+      scribble in the margin, and every added tool makes someone feel their
+      drawing isn't good enough to send.
+    - **Receiving**: a letter with both is pulled out of the envelope in two
+      beats — the written sheet first, then the picture tucked behind it
+      (`envelope-letter.tsx`, phases `peekingPicture`/`waitingToPullPicture`/
+      `pullingPicture`). A drawing-only letter has no second beat: the
+      picture *is* the sheet.
+    - **On the map**: cards never render the drawing (it would dominate a
+      120px paper square and turn the map into a gallery). They show a
+      framed-picture badge with a `+`, and a letter carrying one is always
+      openable — even a short letter whose text is fully readable in place.
+    - **Moderation**: the keyword gate (rule 9) is blind to a drawing. By
+      explicit decision, drawings are governed by the existing report flow
+      only — same status flip, same single review queue. No automated
+      visual gate, consistent with the no-ML non-goal below.
 
 ## Explicit v1 non-goals (do not build these yet)
 - No in-app notification center/inbox — see rule 10; push is the only
