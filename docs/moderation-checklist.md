@@ -12,6 +12,7 @@ main way a reviewer makes bad calls:
 
 | Gate | When | What it protects |
 | --- | --- | --- |
+| Latin-script check (migration 040) | at send | runs first — Cyrillic scores zero under the keyword gate, so it has to be refused before scoring |
 | Keyword score (migration 007) | at send | other *recipients* — blocks slur-spam before delivery |
 | Report → status flip | any time | pulls content out of circulation pending review |
 | **This checklist** | at expiry | the *public* feed — a permanent, searchable, un-consented surface |

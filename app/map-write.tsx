@@ -91,8 +91,15 @@ export default function MapWriteScreen() {
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const message = (e as Error).message ?? "";
+      // Same script gate as pool letters (migration 040).
+      if (message.includes("letter_rejected_script")) {
+        Alert.alert(
+          "Laiškas nepaliktas",
+          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laišką lietuviškai ir pabandyk dar kartą."
+        );
+      }
       // Same keyword gate as pool letters (migration 007, reused in 031).
-      if (message.includes("letter_rejected_moderation")) {
+      else if (message.includes("letter_rejected_moderation")) {
         Alert.alert(
           "Laiškas nepaliktas",
           "Tavo laiške per daug įžeidžiančios kalbos. Keli stipresni žodžiai — ne bėda, bet toks laiškas čia negulės. Perrašyk jį ir pabandyk dar kartą."

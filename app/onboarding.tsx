@@ -44,6 +44,13 @@ export default function OnboardingScreen() {
       if (error) {
         if (error.code === "23505") {
           Alert.alert("Vartotojo vardas užimtas", "Pabandyk kitą.");
+        } else if (error.message.includes("nickname_rejected_script")) {
+          // Migration 040 — a Cyrillic nickname is the app's easiest
+          // impersonation vector, since it's the only identity others see.
+          Alert.alert(
+            "Netinkamas slapyvardis",
+            "Slapyvardį galima rašyti tik lotyniškomis raidėmis. Pasirink kitą."
+          );
         } else if (error.message.includes("nickname_rejected_moderation")) {
           Alert.alert(
             "Netinkamas slapyvardis",

@@ -210,9 +210,18 @@ export default function WriteScreen() {
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const message = (e as Error).message ?? "";
+      // Raised by the same trigger (migration 040) when the body contains
+      // Cyrillic. Separate from the keyword rejection because this one is a
+      // fixable mistake rather than a judgment — so it says what to change.
+      if (message.includes("letter_rejected_script")) {
+        Alert.alert(
+          "Laiškas neiškeliavo",
+          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laišką lietuviškai ir pabandyk dar kartą."
+        );
+      }
       // Raised by the trg_letters_moderation_gate trigger (migration 007)
       // when the letter's keyword score crosses the reject threshold.
-      if (message.includes("letter_rejected_moderation")) {
+      else if (message.includes("letter_rejected_moderation")) {
         Alert.alert(
           "Laiškas neiškeliavo",
           "Tavo laiške per daug įžeidžiančios kalbos. Keli stipresni žodžiai — ne bėda, bet toks laiškas pas nepažįstamuosius nekeliaus. Perrašyk jį ir pabandyk dar kartą."
