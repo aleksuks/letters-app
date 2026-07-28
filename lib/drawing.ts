@@ -68,8 +68,14 @@ export function colorAt(index: number): string {
 }
 
 /**
- * Points -> SVG path. A single point becomes a dot (a zero-length line with
- * round caps), which is what a tap on the canvas should leave behind.
+ * Points -> SVG path. A single point becomes a dot, which is what a tap on
+ * the canvas should leave behind. That's rendered as a hairline segment
+ * rather than a truly zero-length one: react-native-svg's path handling
+ * (confirmed misbehaving on iOS; not verified either way on Android) does
+ * not reliably draw a round cap for an exact `M x y L x y` degenerate
+ * subpath. A 0.01-unit nudge is invisible at any nib width in the tray —
+ * the cap radius, not the segment length, is what makes the mark — but
+ * gives the renderer an actual non-zero segment to cap.
  *
  * Segments are joined with quadratic curves through the midpoints of
  * consecutive samples, which smooths the polyline the touch stream actually
@@ -79,7 +85,7 @@ export function strokeToPath(points: [number, number][]): string {
   if (points.length === 0) return "";
   if (points.length === 1) {
     const [x, y] = points[0];
-    return `M ${x} ${y} L ${x} ${y}`;
+    return `M ${x} ${y} L ${x + 0.01} ${y}`;
   }
 
   let d = `M ${points[0][0]} ${points[0][1]}`;
