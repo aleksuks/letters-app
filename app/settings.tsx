@@ -94,7 +94,7 @@ export default function SettingsScreen() {
   function handleDeleteAccount() {
     Alert.alert(
       "Ištrinti paskyrą?",
-      "Šis veiksmas negrįžtamas. Bus visam laikui ištrinta Jūsų paskyra, laiškai, pokalbiai ir žinutės.",
+      "Šis veiksmas negrįžtamas. Bus visam laikui ištrinta Jūsų paskyra, laiškeliai, pokalbiai ir žinutės.",
       [
         { text: "Atšaukti", style: "cancel" },
         {
@@ -297,7 +297,7 @@ export default function SettingsScreen() {
               <Text style={[s.settingLabel, s.dangerText]}>
                 {deleting ? "Trinama..." : "Ištrinti paskyrą"}
               </Text>
-              <Text style={s.settingDesc}>Visam laikui ištrina paskyrą, laiškus, pokalbius ir žinutes</Text>
+              <Text style={s.settingDesc}>Visam laikui ištrina paskyrą, laiškelius, pokalbius ir žinutes</Text>
             </View>
             <Ionicons name="trash-outline" size={20} color={colors.red} />
           </TouchableOpacity>

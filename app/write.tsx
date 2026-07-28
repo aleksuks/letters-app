@@ -215,16 +215,16 @@ export default function WriteScreen() {
       // fixable mistake rather than a judgment — so it says what to change.
       if (message.includes("letter_rejected_script")) {
         Alert.alert(
-          "Laiškas neiškeliavo",
-          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laišką lietuviškai ir pabandyk dar kartą."
+          "Laiškelis neiškeliavo",
+          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laiškelį lietuviškai ir pabandyk dar kartą."
         );
       }
       // Raised by the trg_letters_moderation_gate trigger (migration 007)
       // when the letter's keyword score crosses the reject threshold.
       else if (message.includes("letter_rejected_moderation")) {
         Alert.alert(
-          "Laiškas neiškeliavo",
-          "Tavo laiške per daug įžeidžiančios kalbos. Keli stipresni žodžiai — ne bėda, bet toks laiškas pas nepažįstamuosius nekeliaus. Perrašyk jį ir pabandyk dar kartą."
+          "Laiškelis neiškeliavo",
+          "Tavo laiškelyje per daug įžeidžiančios kalbos. Stipresnė kalba nieko tokio, bet šiuo atveju truputį persistengta, ir toks laiškelis niekur neskris. Pabandyk perrašyti."
         );
       } else {
         Alert.alert("Klaida", message);

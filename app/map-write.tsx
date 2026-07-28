@@ -94,15 +94,15 @@ export default function MapWriteScreen() {
       // Same script gate as pool letters (migration 040).
       if (message.includes("letter_rejected_script")) {
         Alert.alert(
-          "Laiškas nepaliktas",
-          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laišką lietuviškai ir pabandyk dar kartą."
+          "Laiškelis nepaliktas",
+          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laiškelį lietuviškai ir pabandyk dar kartą."
         );
       }
       // Same keyword gate as pool letters (migration 007, reused in 031).
       else if (message.includes("letter_rejected_moderation")) {
         Alert.alert(
-          "Laiškas nepaliktas",
-          "Tavo laiške per daug įžeidžiančios kalbos. Keli stipresni žodžiai — ne bėda, bet toks laiškas čia negulės. Perrašyk jį ir pabandyk dar kartą."
+          "Laiškelis nepaliktas",
+          "Tavo laiškelyje per daug įžeidžiančios kalbos. Stipresnė kalba nieko tokio, bet šiuo atveju truputį persistengta, ir toks laiškelis čia būti negalės. Pabandyk perrašyti."
         );
       } else {
         Alert.alert("Klaida", message);

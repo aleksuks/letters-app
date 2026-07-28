@@ -136,9 +136,9 @@ export default function ModerationScreen() {
       ...r,
       preview:
         r.target_type === "letter"
-          ? letterPreviews.get(r.target_id) ?? "(laiškas nerastas)"
+          ? letterPreviews.get(r.target_id) ?? "(laiškelis nerastas)"
           : r.target_type === "map_letter"
-            ? mapLetterPreviews.get(r.target_id) ?? "(laiškas nerastas)"
+            ? mapLetterPreviews.get(r.target_id) ?? "(laiškelis nerastas)"
             : convPreviews.get(r.target_id) ?? "(pokalbis nerastas)",
       messages: r.target_type === "conversation" ? convMessages.get(r.target_id) ?? [] : undefined,
     }));

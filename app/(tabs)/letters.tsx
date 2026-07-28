@@ -65,7 +65,7 @@ export default function LettersScreen() {
 
   function handleDelete(letter: Letter) {
     Alert.alert(
-      "Ištrinti laišką?",
+      "Ištrinti laiškelį?",
       "Šio veiksmo atšaukti negalėsi.",
       [
         { text: "Atšaukti", style: "cancel" },

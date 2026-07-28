@@ -305,15 +305,15 @@ export default function ReceiveScreen() {
       p_reason: reason,
     });
     if (error) { Alert.alert("Klaida", error.message); return; }
-    Alert.alert("Ačiū", "Praneštas laiškas pašalintas iš apyvartos, kol jį peržiūrės administratorius.");
+    Alert.alert("Ačiū", "Praneštas laiškelis pašalintas iš apyvartos, kol jį peržiūrės administratorius.");
     router.back();
   }
 
   function confirmReport() {
     if (state.phase !== "ready") return;
     Alert.alert(
-      "Pranešti apie laišką?",
-      "Laiškas bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius.",
+      "Pranešti apie laiškelį?",
+      "Laiškelis bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius.",
       [
         { text: "Atšaukti", style: "cancel" },
         { text: "Netinkamas turinys", onPress: () => handleReport("Netinkamas turinys") },
@@ -383,7 +383,7 @@ export default function ReceiveScreen() {
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.center}>
-          <Text style={s.emptyTitle}>Kol kas jokių laiškų</Text>
+          <Text style={s.emptyTitle}>Kol kas jokių laiškelių</Text>
           <Text style={s.emptyHint}>
             Pasaulis tylus. Pabandyk vėliau, arba parašyk pats.
           </Text>
@@ -405,7 +405,7 @@ export default function ReceiveScreen() {
           onPress={handleClose}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti laišką"
+          accessibilityLabel="Uždaryti laiškelį"
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
@@ -414,8 +414,8 @@ export default function ReceiveScreen() {
           onPress={confirmReport}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Pranešti apie laišką"
-          accessibilityHint="Laiškas bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius"
+          accessibilityLabel="Pranešti apie laiškelį"
+          accessibilityHint="Laiškelis bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius"
         >
           <Ionicons name="flag-outline" size={22} color={colors.subtext} />
         </TouchableOpacity>

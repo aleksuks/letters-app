@@ -237,8 +237,8 @@ export default function HomeScreen() {
             {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />}
             {!loading && letters.length === 0 && (
               <View style={s.empty}>
-                <Text style={s.emptyText}>Kol kas jokių laiškų.</Text>
-                <Text style={s.emptyHint}>Seni arba nepatikę laiškai bus čia.</Text>
+                <Text style={s.emptyText}>Kol kas jokių laiškelių.</Text>
+                <Text style={s.emptyHint}>Seni arba nepatikę laiškeliai bus čia.</Text>
               </View>
             )}
           </View>

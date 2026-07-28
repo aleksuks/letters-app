@@ -1098,7 +1098,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
       icon: "gesture-swipe-down",
     },
     waitingToSend: {
-      label: "Brūkštelėkite aukštyn, kad išsiųstumėte laišką",
+      label: "Brūkštelėkite aukštyn, kad išsiųstumėte laiškelį",
       icon: "gesture-swipe-up",
     },
     waitingToOpen: {
@@ -1106,7 +1106,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
       icon: "gesture-swipe-up",
     },
     waitingToPull: {
-      label: "Brūkštelėkite aukštyn, kad ištrauktumėte laišką",
+      label: "Brūkštelėkite aukštyn, kad ištrauktumėte laiškelį",
       icon: "gesture-swipe-up",
     },
     waitingToPullPicture: {
