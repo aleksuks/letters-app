@@ -9,8 +9,13 @@ import { useCallback, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
+import {
+  useAccessibility,
+  HIT_SLOP_LARGE,
+  LARGE_BUTTON,
+  LARGE_BUTTON_TEXT,
+} from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { FlyingLetter } from "@/components/flying-letter";
@@ -121,21 +126,25 @@ export default function LettersScreen() {
 
             <View style={s.actions}>
               <TouchableOpacity
-                style={s.primaryButton}
+                style={[s.primaryButton, largeTouchTargets && LARGE_BUTTON]}
                 onPress={() => router.push("/write" as any)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="create-outline" size={22} color={colors.accentText} />
-                <Text style={s.primaryButtonText}>Parašyti laiškelį</Text>
+                <Ionicons name="create-outline" size={largeTouchTargets ? 26 : 22} color={colors.accentText} />
+                <Text style={[s.primaryButtonText, largeTouchTargets && LARGE_BUTTON_TEXT]}>
+                  Parašyti laiškelį
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={s.secondaryButton}
+                style={[s.secondaryButton, largeTouchTargets && LARGE_BUTTON]}
                 onPress={handleReceivePress}
                 activeOpacity={0.8}
               >
-                <Ionicons name="mail-open-outline" size={22} color={colors.accent} />
-                <Text style={s.secondaryButtonText}>Gauti laiškelį</Text>
+                <Ionicons name="mail-open-outline" size={largeTouchTargets ? 26 : 22} color={colors.accent} />
+                <Text style={[s.secondaryButtonText, largeTouchTargets && LARGE_BUTTON_TEXT]}>
+                  Gauti laiškelį
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -251,11 +260,11 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
+      ...outlineOnly(colors),
     },
     primaryButtonText: { color: colors.accentText, fontWeight: "bold", fontSize: 16 },
     secondaryButton: {
-      borderWidth: 1,
-      borderColor: colors.accent,
+      ...outlineOver(colors, colors.accent),
       borderRadius: 14,
       paddingVertical: 16,
       flexDirection: "row",
@@ -278,6 +287,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 14,
       padding: 16,
       marginBottom: 12,
+      ...outlineOnly(colors),
     },
     cardTop: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
     cardBody: {

@@ -9,8 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility } from "@/contexts/accessibility";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
+import { useAccessibility, LARGE_BUTTON } from "@/contexts/accessibility";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { AvatarCircle } from "@/components/avatar-circle";
 
@@ -229,14 +229,13 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     letterPreview: { fontSize: 13, color: colors.subtext, fontStyle: "italic" },
     greeting: { fontSize: 15, color: colors.text, marginTop: 4 },
     cardActions: { flexDirection: "row", gap: 10, marginTop: 8 },
-    cardButtonLarge: { paddingVertical: 15 },
+    cardButtonLarge: LARGE_BUTTON,
     declineButton: {
       flex: 1,
       paddingVertical: 12,
       borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
       alignItems: "center",
+      ...outlineOver(colors, colors.border),
     },
     declineText: { color: colors.subtext, fontSize: 15 },
     acceptButton: {
@@ -245,6 +244,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 10,
       backgroundColor: colors.accent,
       alignItems: "center",
+      ...outlineOnly(colors),
     },
     acceptText: { color: colors.accentText, fontSize: 15, fontWeight: "bold" },
     row: {

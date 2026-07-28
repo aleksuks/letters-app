@@ -1,5 +1,5 @@
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
@@ -690,22 +690,22 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       padding: 14,
       color: colors.text,
       fontSize: 15,
-      borderWidth: 1,
-      borderColor: colors.border,
       minHeight: 80,
       textAlignVertical: "top",
+      ...outlineOver(colors, colors.border),
     },
     greetingRow: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
     cancelButton: { paddingHorizontal: 16, paddingVertical: 10 },
-    cancelButtonLarge: { paddingVertical: 14 },
+    cancelButtonLarge: LARGE_BUTTON,
     cancelText: { color: colors.subtext, fontSize: 15 },
     sendGreetingButton: {
       backgroundColor: colors.accent,
       borderRadius: 10,
       paddingHorizontal: 20,
       paddingVertical: 10,
+      ...outlineOnly(colors),
     },
-    sendGreetingButtonLarge: { paddingVertical: 14 },
+    sendGreetingButtonLarge: LARGE_BUTTON,
     sendGreetingText: { color: colors.accentText, fontWeight: "bold", fontSize: 15 },
     disabledButton: { opacity: 0.4 },
     sentRow: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center", paddingVertical: 8 },

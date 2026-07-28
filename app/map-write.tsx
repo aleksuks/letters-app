@@ -8,8 +8,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { EnvelopeLetter } from "@/components/envelope-letter";
@@ -244,8 +244,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 20,
       paddingHorizontal: 16,
       paddingVertical: 8,
+      ...outlineOnly(colors),
     },
-    sendButtonLarge: { paddingVertical: 14 },
+    sendButtonLarge: LARGE_BUTTON,
     sendButtonDisabled: { opacity: 0.4 },
     sendButtonText: { color: colors.accentText, fontWeight: "bold", fontSize: 15 },
     scroll: { flex: 1 },
@@ -290,7 +291,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderColor: colors.border,
       backgroundColor: colors.surfaceAlt,
     },
-    drawToggleLarge: { paddingVertical: 20 },
+    drawToggleLarge: LARGE_BUTTON,
     drawToggleIcon: { fontSize: 18 },
     drawToggleText: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
     drawSection: { paddingHorizontal: 20, marginBottom: 32, gap: 12 },
@@ -322,7 +323,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       paddingHorizontal: 28,
       paddingVertical: 12,
     },
-    sendCancelButtonLarge: { paddingVertical: 16 },
+    sendCancelButtonLarge: LARGE_BUTTON,
     sendCancelText: { color: colors.subtext, fontSize: 15, fontWeight: "600" },
     sendCaption: { fontSize: 14, color: colors.subtext, textAlign: "center" },
   });

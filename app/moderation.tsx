@@ -8,8 +8,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { Letter, Report } from "@/types";
 
@@ -453,6 +453,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 14,
       padding: 16,
       marginBottom: 12,
+      ...outlineOnly(colors),
     },
     cardBody: { fontSize: 15, color: colors.text, lineHeight: 22, marginBottom: 12 },
     cardMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
@@ -467,7 +468,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 10,
       paddingVertical: 10,
     },
-    actionButtonLarge: { paddingVertical: 14 },
+    actionButtonLarge: LARGE_BUTTON,
     rejectButton: { borderWidth: 1, borderColor: colors.border },
     rejectText: { fontSize: 14, color: colors.subtext, fontWeight: "600" },
     approveButton: { backgroundColor: colors.accent },

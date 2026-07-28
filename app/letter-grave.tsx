@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { DrawingView } from "@/components/drawing-view";
@@ -227,13 +227,12 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     peekCard: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: 3,
-      borderWidth: 1,
-      borderColor: colors.border,
       padding: 8,
       shadowColor: "#000",
       shadowOpacity: 0.16,
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 3 },
+      ...outlineOver(colors, colors.border),
     },
     viewer: {
       ...StyleSheet.absoluteFillObject,

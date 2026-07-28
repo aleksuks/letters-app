@@ -16,6 +16,33 @@ type ReducedMotionOverride = "system" | "on" | "off";
 // change the look of the whole UI for users who never asked for it.
 export const HIT_SLOP_LARGE = { top: 16, bottom: 16, left: 16, right: 16 };
 
+// hitSlop grows only the *invisible* touch area, so on its own the setting
+// reads as broken: you turn on "bigger buttons" and every button looks
+// exactly the same size. Someone who needs a larger target usually needs to
+// see it as well as hit it — an unchanged button says "this did nothing"
+// regardless of what the touch handler now accepts. These give the setting a
+// visible effect, and are shared rather than re-declared per screen so the
+// enlargement is the same everywhere instead of drifting between 14pt here
+// and 17pt there (which is roughly what it had drifted into).
+//
+// minHeight rather than padding alone: padding is measured from whatever the
+// base style happens to be, so a +6pt bump on a compact button and on a roomy
+// one produce visibly different results. A floor produces the same one.
+export const LARGE_BUTTON = {
+  minHeight: 56,
+  paddingVertical: 16,
+  paddingHorizontal: 22,
+} as const;
+
+// Icon-only buttons have no label to grow with them, so they get a square
+// floor instead of vertical padding.
+export const LARGE_ICON_BUTTON = { minWidth: 52, minHeight: 52 } as const;
+
+// Applied alongside LARGE_BUTTON on the button's label. Bumping the target
+// without bumping the text leaves a small word marooned in a big rectangle,
+// which looks like a layout bug rather than an accommodation.
+export const LARGE_BUTTON_TEXT = { fontSize: 18 } as const;
+
 interface AccessibilityContextType {
   reducedMotion: boolean;
   reducedMotionOverride: ReducedMotionOverride;

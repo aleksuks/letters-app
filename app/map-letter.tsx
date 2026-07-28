@@ -8,8 +8,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { DoubleTapLike } from "@/components/double-tap-like";
 import { DrawingView } from "@/components/drawing-view";
 import { useAuth } from "@/hooks/use-auth";
@@ -349,8 +349,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     paper: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
       padding: 22,
       gap: 16,
       shadowColor: "#000",
@@ -358,6 +356,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 2 },
       elevation: 2,
+      ...outlineOver(colors, colors.border),
     },
     body: { fontSize: 17, lineHeight: 26, color: colors.text, fontFamily: "SpecialElite" },
     signature: { fontSize: 15, color: colors.subtext, textAlign: "right", fontFamily: "SpecialElite" },
@@ -375,6 +374,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 12,
       paddingVertical: 13,
       paddingHorizontal: 20,
+      ...outlineOnly(colors),
     },
     primaryButtonText: { color: colors.accentText, fontWeight: "bold", fontSize: 15 },
     secondaryButton: {
@@ -382,14 +382,13 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
       borderRadius: 12,
       paddingVertical: 13,
       paddingHorizontal: 20,
+      ...outlineOver(colors, colors.border),
     },
     secondaryButtonText: { color: colors.subtext, fontSize: 15, fontWeight: "600" },
-    buttonLarge: { paddingVertical: 17 },
+    buttonLarge: LARGE_BUTTON,
     buttonDisabled: { opacity: 0.4 },
     requestForm: { gap: 12 },
     requestLabel: { fontSize: 13, color: colors.subtext, lineHeight: 18 },

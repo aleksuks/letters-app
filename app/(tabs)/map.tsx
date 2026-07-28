@@ -12,8 +12,8 @@ import { TutorialTip } from "@/components/tutorial-tip";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { buildMapHtml, type MapHtmlLetter } from "@/lib/map-html";
 import { searchPlaces, type PlaceMatch } from "@/lib/place-search";
 import * as Haptics from "@/lib/haptics";
@@ -471,8 +471,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 3 },
       elevation: 6,
+      ...outlineOnly(colors),
     },
-    fabLarge: { paddingVertical: 17 },
+    fabLarge: LARGE_BUTTON,
     fabText: { color: colors.accentText, fontWeight: "bold", fontSize: 15 },
   });
 }

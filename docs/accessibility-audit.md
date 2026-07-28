@@ -114,6 +114,23 @@ Two consequences worth naming:
   mode whose entire purpose is legibility a card edge should not be a hairline
   you have to hunt for.
 
+  That turned out not to be enough. Most surfaces in the app never drew a
+  border at all — a card was legible because it was a *lighter* rectangle on a
+  bone page, which is exactly the cue white-on-white removes. On real screens
+  letters and buttons simply had no edges. High contrast therefore now draws
+  them explicitly: two tokens, `outline` (black) and `outlineWidth` (2), with
+  `outlineWidth: 0` in the default palette so the same code is a no-op there
+  and nothing changes for users who never turned the setting on.
+
+  Consumers go through `outlineOnly(colors)` or
+  `outlineOver(colors, base)` rather than branching on the mode themselves —
+  the second is for surfaces that already draw a hairline, so high contrast
+  thickens and blackens the existing ring instead of stacking a second one
+  outside it. 23 surfaces across 15 files: every letter card and letter
+  sheet (including both sheets inside the envelope ceremony), every primary
+  and secondary button, the map FAB, the chat send button, and the text
+  inputs.
+
 `switchTrackOff` deliberately did *not* follow the border darker. It stays at
 `#8A7F6F` (3.93:1, clear of the 3:1 non-text bar): the "on" state is `accent`,
 a dark red, and a dark warm-grey "off" track would read as another dark pill,
@@ -170,6 +187,35 @@ deliberately does not have ("the map itself is the public surface"). It would
 also be the only way to read map letters without exploring, which changes the
 feel of the feature for everyone, not just screen-reader users. Flagged for a
 decision rather than built.
+
+## 2.5 "Bigger buttons" did almost nothing
+
+The `largeTouchTargets` setting only ever applied `hitSlop` plus a handful of
+per-screen `*Large` styles that nudged `paddingVertical` from 8 to 14. `hitSlop`
+grows the *invisible* touch area, so the setting read as broken: you turned it
+on and every button looked identical. Worse, the two biggest buttons in the
+app — "Parašyti laiškelį" and "Gauti laiškelį" on the letters tab — had no
+large variant at all, so the most likely place to test the setting was the one
+place guaranteed to show nothing.
+
+Someone who needs a larger target usually needs to *see* it as well as hit it,
+and an unchanged button says "this did nothing" whatever the touch handler now
+accepts. The per-screen variants are replaced by shared constants in
+`contexts/accessibility.tsx`:
+
+- `LARGE_BUTTON` — `minHeight: 56`, and wider horizontal padding. A floor
+  rather than a padding bump, because `+6pt` on a compact button and on a roomy
+  one produce visibly different results while a floor produces the same one.
+  The old values had drifted to 14pt on one screen and 17pt on another for no
+  reason anyone could reconstruct.
+- `LARGE_BUTTON_TEXT` — bumps the label to 18pt. Growing the target without
+  growing the text strands a small word in a big rectangle, which reads as a
+  layout bug rather than an accommodation.
+- `LARGE_ICON_BUTTON` — a square floor for icon-only buttons, which have no
+  label to grow with them.
+
+Applied at 28 call sites. The chat send button is a circle, so it grows by
+diameter (42 → 56) rather than padding.
 
 ## 3. Not covered
 

@@ -16,6 +16,19 @@ export interface ThemeColors {
   tabActive: string;
   tabInactive: string;
   switchTrackOff: string;
+  // Outline for letter surfaces and buttons. High contrast made every paper
+  // surface white, which removed the tonal step that used to separate a card
+  // from the page behind it — so in that mode shapes have to be drawn, not
+  // implied. `outlineWidth` is 0 in the default palette, which makes the
+  // border a no-op there whatever `outline` says: consumers apply both
+  // unconditionally and never branch on the mode themselves.
+  //
+  // A number in an otherwise colour-shaped record is a small wart, kept on
+  // purpose: every screen builds its styles with makeStyles(colors), so
+  // putting the width anywhere else would mean threading a second argument
+  // through every one of them.
+  outline: string;
+  outlineWidth: number;
 }
 
 // Contrast note (audited 2026-07-28 against WCAG 2.1 AA, every foreground
@@ -57,6 +70,8 @@ const COLORS: ThemeColors = {
   tabActive: "#96150D",
   tabInactive: "#726959",
   switchTrackOff: "#8A7F6F",
+  outline: "transparent",
+  outlineWidth: 0,
 };
 
 // Contrast-boosted palette. Every paper surface goes white: the bone
@@ -93,6 +108,8 @@ const HIGH_CONTRAST_COLORS: ThemeColors = {
   tabActive: "#6E0F09",
   tabInactive: "#4A4038",
   switchTrackOff: "#8A7F6F",
+  outline: "#000000",
+  outlineWidth: 2,
 };
 
 const STORAGE_KEY = "a11y.highContrast";
@@ -134,4 +151,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+// Two helpers so call sites state which case they are, rather than each
+// screen re-deriving the same conditional and getting it subtly different.
+// Both collapse to the existing look when the default palette is active,
+// because outlineWidth is 0 there.
+
+/** A surface that carries no border of its own — high contrast draws one. */
+export function outlineOnly(c: ThemeColors) {
+  return { borderWidth: c.outlineWidth, borderColor: c.outline };
+}
+
+/**
+ * A surface that already draws a hairline — high contrast thickens and
+ * blackens it rather than stacking a second ring outside the first.
+ */
+export function outlineOver(c: ThemeColors, base: string, baseWidth = 1) {
+  return {
+    borderWidth: c.outlineWidth || baseWidth,
+    borderColor: c.outlineWidth ? c.outline : base,
+  };
 }

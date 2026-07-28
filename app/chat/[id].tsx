@@ -10,7 +10,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { Message } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
@@ -446,8 +446,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       backgroundColor: colors.accent,
       justifyContent: "center",
       alignItems: "center",
+      ...outlineOnly(colors),
     },
-    sendButtonLarge: { width: 48, height: 48, borderRadius: 24 },
+    sendButtonLarge: { width: 56, height: 56, borderRadius: 28 },
     sendButtonDisabled: { opacity: 0.4 },
   });
 }

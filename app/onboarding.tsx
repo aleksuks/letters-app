@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { AvatarPickerGrid } from "@/components/avatar-picker-grid";
 import { randomAvatarEmoji } from "@/lib/avatars";
@@ -180,6 +180,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     button: {
       backgroundColor: colors.accent, borderRadius: 12, padding: 16, alignItems: "center",
+      ...outlineOnly(colors),
     },
     buttonDisabled: { opacity: 0.4 },
     buttonText: { color: colors.accentText, fontSize: 16, fontWeight: "bold" },

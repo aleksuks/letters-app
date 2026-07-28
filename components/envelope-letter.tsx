@@ -1,4 +1,4 @@
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility } from "@/contexts/accessibility";
 import { useSound, useScrubSound } from "@/hooks/use-sound";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -1166,8 +1166,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
                   height: SHEET_H,
                   overflow: "hidden",
                   backgroundColor: colors.surfaceAlt,
-                  borderWidth: 1,
-                  borderColor: colors.border,
+                  ...outlineOver(colors, colors.border),
                   borderRadius: 12,
                   borderCurve: "continuous",
                 }}
@@ -1195,8 +1194,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
                     height: SHEET_H,
                     overflow: "hidden",
                     backgroundColor: colors.surfaceAlt,
-                    borderWidth: 1,
-                    borderColor: colors.border,
+                    ...outlineOver(colors, colors.border),
                     borderRadius: 12,
                     borderCurve: "continuous",
                   }}

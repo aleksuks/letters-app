@@ -1,5 +1,5 @@
-import { useTheme } from "@/contexts/theme";
-import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
+import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
@@ -349,12 +349,11 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       paddingHorizontal: 16,
       paddingVertical: 18,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
       backgroundColor: colors.surface,
       marginBottom: 20,
+      ...outlineOver(colors, colors.border),
     },
-    sortDropdownButtonLarge: { paddingVertical: 24 },
+    sortDropdownButtonLarge: LARGE_BUTTON,
     sortDropdownText: { fontSize: 14, color: colors.text, fontWeight: "600" },
     sortDropdownChevron: { fontSize: 14, color: colors.subtext, marginLeft: 8 },
     sortMenuBackdrop: {
@@ -401,6 +400,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderRadius: 14,
       padding: 16,
       marginBottom: 12,
+      ...outlineOnly(colors),
     },
     cardBody: { fontSize: 15, color: colors.text, lineHeight: 22, marginBottom: 12 },
     cardDrawing: { alignItems: "center", marginBottom: 12 },
