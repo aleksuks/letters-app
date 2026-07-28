@@ -6,12 +6,12 @@
     "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "microlearningproject",
+    "scheme": "laiskelis",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "dev.aleksuks.lettersforstrangers",
+      "bundleIdentifier": "lt.laiskelis.app",
       "infoPlist": {
         "CADisableMinimumFrameDurationOnPhone": true
       }
@@ -25,11 +25,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ],
-      "package": "dev.aleksuks.lettersforstrangers"
+      "package": "lt.laiskelis.app"
     },
     "web": {
       "output": "static",
@@ -51,7 +47,13 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false,
+          "microphonePermission": false
+        }
+      ],
       "expo-asset",
       [
         "expo-notifications",

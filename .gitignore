@@ -34,6 +34,9 @@ yarn-error.*
 .env*.local
 supabasekey
 
+# store submission credentials (Play service account JSON, App Store keys)
+credentials/
+
 # typescript
 *.tsbuildinfo
 

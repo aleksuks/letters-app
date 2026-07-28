@@ -1,18 +1,24 @@
 # Remaining Steps — Letters for Strangers
 
-> Status snapshot taken 2026-07-24, after the 0.2.0 release (map letters).
+> Status snapshot taken 2026-07-24, after the 0.2.0 release (map letters);
+> refreshed 2026-07-28 after 0.3.0 (drawings, flight tracker, graves) and the
+> release-identity pass.
 > Sources: `product-flow.md` (product scope), `CLAUDE.md` (rules/schema),
 > `ux-plan.md` (UX phases 1–7). Update this file as items land.
 
 ## Where we are
 
 The v1 core described in `product-flow.md` is built and shipped (migrations
-001–035, app 0.2.0):
+001–038, app 0.3.0):
 
-- **Pool letters** — full lifecycle: pull-based claimed distribution with
-  hourly pacing and recipient caps, claim/release/reaper, likes (+1 reach),
+- **Pool letters** — full lifecycle: pull-based claimed distribution paced at
+  one delivery per hour with no reach ceiling (migration 037 dropped
+  `recipient_cap`), claim/release/reaper, likes as a pure counter,
   graveyard votes, 7-day expiry, Obituary with founder moderation and
   afterlikes.
+- **Drawings** (migration 038) — crayon canvas on both letter kinds, stored
+  as strokes and re-rendered client-side; a letter needs words, a picture,
+  or both.
 - **Moderation & safety** — send-time keyword gate, nickname moderation,
   reports on letters/conversations/messages/map letters into one review
   queue (`app/moderation.tsx`), blocking + unblocking, account deletion,
@@ -34,32 +40,27 @@ The v1 core described in `product-flow.md` is built and shipped (migrations
 
 ## In flight (uncommitted work — finish first)
 
-1. **Map place search** — `lib/lt-places.ts` + `lib/place-search.ts` +
-   search UI in `app/(tabs)/map.tsx` (offline, diacritics-insensitive).
-   Appears complete; test on device, then commit.
-2. **"Atsiliepti" deep link** — `letterTap` now carries `openRequest` so
-   the map mini-letter can jump straight into the request-to-talk sheet on
-   `app/map-letter.tsx`. Test both paths.
-3. **Toggleable map likes** — migration `035_toggleable_likes.sql`
-   (second tap withdraws). Verify it's pushed to the linked Supabase
-   project (`supabase migration list`), and that the map UI reflects
-   un-liking.
-4. **Remove `app/debug-chat-repro.tsx`** — debug screen; don't ship it.
-5. Commit the above (CLAUDE.md rule-text change included) and bump to
-   0.2.1 if releasing over the air.
+All five items from the 07-24 snapshot landed in 0.3.0 (map place search,
+the "Atsiliepti" deep link, toggleable map likes, and the debug screen is
+gone). What's uncommitted now:
+
+1. **Per-letter heart breakdown** in `app/(tabs)/letters.tsx` — splits
+   in-flight hearts from afterlikes, matching the Obituary card. Test, then
+   commit.
+2. **Migration `039_push_dispatch_timeout.sql`** — staged, not pushed.
+   Raises the push-dispatch cron call's pg_net timeout from the 5s default
+   to 20s so a cold-started Edge Function doesn't log a false failure.
+   `npx supabase db push` when ready.
 
 ## Remaining product/UX work (from `ux-plan.md`)
 
-### Phase 1 — Emotional peaks (one item left)
-- [ ] **Death ceremony**: when a letter expires, "My Letters" should show
-  a small funeral with honors — "lived 7 days, read by N strangers,
-  earned M hearts" — not just a status change. Today the death is only a
-  push notification and a row state.
+### Phase 1 — Emotional peaks (done)
+- [x] **Death ceremony** — shipped in 0.3.0 as `app/letter-grave.tsx`
+  (headstone with lifespan, readers, hearts).
 
 ### Phase 3 — Calm engagement (the thesis chapter)
-- [ ] **Author feedback loop / journey visualization**: `letters.tsx`
-  shows raw counts; add the small journey feel (dots/stops per delivery,
-  "your letter met its 10th stranger").
+- [x] **Author feedback loop / journey visualization** — shipped in 0.3.0
+  as `app/letter-flight.tsx` (the letter's route between strangers).
 - [ ] **Prompt of the day**: write screen has rotating starter prompts —
   decide whether a distinct daily "today" surface is still wanted or mark
   this done.
@@ -89,11 +90,11 @@ The v1 core described in `product-flow.md` is built and shipped (migrations
   write → receive → connect; record findings and ship one change because
   of them.
 
-### Phase 7 — Portfolio packaging (not started)
-- [ ] `decisions.md` — running log of deliberate decisions with rejected
-  alternatives (start now, backfill the big ones: pull-based
-  distribution, no GPS, no unlike→toggleable-like reversal, quiet
-  notifications).
+### Phase 7 — Portfolio packaging (started)
+- [~] `decisions.md` — running log of deliberate decisions with rejected
+  alternatives. Started 07-28 and ~420 lines in; keep backfilling the big
+  ones (pull-based distribution, no GPS, no unlike→toggleable-like
+  reversal, quiet notifications) while the reasoning is still fresh.
 - [ ] Case-study doc: problem → constraints → decisions → metrics → next.
 - [ ] One-page design principles doc ("Calm over sticky", "Ceremony at
   peaks", "Anonymity you can see").
@@ -107,23 +108,36 @@ The v1 core described in `product-flow.md` is built and shipped (migrations
 - [ ] **Founder seed letters**: real launch content for the cold-start
   problem (ux-plan Phase 2) — the current seeds are test data.
 - [ ] **Wipe test data before release** (per `TEST_ACCOUNT.md`): test
-  account, seeded letters, `scripts_seed_test_tmp.mjs`, and rotate the
-  committed test password.
-- [ ] **Verify scheduled jobs in production**: pg_cron sweeps
-  (`expire_due_letters`, `expire_due_map_letters`,
-  `release_stale_claims`) and the outbox-draining Edge Function schedule.
-- [ ] **Store release**: EAS production builds, store listings (LT
-  screenshots/copy), age rating consistent with the 18+ gate, submit iOS
-  + Android.
-- [ ] Fill in `README.md` (currently one line) — setup, env vars, how to
-  run, how migrations are pushed.
+  account, seeded letters, and rotate the committed test password. A
+  separate reviewer demo account is needed afterwards — see
+  `docs/store-release.md` §5.
+- [x] **Verify scheduled jobs in production** — checked 2026-07-28: all four
+  pg_cron jobs (`letters-lifecycle-sweep`, `push-notifications-dispatch`,
+  and the two reminder enqueues) are active with zero failed runs over 7
+  days. The dispatch call's 5s pg_net timeout is addressed by staged
+  migration 039.
+- [x] **Release identity** — settled 07-28: scheme `laiskelis`, package and
+  bundle id `lt.laiskelis.app`, `eas.json` production/submit profiles added.
+  One follow-up outside the repo: add `laiskelis://auth/callback` to the
+  Supabase Auth redirect allowlist before the next build.
+- [ ] **Store release**: Android first (see `docs/store-release.md`) — Play
+  account, closed test with 12 testers for 14 days, LT screenshots/copy,
+  age rating consistent with the 18+ gate. iOS deferred a month.
+- [x] Fill in `README.md` — setup, env vars, migrations, edge functions,
+  cron, layout.
 
-## Suggested order
+## Suggested order (revised 2026-07-28)
 
-1. Land the in-flight map work (it's 90% done).
-2. Death ceremony + journey visualization — the biggest remaining felt
-   gap, and they share the "My Letters" surface.
-3. Phase 4/5 audits — cheap, touch existing screens.
-4. Ops/launch checklist items as release approaches.
-5. Measurement + packaging docs written as you go (start `decisions.md`
-   immediately; it's cheapest while decisions are fresh).
+The 14-day Play closed-test clock is the only thing here that cannot be
+compressed, so it goes first and everything else runs beside it.
+
+1. ~~Decide the package/bundle id~~ — done 07-28, `lt.laiskelis.app`.
+2. **Start the Play clock**: developer account, first manual AAB upload,
+   recruit 12 testers. Wipe test data and write the founder seed letters
+   before those testers see the app.
+3. Phase 4/5 audits — cheap, touch existing screens, and they fit in the two
+   weeks the clock is running.
+4. Measurement + packaging docs written as you go; keep backfilling
+   `decisions.md` while the reasoning is fresh.
+5. iOS about a month after Android launch, once there's real usage to show
+   for the $99.
