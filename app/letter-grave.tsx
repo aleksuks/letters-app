@@ -92,6 +92,8 @@ export default function LetterGraveScreen() {
           style={s.closeBtn}
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti"
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
@@ -110,6 +112,8 @@ export default function LetterGraveScreen() {
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti"
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
@@ -171,7 +175,12 @@ export default function LetterGraveScreen() {
 
       {/* Tap the propped picture to see it whole; tap anywhere to put it back. */}
       {drawingOpen && letter.drawing && (
-        <Pressable style={s.viewer} onPress={() => setDrawingOpen(false)}>
+        <Pressable
+          style={s.viewer}
+          onPress={() => setDrawingOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti piešinį"
+        >
           <Animated.View entering={FadeInDown.duration(220)} style={s.viewerCard}>
             <DrawingView
               drawing={letter.drawing}

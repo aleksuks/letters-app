@@ -297,7 +297,12 @@ export default function HomeScreen() {
       />
       {sortMenuVisible && (
         <Animated.View style={[StyleSheet.absoluteFillObject, s.sortMenuBackdrop, backdropStyle]}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeSortMenu} />
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={closeSortMenu}
+            accessibilityRole="button"
+            accessibilityLabel="Uždaryti rikiavimo meniu"
+          />
           <Animated.View style={[s.sortMenu, sheetStyle]}>
             <GestureDetector gesture={dragGesture}>
               <View style={s.sortMenuDragZone}>

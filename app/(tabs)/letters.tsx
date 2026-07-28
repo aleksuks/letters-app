@@ -192,7 +192,13 @@ export default function LettersScreen() {
                     <FlyingLetter size={18} />
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8} style={s.deleteBtn}>
+                <TouchableOpacity
+                  onPress={() => handleDelete(item)}
+                  hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+                  style={s.deleteBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ištrinti laiškelį"
+                >
                   <Ionicons name="trash-outline" size={18} color={colors.subtext} />
                 </TouchableOpacity>
               </View>

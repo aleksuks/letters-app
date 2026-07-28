@@ -212,6 +212,8 @@ export default function ModerationScreen() {
           style={s.backButton}
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Grįžti atgal"
         >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>

@@ -373,7 +373,13 @@ export default function ReceiveScreen() {
   if (state.phase === "empty") {
     return (
       <SafeAreaView style={s.container}>
-        <TouchableOpacity style={s.closeBtn} onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity
+          style={s.closeBtn}
+          onPress={() => router.back()}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti"
+        >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.center}>
@@ -395,11 +401,22 @@ export default function ReceiveScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={handleClose} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity
+          onPress={handleClose}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti laišką"
+        >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={s.from}>nuo {letter.author?.nickname ?? "nepažįstamasis"}</Text>
-        <TouchableOpacity onPress={confirmReport} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity
+          onPress={confirmReport}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Pranešti apie laišką"
+          accessibilityHint="Laiškas bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius"
+        >
           <Ionicons name="flag-outline" size={22} color={colors.subtext} />
         </TouchableOpacity>
       </View>

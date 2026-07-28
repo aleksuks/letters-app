@@ -73,12 +73,23 @@ gone). What's uncommitted now:
 - [ ] **Closure on reports**: confirm the post-report message says a human
   reviews every report; add if missing.
 
-### Phase 5 — Accessibility (infrastructure done, audits remain)
-- [ ] Contrast audit in both themes (incl. high-contrast mode).
-- [ ] VoiceOver/TalkBack pass on write → receive → connect at minimum.
-- [ ] Map WebView accessibility fallback — the MapLibre canvas is opaque
-  to screen readers; provide a list alternative or at least labeled
-  controls.
+### Phase 5 — Accessibility (audited 2026-07-28, see `docs/accessibility-audit.md`)
+- [x] Contrast audit. Note there is only *one* palette plus a high-contrast
+  variant, not light/dark. High contrast passed everything; the default
+  palette failed on `subtext` (2.83:1 — real body text), `tabInactive` and
+  `switchTrackOff`, all three now fixed by darkening along lightness only.
+  Decorative borders left low-contrast on purpose.
+- [x] Screen-reader labels — all 21 icon-only controls (every back/close,
+  send, report, delete, overflow) were announcing nothing; now labelled in
+  Lithuanian with roles, plus hints on the consequential ones.
+- [ ] VoiceOver/TalkBack pass on real hardware — the audit above is static
+  (labels + computed ratios) and cannot see focus order.
+- [ ] Dynamic Type / font scaling pass — untested, and the fixed-height
+  envelope ceremony is where it will break first.
+- [ ] **Product decision needed**: the map WebView now announces itself and
+  points at place search, but a genuine non-visual path means a list of map
+  letters by place — which adds a browsing surface the product deliberately
+  doesn't have. Decide before building.
 
 ### Phase 6 — Measurement (not started)
 - [ ] Define and document the North Star metric (candidates: connections
@@ -102,9 +113,13 @@ gone). What's uncommitted now:
 
 ## Remaining ops / launch checklist
 
-- [ ] **Moderation checklist doc** (product-flow §8 explicitly asks for
-  it): what gets rejected from the public Obituary even if well-liked —
-  identifying info, distress content, harassment, spam.
+- [x] **Moderation checklist doc** — `docs/moderation-checklist.md`.
+- [ ] **Populate `moderation_keywords`** — the table is **empty in
+  production**, so the send-time gate currently scores every letter 0 and
+  rejects nothing. Founder-managed data (dashboard only, RLS-invisible to
+  clients). Suggested weights are in migration 007's header; the reject
+  threshold is 10. This is a launch blocker: the store review notes claim
+  the gate exists, and with no terms it does not.
 - [ ] **Founder seed letters**: real launch content for the cold-start
   problem (ux-plan Phase 2) — the current seeds are test data.
 - [ ] **Wipe test data before release** (per `TEST_ACCOUNT.md`): test

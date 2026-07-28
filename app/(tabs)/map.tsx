@@ -209,6 +209,17 @@ export default function MapScreen() {
         source={{ html }}
         style={s.web}
         originWhitelist={["*"]}
+        // The MapLibre canvas is a single opaque surface: nothing inside it is
+        // an accessibility element, so without a label a screen reader lands
+        // on an unnamed blank view and the whole screen reads as empty. This
+        // at least names it and points at the control that can move it. A
+        // genuine non-visual path through the map would be a list of letters
+        // by place, which is a product decision (it adds a browsing surface
+        // the product deliberately does not have), not a labelling fix.
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel="Lietuvos žemėlapis su laiškeliais"
+        accessibilityHint="Žemėlapio turinys nepasiekiamas ekrano skaitytuvui. Naudok vietos paiešką, kad pereitum prie miesto."
         onMessage={handleMessage}
         onLoadStart={handleWebLoadStart}
         onContentProcessDidTerminate={handleWebProcessCrash}

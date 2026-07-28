@@ -293,14 +293,22 @@ a reviewer opening the app sees a working feed rather than an empty state.
 
 **Mine to finish in the repo:**
 
-- [ ] Moderation checklist doc — what gets rejected from the public Obituary
-      even when well-liked (identifying info, distress content, harassment,
-      spam). `product-flow.md` §8 asks for it explicitly.
-- [ ] Accessibility passes (contrast + screen-reader labels). Apple does not
-      reject over these, but they're the cheapest remaining quality work and
-      they touch the same screens a reviewer opens first.
+- [x] ~~Moderation checklist doc~~ — `moderation-checklist.md`, 2026-07-28.
+- [x] ~~Accessibility passes~~ — `accessibility-audit.md`, 2026-07-28.
+      Contrast fixed in the default palette, all 21 icon-only controls
+      labelled. A device pass with VoiceOver/TalkBack is still open.
 
 **Yours, outside the repo:**
+
+- [ ] **Populate the `moderation_keywords` table — currently empty.** The
+      review notes in §6 tell both Apple and Google that "every letter passes
+      a keyword scoring gate"; with zero terms that gate scores everything 0
+      and rejects nothing, so the claim is false as it stands. Founder-managed
+      through the Supabase dashboard by design (RLS keeps it unreadable from
+      the app so it can't be mined for evasion). Migration 007's header
+      carries suggested weights — 1 mild, 3 strong profanity, 5 slurs — and
+      the reject threshold is 10, i.e. two slurs. **Do not submit to either
+      store before this has terms in it.**
 
 - [x] ~~Decide the package/bundle id~~ — `lt.laiskelis.app`, 2026-07-28 (§1).
 - [x] ~~Add `laiskelis://auth/callback` to the Supabase redirect allowlist~~ —

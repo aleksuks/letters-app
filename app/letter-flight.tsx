@@ -130,6 +130,8 @@ export default function LetterFlightScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+            accessibilityRole="button"
+            accessibilityLabel="Uždaryti"
           >
             <Ionicons name="close" size={28} color={colors.text} />
           </TouchableOpacity>
@@ -151,6 +153,8 @@ export default function LetterFlightScreen() {
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti"
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>

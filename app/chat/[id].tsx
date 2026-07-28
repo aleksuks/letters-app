@@ -273,14 +273,25 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Grįžti atgal"
+        >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.headerIdentity}>
           <AvatarCircle emoji={otherAvatar()} size={28} />
           <Text style={s.headerName}>{otherNickname()}</Text>
         </View>
-        <TouchableOpacity onPress={handleMore} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity
+          onPress={handleMore}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Pokalbio veiksmai"
+          accessibilityHint="Išeiti iš pokalbio, blokuoti arba pranešti"
+        >
           <Ionicons name="ellipsis-vertical" size={22} color={colors.text} />
         </TouchableOpacity>
       </View>
@@ -353,6 +364,8 @@ export default function ChatScreen() {
               style={[s.sendButton, largeTouchTargets && s.sendButtonLarge, (!input.trim() || sending) && s.sendButtonDisabled]}
               onPress={handleSend}
               disabled={!input.trim() || sending}
+              accessibilityRole="button"
+              accessibilityLabel="Siųsti žinutę"
             >
               <Ionicons name="send" size={20} color={colors.accentText} />
             </TouchableOpacity>

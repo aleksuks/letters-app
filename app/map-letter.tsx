@@ -196,7 +196,13 @@ export default function MapLetterScreen() {
   if (letter === null) {
     return (
       <SafeAreaView style={s.container}>
-        <TouchableOpacity style={s.closeBtn} onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity
+          style={s.closeBtn}
+          onPress={() => router.back()}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti"
+        >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.center}>
@@ -210,11 +216,22 @@ export default function MapLetterScreen() {
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+          accessibilityRole="button"
+          accessibilityLabel="Uždaryti"
+        >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         {!isOwn && (
-          <TouchableOpacity onPress={confirmReport} hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}>
+          <TouchableOpacity
+            onPress={confirmReport}
+            hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+            accessibilityRole="button"
+            accessibilityLabel="Pranešti apie laiškelį"
+            accessibilityHint="Laiškelis bus iškart pašalintas iš žemėlapio, kol jį peržiūrės administratorius"
+          >
             <Ionicons name="flag-outline" size={22} color={colors.subtext} />
           </TouchableOpacity>
         )}

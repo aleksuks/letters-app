@@ -55,7 +55,12 @@ export default function ProfileScreen() {
         <Text style={s.title}>Profilis</Text>
 
         <View style={s.profileSection}>
-          <TouchableOpacity onPress={handleChangeAvatar} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={handleChangeAvatar}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Keisti avatarą"
+          >
             <AvatarCircle emoji={profile?.avatar_emoji ?? "🦊"} size={96} />
             <View style={s.avatarEditBadge}>
               <Ionicons name="pencil" size={14} color={colors.accentText} />
