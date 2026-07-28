@@ -45,6 +45,7 @@ export default function ModerationScreen() {
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [activeLettersOpen, setActiveLettersOpen] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -91,8 +92,9 @@ export default function ModerationScreen() {
     const letterIds = openReports.filter(r => r.target_type === "letter").map(r => r.target_id);
     const mapLetterIds = openReports.filter(r => r.target_type === "map_letter").map(r => r.target_id);
     const convIds = openReports.filter(r => r.target_type === "conversation").map(r => r.target_id);
+    const messageIds = openReports.filter(r => r.target_type === "message").map(r => r.target_id);
 
-    const [lettersRes, mapLettersRes, convsRes, messagesRes] = await Promise.all([
+    const [lettersRes, mapLettersRes, convsRes, messagesRes, reportedMessagesRes] = await Promise.all([
       letterIds.length
         ? supabase.from("letters").select("id, body").in("id", letterIds)
         : Promise.resolve({ data: [] as { id: string; body: string }[] }),
@@ -114,15 +116,28 @@ export default function ModerationScreen() {
             .in("conversation_id", convIds)
             .order("created_at", { ascending: true })
         : Promise.resolve({ data: [] as { conversation_id: string; body: string; sender: { nickname: string } | null }[] }),
+      // Reported individual messages — RLS (messages_moderator_select, migration
+      // 041) exposes a row here once reported_at is set, independent of whether
+      // its conversation is also reported.
+      messageIds.length
+        ? supabase
+            .from("messages")
+            .select("id, body, sender:user_profiles!sender_id(nickname)")
+            .in("id", messageIds)
+        : Promise.resolve({ data: [] as { id: string; body: string; sender: { nickname: string } | null }[] }),
     ]);
 
     type ConvPreview = { id: string; user_a: { nickname: string } | null; user_b: { nickname: string } | null };
     type MessageRow = { conversation_id: string; body: string; sender: { nickname: string } | null };
+    type ReportedMessageRow = { id: string; body: string; sender: { nickname: string } | null };
 
     const letterPreviews = new Map((lettersRes.data ?? []).map(l => [l.id, l.body]));
     const mapLetterPreviews = new Map((mapLettersRes.data ?? []).map(l => [l.id, l.body]));
     const convPreviews = new Map(
       ((convsRes.data ?? []) as ConvPreview[]).map(c => [c.id, `${c.user_a?.nickname ?? "?"} ↔ ${c.user_b?.nickname ?? "?"}`])
+    );
+    const messagePreviews = new Map(
+      ((reportedMessagesRes.data ?? []) as ReportedMessageRow[]).map(m => [m.id, `${m.sender?.nickname ?? "?"}: ${m.body}`])
     );
 
     const convMessages = new Map<string, ConvMessage[]>();
@@ -139,7 +154,9 @@ export default function ModerationScreen() {
           ? letterPreviews.get(r.target_id) ?? "(laiškelis nerastas)"
           : r.target_type === "map_letter"
             ? mapLetterPreviews.get(r.target_id) ?? "(laiškelis nerastas)"
-            : convPreviews.get(r.target_id) ?? "(pokalbis nerastas)",
+            : r.target_type === "message"
+              ? messagePreviews.get(r.target_id) ?? "(žinutė nerasta)"
+              : convPreviews.get(r.target_id) ?? "(pokalbis nerastas)",
       messages: r.target_type === "conversation" ? convMessages.get(r.target_id) ?? [] : undefined,
     }));
   }
@@ -174,18 +191,55 @@ export default function ModerationScreen() {
     setReports(prev => prev.filter(r => r.id !== report.id));
   }
 
+  async function resolveMessageReport(report: ReportItem, action: "ignore" | "mute" | "ban") {
+    setActingOn(report.id);
+    const { error } = await supabase.rpc("resolve_message_report", {
+      p_report_id: report.id,
+      p_action: action,
+    });
+    setActingOn(null);
+    if (error) {
+      Alert.alert("Klaida", error.message);
+      return;
+    }
+    setReports(prev => prev.filter(r => r.id !== report.id));
+  }
+
+  // Manual proactive removal of an active letter, not tied to any user
+  // report. Reuses report_letter() as-is rather than adding a new RPC — it
+  // only requires auth.uid() IS NOT NULL, so a moderator calling it on their
+  // own initiative works exactly like a user-filed report: the letter flips
+  // to removed_reported immediately, and a 'open' reports row is created,
+  // so it lands in the Open reports section below with the same
+  // Restore/Confirm removal controls if the call turns out to be wrong.
+  async function removeActiveLetter(letter: QueueLetter) {
+    setActingOn(letter.id);
+    const { error } = await supabase.rpc("report_letter", {
+      p_letter_id: letter.id,
+      p_reason: "Moderator review — pulled from active pool",
+    });
+    setActingOn(null);
+    if (error) {
+      Alert.alert("Klaida", error.message);
+      return;
+    }
+    setActiveLetters(prev => prev.filter(l => l.id !== letter.id));
+    load();
+  }
+
   function daysLeft(expiresAt: string) {
     const diff = new Date(expiresAt).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   }
 
   function confirmBan(report: ReportItem) {
+    const resolve = report.target_type === "message" ? resolveMessageReport : resolveConversationReport;
     Alert.alert(
       "Ban this user?",
       "Restricts them from writing letters, sending messages, or sending connection requests, indefinitely.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Ban", style: "destructive", onPress: () => resolveConversationReport(report, "ban") },
+        { text: "Ban", style: "destructive", onPress: () => resolve(report, "ban") },
       ]
     );
   }
@@ -249,15 +303,36 @@ export default function ModerationScreen() {
 
             {!loading && activeLetters.length > 0 && (
               <View style={s.reportsSection}>
-                <Text style={s.sectionTitle}>Active letters ({activeLetters.length})</Text>
-                {activeLetters.map(item => (
+                <TouchableOpacity
+                  style={s.sectionToggle}
+                  onPress={() => setActiveLettersOpen(v => !v)}
+                  hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
+                >
+                  <Text style={s.sectionTitle}>Active letters ({activeLetters.length})</Text>
+                  <Ionicons
+                    name={activeLettersOpen ? "chevron-up" : "chevron-down"}
+                    size={16}
+                    color={colors.subtext}
+                  />
+                </TouchableOpacity>
+                {activeLettersOpen && activeLetters.map(item => (
                   <View key={item.id} style={s.card}>
-                    <Text style={s.cardBody} numberOfLines={3}>{item.body}</Text>
+                    <Text style={s.cardBody}>{item.body}</Text>
                     <View style={s.cardMeta}>
                       <Text style={s.metaText}>{item.author?.nickname ?? "unknown"}</Text>
                       <Text style={s.metaText}>
                         ❤ {item.like_count} · 💀 {item.dislike_count} · {item.travel_count} travels · {daysLeft(item.expires_at)}d left
                       </Text>
+                    </View>
+                    <View style={s.actionRow}>
+                      <TouchableOpacity
+                        style={[s.actionButton, s.banButton, largeTouchTargets && s.actionButtonLarge]}
+                        onPress={() => removeActiveLetter(item)}
+                        disabled={actingOn === item.id}
+                      >
+                        <Ionicons name="trash" size={16} color="#fff" />
+                        <Text style={s.banText}>Remove</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))}
@@ -309,14 +384,14 @@ export default function ModerationScreen() {
                       <View style={s.actionRow}>
                         <TouchableOpacity
                           style={[s.actionButton, s.rejectButton, largeTouchTargets && s.actionButtonLarge]}
-                          onPress={() => resolveConversationReport(item, "ignore")}
+                          onPress={() => (item.target_type === "message" ? resolveMessageReport : resolveConversationReport)(item, "ignore")}
                           disabled={actingOn === item.id}
                         >
                           <Text style={s.rejectText}>Ignore</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[s.actionButton, s.muteButton, largeTouchTargets && s.actionButtonLarge]}
-                          onPress={() => resolveConversationReport(item, "mute")}
+                          onPress={() => (item.target_type === "message" ? resolveMessageReport : resolveConversationReport)(item, "mute")}
                           disabled={actingOn === item.id}
                         >
                           <Text style={s.muteText}>Mute 2d</Text>
@@ -422,6 +497,12 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     statValue: { fontSize: 22, fontWeight: "bold", color: colors.text },
     statLabel: { fontSize: 12, color: colors.subtext, marginTop: 2 },
     reportsSection: { marginBottom: 8 },
+    sectionToggle: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 4,
+    },
     sectionTitle: {
       fontSize: 13,
       fontWeight: "600",

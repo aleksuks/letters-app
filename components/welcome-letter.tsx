@@ -37,12 +37,14 @@ const DISMISS_VELOCITY = 800;
 const OFF_SCREEN_Y = 700;
 
 /**
- * One-time welcome screen: an envelope flies in and opens itself (no swipe
- * required — see EnvelopeLetter's autoPlay), then hands off to a plain
- * reading card explaining what Laiškelis is. Swiping the card down (or
- * tapping the close button) dismisses it for good, the same seen-tracking
- * as every other TutorialTip, just presented as a full-screen ceremony
- * instead of an inline banner.
+ * One-time welcome screen: an envelope flies in, and the user tears it open
+ * and pulls the letter free with the same swipes as a real received letter
+ * (EnvelopeLetter in its normal, gestured mode — autoPlay skipped every
+ * beat in a single frame, reading as a flat card rather than a ceremony),
+ * then hands off to a plain reading card explaining what Laiškelis is.
+ * Swiping the card down (or tapping the close button) dismisses it for
+ * good, the same seen-tracking as every other TutorialTip, just presented
+ * as a full-screen ceremony instead of an inline banner.
  *
  * The reading card is mounted from the start (underneath the ceremony, not
  * swapped in after it) so the handoff matches receive.tsx: a white flash
@@ -113,7 +115,6 @@ export function WelcomeLetter() {
               <EnvelopeLetter
                 body={WELCOME_BODY}
                 mode="receive"
-                autoPlay
                 onDone={() => setIntroDone(true)}
                 onPulling={() => {
                   whiteFade.value = withTiming(1, { duration: reducedMotion ? 1 : 500 });

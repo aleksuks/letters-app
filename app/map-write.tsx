@@ -98,6 +98,10 @@ export default function MapWriteScreen() {
           "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laiškelį lietuviškai ir pabandyk dar kartą."
         );
       }
+      // Same link gate as pool letters (migration 042).
+      else if (message.includes("letter_rejected_link")) {
+        Alert.alert("Laiškelis nepaliktas", "Be šansų seni.");
+      }
       // Same keyword gate as pool letters (migration 007, reused in 031).
       else if (message.includes("letter_rejected_moderation")) {
         Alert.alert(

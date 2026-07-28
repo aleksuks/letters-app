@@ -219,6 +219,11 @@ export default function WriteScreen() {
           "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laiškelį lietuviškai ir pabandyk dar kartą."
         );
       }
+      // Raised by the same trigger (migration 042) when the body contains
+      // a link — the one thing that defeats the app's whole safety model.
+      else if (message.includes("letter_rejected_link")) {
+        Alert.alert("Laiškelis neiškeliavo", "Be šansų seni.");
+      }
       // Raised by the trg_letters_moderation_gate trigger (migration 007)
       // when the letter's keyword score crosses the reject threshold.
       else if (message.includes("letter_rejected_moderation")) {

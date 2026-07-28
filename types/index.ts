@@ -108,6 +108,7 @@ export interface Message {
   body: string;
   created_at: string;
   deleted_for_sender: boolean;
+  reported_at: string | null;
 }
 
 export interface Report {

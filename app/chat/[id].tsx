@@ -105,6 +105,33 @@ export default function ChatScreen() {
     [messages, user]
   );
 
+  const handleReportMessage = useCallback((messageId: string) => {
+    Alert.alert(
+      "Pranešti apie žinutę?",
+      "Žinutė liks matoma, bet administratorius ją peržiūrės.",
+      [
+        { text: "Atšaukti", style: "cancel" },
+        {
+          text: "Netinkamas turinys",
+          onPress: () => reportMessage(messageId, "Netinkamas turinys"),
+        },
+        {
+          text: "Priekabiavimas ar grasinimai",
+          onPress: () => reportMessage(messageId, "Priekabiavimas ar grasinimai"),
+        },
+      ]
+    );
+  }, []);
+
+  async function reportMessage(messageId: string, reason: string) {
+    const { error } = await supabase.rpc("report_message", {
+      p_message_id: messageId,
+      p_reason: reason,
+    });
+    if (error) { Alert.alert("Klaida", error.message); return; }
+    Alert.alert("Ačiū", "Pranešimas gautas.");
+  }
+
   const handleDeleteForMe = useCallback((messageId: string) => {
     Alert.alert(
       "Ištrinti žinutę sau?",
@@ -145,7 +172,15 @@ export default function ChatScreen() {
     });
 
     setSending(false);
-    if (error) Alert.alert("Klaida", error.message);
+    if (error) {
+      // Raised by trg_messages_link_check (migration 042) — links are the
+      // one thing that defeats blocking/reporting/anonymity in one step.
+      if (error.message.includes("message_rejected_link")) {
+        Alert.alert("Žinutė neišsiųsta", "Be šansų seni.");
+      } else {
+        Alert.alert("Klaida", error.message);
+      }
+    }
   }
 
   async function handleLeave() {
@@ -331,7 +366,7 @@ export default function ChatScreen() {
               >
                 <Pressable
                   style={s.bubbleWrap}
-                  onLongPress={isOwn ? () => handleDeleteForMe(item.id) : undefined}
+                  onLongPress={isOwn ? () => handleDeleteForMe(item.id) : () => handleReportMessage(item.id)}
                   delayLongPress={350}
                 >
                   <View style={[s.bubble, isOwn ? s.bubbleOwn : s.bubbleOther]}>

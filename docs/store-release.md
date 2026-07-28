@@ -35,6 +35,10 @@ Authentication → URL Configuration → Redirect URLs allowlist** (and remove t
 `microlearningproject://` entry) before the next build, or email confirmation
 links will bounce. Push-notification taps ride on the same scheme.
 
+The password-reset flow (added 2026-07-28) needs its own entry the same
+way: `laiskelis://auth/reset-password`. Also add that to the redirect
+allowlist, or `resetPasswordForEmail()` will fail at send time.
+
 ### The package/bundle id is settled — and now frozen
 
 Changed from `dev.aleksuks.lettersforstrangers` to `lt.laiskelis.app` on
@@ -325,11 +329,14 @@ a reviewer opening the app sees a working feed rather than an empty state.
       account.)
 - [ ] Write real founder seed letters (cold-start content). Your voice, not
       mine — but I can draft candidates to edit.
-- [ ] Create the reviewer demo account (§6), seeded so the app isn't empty on
-      first open.
+- [x] ~~Create the reviewer demo account~~ — done 2026-07-28,
+      `scripts/seed-reviewer-account.mjs`, credentials in
+      `credentials/reviewer-account.md` (gitignored). Separate from
+      `TEST_ACCOUNT.md` — don't wipe it in the same pass.
 
 Done: release identity settled (scheme, bundle id), production/submit profiles
 in `eas.json`, leftover microphone permissions dropped, iPad support and export
 compliance settled for Apple, pg_cron verified running in production (all four
 jobs active, zero failures over 7 days as of 2026-07-28) and its dispatch
-timeout fixed in migration 039.
+timeout fixed in migration 039, password reset flow shipped ([`decisions.md`](../decisions.md)
+"Anonymous to other users, not to the system"), reviewer demo account created.

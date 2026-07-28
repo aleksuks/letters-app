@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, Linking, ScrollView,
+  KeyboardAvoidingView, Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -30,7 +31,17 @@ export default function OnboardingScreen() {
   const canProceed = ageConfirmed && termsAccepted && nickname.trim().length >= 2;
 
   async function handleFinish() {
-    if (!user || !canProceed) return;
+    if (!user) return;
+    if (!canProceed) {
+      if (nickname.trim().length < 2) {
+        Alert.alert("Trūksta slapyvardžio", "Įvesk bent 2 simbolių slapyvardį.");
+      } else if (!ageConfirmed) {
+        Alert.alert("Trūksta patvirtinimo", "Patvirtink, jog esi pilnametis.");
+      } else if (!termsAccepted) {
+        Alert.alert("Trūksta sutikimo", "Sutik su naudojimo sąlygomis ir privatumo politika.");
+      }
+      return;
+    }
     setLoading(true);
 
     try {
@@ -72,7 +83,15 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView style={s.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={s.keyboardAvoider}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+      <ScrollView
+        style={s.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={s.title}>Sveiki :)</Text>
         <Text style={s.subtitle}>
           Laiškelis yra galimybė pasakyti kažką asmeniško, kažkam, ko (gal) niekada nesutiksi.
@@ -137,7 +156,7 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           style={[s.button, !canProceed && s.buttonDisabled]}
           onPress={handleFinish}
-          disabled={!canProceed || loading}
+          disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color={colors.accentText} />
@@ -146,6 +165,7 @@ export default function OnboardingScreen() {
           )}
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -153,6 +173,7 @@ export default function OnboardingScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
+    keyboardAvoider: { flex: 1 },
     content: { flex: 1, paddingHorizontal: 24, paddingTop: 48, paddingBottom: 24 },
     title: { fontSize: 34, fontWeight: "bold", color: colors.text },
     subtitle: { fontSize: 16, color: colors.subtext, marginTop: 12, lineHeight: 24 },

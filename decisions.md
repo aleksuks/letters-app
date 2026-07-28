@@ -229,9 +229,15 @@ address.
 
 **Rejected:** Nickname-only accounts and anonymous device-bound sessions.
 
-**Open gap:** there is no password-reset flow in the sign-in screen, so the
-recovery channel this decision was made *for* is currently not reachable by
-users. See "Open decisions" below.
+**Resolved 2026-07-28:** password reset shipped — "Pamiršote slaptažodį?" on
+the sign-in screen calls `resetPasswordForEmail()`; the emailed link opens
+`laiskelis://auth/reset-password#access_token=...&type=recovery`, which
+`app/_layout.tsx` parses by hand (implicit-flow tokens arrive in the URL
+fragment, and `detectSessionInUrl` is off since that only works in a
+browser) and turns into a session via `setSession()` before routing to
+`app/(auth)/reset-password.tsx`. **Needs `laiskelis://auth/reset-password`
+added to the Supabase dashboard's redirect allowlist before it works** —
+same follow-up as the `auth/callback` entry in `docs/store-release.md` §1.
 
 ### Avatars, added late, on purpose
 
@@ -413,9 +419,6 @@ Live questions, recorded so they don't quietly resolve themselves by default.
   no longer affect reach (see "Reach" above). If likes should keep some
   distribution meaning, the lever would be a flat base reach per letter plus
   +1 per like, rather than the old user-count-derived cap.
-- **Password reset flow** — email auth exists precisely for recovery, but no
-  reset entry point exists in the UI. Currently a forgotten password is an
-  unrecoverable account, which defeats the reason the email was collected.
 - **International expansion** — deliberately deferred; needs funding before it
   needs engineering.
 - **Compounding reach for well-liked letters** — rejected for now, revisit only

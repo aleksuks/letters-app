@@ -12,6 +12,8 @@ interface AuthState {
 export function useAuth(): AuthState & {
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUpWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
+  sendPasswordReset: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 } {
   const [session, setSession] = useState<Session | null>(null);
@@ -37,11 +39,30 @@ export function useAuth(): AuthState & {
 
   async function signUpWithEmail(email: string, password: string) {
     const emailRedirectTo = Linking.createURL('auth/callback');
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo },
     });
+    // Supabase deliberately returns a success-shaped response for an email
+    // that's already registered (anti-enumeration) — it just skips creating
+    // a new identity. An empty identities array is the documented way to
+    // tell the two cases apart without Supabase leaking which emails exist
+    // via an explicit error.
+    if (!error && data.user && data.user.identities?.length === 0) {
+      return { error: new Error('account_already_registered') };
+    }
+    return { error };
+  }
+
+  async function sendPasswordReset(email: string) {
+    const redirectTo = Linking.createURL('auth/reset-password');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error };
+  }
+
+  async function updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password });
     return { error };
   }
 
@@ -62,6 +83,8 @@ export function useAuth(): AuthState & {
     loading,
     signInWithEmail,
     signUpWithEmail,
+    sendPasswordReset,
+    updatePassword,
     signOut,
   };
 }

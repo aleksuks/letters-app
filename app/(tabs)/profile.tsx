@@ -2,33 +2,24 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { TabPage } from "@/components/tab-pager";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
-import { supabase } from "@/lib/supabase";
-import { UserProfile } from "@/types";
+import { useProfile } from "@/contexts/profile";
 import { AvatarCircle } from "@/components/avatar-circle";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const { colors } = useTheme();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { profile, refreshProfile } = useProfile();
 
   const s = makeStyles(colors);
 
-  const load = useCallback(() => {
-    if (!user) return;
-    supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => setProfile(data));
-  }, [user]);
-
-  useFocusAfterTransition(load);
+  // ProfileProvider already fetches this at app launch, so it's normally
+  // in hand well before this tab is ever opened — this refresh is just to
+  // pick up an avatar change made on the picker screen since then.
+  useFocusAfterTransition(refreshProfile);
 
   function handleSettings() {
     router.push("/settings");

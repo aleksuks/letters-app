@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
+import * as Linking from "expo-linking";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { CommonActions } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -12,7 +13,25 @@ import { ThemeProvider } from "@/contexts/theme";
 import { AccessibilityProvider } from "@/contexts/accessibility";
 import { TutorialProvider } from "@/contexts/tutorial";
 import { UnreadMessagesProvider } from "@/contexts/unread-messages";
+import { ProfileProvider } from "@/contexts/profile";
 import { registerForPushNotificationsAsync, touchLastActive, notificationDataToRoute } from "@/lib/notifications";
+
+// Password-recovery links carry tokens as a URL fragment (implicit flow,
+// the supabase-js default — detectSessionInUrl is off in lib/supabase.ts
+// since that only works in a browser, so this app parses the fragment by
+// hand instead). Manual split/decode rather than URLSearchParams, which
+// isn't used or confirmed-polyfilled anywhere else in this codebase.
+function parseRecoveryTokens(url: string): { access_token: string; refresh_token: string } | null {
+  const hashIndex = url.indexOf("#");
+  if (hashIndex === -1) return null;
+  const params: Record<string, string> = {};
+  for (const pair of url.slice(hashIndex + 1).split("&")) {
+    const [key, value] = pair.split("=");
+    if (key && value) params[decodeURIComponent(key)] = decodeURIComponent(value);
+  }
+  if (params.type !== "recovery" || !params.access_token || !params.refresh_token) return null;
+  return { access_token: params.access_token, refresh_token: params.refresh_token };
+}
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -53,6 +72,26 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, [session]);
 
+  // A tapped recovery-email link opens the app via laiskelis://auth/reset-
+  // password#access_token=...&type=recovery. setSession() establishes that
+  // as a real (if temporary) session, which is enough for updatePassword()
+  // on the reset screen — no separate "recovery mode" flag needed, since the
+  // session-routing effect below is taught to leave the reset screen alone.
+  useEffect(() => {
+    function handleUrl(url: string) {
+      const tokens = parseRecoveryTokens(url);
+      if (!tokens) return;
+      supabase.auth.setSession(tokens).then(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router.replace("/(auth)/reset-password" as any);
+      });
+    }
+
+    Linking.getInitialURL().then((url) => { if (url) handleUrl(url); });
+    const subscription = Linking.addEventListener("url", ({ url }) => handleUrl(url));
+    return () => subscription.remove();
+  }, [router]);
+
   // Tapping a push notification deep-links to whatever it's about.
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -82,7 +121,10 @@ export default function RootLayout() {
       return;
     }
 
-    if (session && inAuthGroup) {
+    // The reset-password screen is reached with a valid session (the
+    // recovery token IS a session) but must not be bounced straight into
+    // the tabs before the user has actually set a new password.
+    if (session && inAuthGroup && segments[1] !== "reset-password") {
       supabase
         .from("user_profiles")
         .select("id")
@@ -107,25 +149,27 @@ export default function RootLayout() {
         <AccessibilityProvider>
           <ThemeProvider>
             <TutorialProvider>
-              <UnreadMessagesProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="onboarding" />
-                  <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
-                  <Stack.Screen name="blocked-users" options={{ animation: "slide_from_right" }} />
-                  <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
-                  <Stack.Screen name="avatar-picker" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                  <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                  <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                  <Stack.Screen name="map-write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                  <Stack.Screen name="map-letter" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                  <Stack.Screen name="letter-grave" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                  <Stack.Screen name="letter-flight" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                  <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
-                </Stack>
-              </UnreadMessagesProvider>
+              <ProfileProvider>
+                <UnreadMessagesProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="onboarding" />
+                    <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
+                    <Stack.Screen name="blocked-users" options={{ animation: "slide_from_right" }} />
+                    <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
+                    <Stack.Screen name="avatar-picker" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                    <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                    <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                    <Stack.Screen name="map-write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                    <Stack.Screen name="map-letter" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                    <Stack.Screen name="letter-grave" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                    <Stack.Screen name="letter-flight" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                    <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
+                  </Stack>
+                </UnreadMessagesProvider>
+              </ProfileProvider>
             </TutorialProvider>
           </ThemeProvider>
         </AccessibilityProvider>
