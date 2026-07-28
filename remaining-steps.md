@@ -120,9 +120,13 @@ gone). What's uncommitted now:
   bundle id `lt.laiskelis.app`, `eas.json` production/submit profiles added.
   One follow-up outside the repo: add `laiskelis://auth/callback` to the
   Supabase Auth redirect allowlist before the next build.
-- [ ] **Store release**: Android first (see `docs/store-release.md`) — Play
-  account, closed test with 12 testers for 14 days, LT screenshots/copy,
-  age rating consistent with the 18+ gate. iOS deferred a month.
+- [ ] **Store release — both stores** (see `docs/store-release.md`). Android
+  first only because Play's 14-day closed-test clock is the long pole; Apple
+  work runs beside it, not after it. Play: account, first manual AAB upload,
+  12 testers. Apple: Developer Program, App Store Connect record, then the
+  three values that fill in the iOS submit block. `supportsTablet` is now
+  false and export compliance is pre-answered, so no iPad screenshots and no
+  per-build encryption question.
 - [x] Fill in `README.md` — setup, env vars, migrations, edge functions,
   cron, layout.
 
@@ -139,5 +143,6 @@ compressed, so it goes first and everything else runs beside it.
    weeks the clock is running.
 4. Measurement + packaging docs written as you go; keep backfilling
    `decisions.md` while the reasoning is fresh.
-5. iOS about a month after Android launch, once there's real usage to show
-   for the $99.
+5. iOS in parallel, not after — Apple Developer Program and the App Store
+   Connect record can be set up while the Play clock runs, and TestFlight has
+   no minimum-tester gate of its own.

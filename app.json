@@ -10,8 +10,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "lt.laiskelis.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "CADisableMinimumFrameDurationOnPhone": true
       }
