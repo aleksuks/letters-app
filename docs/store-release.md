@@ -272,10 +272,9 @@ deletion is a frequent rejection, and a reviewer who cannot read Lithuanian
 and cannot find the core loop will reject on 2.1 (Performance: App
 Completeness) rather than ask.
 
-**A reviewer demo account is still needed.** The current shared test account
-in `TEST_ACCOUNT.md` gets wiped before release, so create a fresh one with a
-rotated password specifically for review, and seed it with enough letters that
-a reviewer opening the app sees a working feed rather than an empty state.
+The reviewer demo account is already created (see §8) — separate from the
+shared dev/test account, which has been deleted outright rather than wiped
+(no longer needed once real testers take over).
 
 ## 7. Store listing
 
@@ -320,16 +319,18 @@ a reviewer opening the app sees a working feed rather than an empty state.
 - [ ] Apple Developer Program ($99/yr), create the App Store Connect record,
       then hand over the three values in §4 so the iOS submit block can be
       filled in.
-- [ ] Wipe test data and rotate the password committed in `TEST_ACCOUNT.md`;
-      remove the seeded test letters. (I can run this — it just needs a
-      go-ahead and the right moment, since it costs you the working test
-      account.)
+- [x] ~~Delete the shared test account~~ — done 2026-07-28. Not just wiped:
+      confirmed it was already gone from the live DB (no matching row in
+      `auth.users`, so nothing to cascade-delete), and removed
+      `TEST_ACCOUNT.md`, `scripts/seed-test-account.mjs`, and a stray
+      `scripts_seed_test_tmp.mjs` leftover from the repo. No longer needed
+      now that real testers are about to take over that role.
 - [ ] Write real founder seed letters (cold-start content). Your voice, not
       mine — but I can draft candidates to edit.
 - [x] ~~Create the reviewer demo account~~ — done 2026-07-28,
       `scripts/seed-reviewer-account.mjs`, credentials in
-      `credentials/reviewer-account.md` (gitignored). Separate from
-      `TEST_ACCOUNT.md` — don't wipe it in the same pass.
+      `credentials/reviewer-account.md` (gitignored). Separate from the
+      (now-deleted) shared test account.
 
 Done: release identity settled (scheme, bundle id), production/submit profiles
 in `eas.json`, leftover microphone permissions dropped, iPad support and export

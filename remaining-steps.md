@@ -114,18 +114,17 @@ gone). What's uncommitted now:
 ## Remaining ops / launch checklist
 
 - [x] **Moderation checklist doc** — `docs/moderation-checklist.md`.
-- [ ] **Populate `moderation_keywords`** — the table is **empty in
-  production**, so the send-time gate currently scores every letter 0 and
-  rejects nothing. Founder-managed data (dashboard only, RLS-invisible to
-  clients). Suggested weights are in migration 007's header; the reject
-  threshold is 10. This is a launch blocker: the store review notes claim
-  the gate exists, and with no terms it does not.
+- [x] **Populate `moderation_keywords`** — 51 terms live in production as of
+  2026-07-28 (15 at 5pts, 26 at 3pts, 10 at 1pt). Founder-managed data
+  (dashboard only, RLS-invisible to clients). See `docs/store-release.md`
+  §8 for the breakdown.
 - [ ] **Founder seed letters**: real launch content for the cold-start
   problem (ux-plan Phase 2) — the current seeds are test data.
-- [ ] **Wipe test data before release** (per `TEST_ACCOUNT.md`): test
-  account, seeded letters, and rotate the committed test password. A
-  separate reviewer demo account is needed afterwards — see
-  `docs/store-release.md` §5.
+- [x] **Delete test data before release** (per former `TEST_ACCOUNT.md`,
+  removed 2026-07-28) — the shared test account was already gone from the
+  live DB; the file and its seed script were removed from the repo. A
+  separate reviewer demo account already exists — see
+  `docs/store-release.md` §8.
 - [x] **Verify scheduled jobs in production** — checked 2026-07-28: all four
   pg_cron jobs (`letters-lifecycle-sweep`, `push-notifications-dispatch`,
   and the two reminder enqueues) are active with zero failed runs over 7
