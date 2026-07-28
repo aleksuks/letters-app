@@ -199,14 +199,23 @@ export default function LettersScreen() {
             </View>
             <View style={s.cardMeta}>
               <View style={s.metaStat}>
-                <Ionicons name="heart" size={13} color={colors.subtext} />
-                <Text style={s.metaText}>{item.like_count}</Text>
-              </View>
-              <View style={s.metaStat}>
                 <Ionicons name="send-outline" size={13} color={colors.subtext} />
                 <Text style={s.metaText}>{item.travel_count}</Text>
               </View>
               <Text style={s.metaStatus}>{statusLabel(item)}</Text>
+            </View>
+            {/* Same two-line breakdown as the Obituary card, so an author can
+                tell in-flight hearts from post-mortem ones on their own
+                letters too — no toggle here, you can't afterlike your own. */}
+            <View style={s.heartStats}>
+              <View style={s.metaCountRow}>
+                <Text style={s.metaCountLabel}>surinko beskraidant:</Text>
+                <Text style={s.heartText}>❤ {item.like_count}</Text>
+              </View>
+              <View style={s.metaCountRow}>
+                <Text style={s.metaCountLabel}>surinko patekus į kapines:</Text>
+                <Text style={s.heartText}>❤ {item.after_like_count}</Text>
+              </View>
             </View>
           </View>
         )}
@@ -281,5 +290,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     metaStat: { flexDirection: "row", alignItems: "center", gap: 4 },
     metaText: { fontSize: 13, color: colors.subtext },
     metaStatus: { marginLeft: "auto", fontSize: 13, color: colors.subtext },
+    heartStats: { gap: 3, marginTop: 6 },
+    metaCountRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    metaCountLabel: { fontSize: 11, color: colors.subtext, opacity: 0.7 },
+    heartText: { fontSize: 13, color: colors.subtext },
   });
 }
