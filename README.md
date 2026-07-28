@@ -118,7 +118,7 @@ lib/                Supabase client, map HTML, drawing model, LT places/border
 supabase/migrations Numbered SQL migrations (source of truth for the schema)
 supabase/functions  Edge Functions
 docs/               Hosted legal pages + working notes
-scripts/            Seed script, crayon-grain texture generator
+scripts/            Seed script
 ```
 
 ## Release

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  LayoutChangeEvent, PixelRatio, Platform, StyleSheet, Text, TouchableOpacity, View,
+  LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Svg, { Image as SvgImage } from "react-native-svg";
+import Svg from "react-native-svg";
 import { CrayonStroke, CrayonStrokes } from "@/components/crayon-path";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, outlineOver } from "@/contexts/theme";
@@ -18,7 +18,6 @@ import {
   MAX_STROKES,
   shouldKeepPoint,
   Stroke,
-  strokeBounds,
   strokeToPath,
 } from "@/lib/drawing";
 
@@ -26,38 +25,6 @@ interface DrawingCanvasProps {
   value: Drawing;
   onChange: (next: Drawing) => void;
 }
-
-/**
- * TUNING KNOB: how many un-baked strokes may pile up before the finished part
- * of the drawing is flattened to a bitmap.
- *
- * This is THE cost ceiling while drawing: un-baked strokes are redrawn on
- * every touch sample along with the live one, so a drag costs at most this
- * many blurred runs however full the picture already is. Lower it and drawing
- * gets cheaper but the PNG encode interrupts more often; raise it and lifts
- * are smoother but each frame does more.
- */
-const SNAPSHOT_AFTER = 4;
-
-/**
- * Size to hand `toDataURL`. The two platforms want DIFFERENT UNITS, and
- * getting it wrong doesn't warn — it silently produces a broken bitmap.
- *
- *   Android — `SvgView.drawChildren` rescales the viewBox to whatever bitmap
- *     it is handed, so this is a real pixel count and larger is sharper.
- *     Device density matches the view's own pixel size exactly.
- *   iOS — `getDataURLWithBounds` builds a UIGraphicsImageRenderer of
- *     `bounds.size` and then draws the view at its NATURAL geometry, with no
- *     scaling. So the value is in POINTS: pass the view's own size and the
- *     renderer applies screen scale for free. Passing pixels here yields a
- *     canvas 3x too large with the drawing stranded in one corner of it —
- *     and a ~9MP PNG that mostly fails to decode.
- *
- * Either way this only affects what the ARTIST sees while drawing. Strokes
- * are stored as vectors, so the sent letter is unaffected.
- */
-const snapshotPixels = (side: number) =>
-  Math.round(Platform.OS === "android" ? side * PixelRatio.get() : side);
 
 /**
  * The crayon pad: ten colours, three nib sizes, undo, clear.
@@ -82,22 +49,6 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
   const [side, setSide] = useState(0);
   const [live, setLive] = useState<[number, number][]>([]);
   const liveRef = useRef<[number, number][]>([]);
-
-  /**
-   * The finished part of the drawing, flattened to a bitmap. `count` is how
-   * many of `value.strokes` it covers; the rest are still drawn as vectors.
-   *
-   * `ready` is only set once the bitmap has actually decoded and reported
-   * back. Until then the strokes it replaces keep being drawn, so a bake that
-   * silently produces something unusable costs frame rate, never the picture.
-   * Getting this wrong wipes the canvas, which is exactly what a size in the
-   * wrong units did — see `snapshotPixels`.
-   */
-  const [snapshot, setSnapshot] = useState<
-    { uri: string; count: number; ready: boolean } | null
-  >(null);
-  const baseRef = useRef<Svg | null>(null);
-  const baking = useRef(false);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     setSide(e.nativeEvent.layout.width);
@@ -173,8 +124,6 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
     onChange({ ...value, strokes: [] });
   }, [value, onChange]);
 
-  // Committed strokes are memoised so a touch sample doesn't rebuild (and
-  // re-blur) the whole drawing — only the live stroke below changes mid-drag.
   const drawn = useMemo<CrayonStroke[]>(
     () =>
       value.strokes
@@ -182,7 +131,6 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
           d: strokeToPath(stroke.p),
           color: colorAt(stroke.c),
           width: stroke.s,
-          bounds: strokeBounds(stroke.p),
         }))
         .filter((s) => s.d !== ""),
     [value.strokes]
@@ -191,102 +139,16 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
   const liveStroke = useMemo<CrayonStroke | null>(() => {
     const d = strokeToPath(live);
     if (d === "") return null;
-    return { d, color: colorAt(colorIndex), width, bounds: strokeBounds(live) };
+    return { d, color: colorAt(colorIndex), width };
   }, [live, colorIndex, width]);
-
-  // Strokes already flattened into `snapshot`, and the ones drawn since. An
-  // unconfirmed bitmap replaces nothing, so `pending` stays the whole drawing.
-  const bakedCount = snapshot?.ready ? snapshot.count : 0;
-  const pending = useMemo(() => drawn.slice(bakedCount), [drawn, bakedCount]);
-
-  /**
-   * Fold the finished strokes down to a bitmap.
-   *
-   * The base layer already contains the PREVIOUS bitmap plus whatever has
-   * been drawn since, so re-baking it is O(1) in the size of the drawing
-   * rather than O(strokes) — a 200-stroke picture bakes as fast as a
-   * 10-stroke one, and costs the same to display afterwards.
-   */
-  useEffect(() => {
-    if (side <= 0) return;
-    const total = value.strokes.length;
-
-    // Undo or clear: indices no longer line up with what was baked, so throw
-    // the bitmap away and let the next bake rebuild it from the live strokes.
-    if (snapshot && snapshot.count > total) {
-      setSnapshot(null);
-      return;
-    }
-    // A bitmap that never confirmed is a bitmap that didn't work. Stop baking
-    // rather than burning an encode per stroke on something unusable — the
-    // drawing stays fully vector, which is slower but always right.
-    if (snapshot && !snapshot.ready) return;
-    if (total - bakedCount < SNAPSHOT_AFTER) return;
-    if (baking.current) return;
-    // Never bake mid-stroke: the in-progress line is on the canvas, so it
-    // would be flattened in AND then committed again on release, drawing it
-    // twice. Reading the ref rather than `live` keeps this off the dependency
-    // list — the next commit re-runs the effect anyway.
-    if (liveRef.current.length > 0) return;
-
-    baking.current = true;
-    const at = total;
-    const px = snapshotPixels(side);
-    baseRef.current?.toDataURL(
-      (base64) => {
-        baking.current = false;
-        // Strokes drawn while this was encoding stay pending — `at` records
-        // exactly what the bitmap contains, so nothing is dropped or doubled.
-        if (!base64) {
-          baking.current = true; // nothing came back; don't retry every stroke
-          return;
-        }
-        setSnapshot({ uri: `data:image/png;base64,${base64}`, count: at, ready: false });
-      },
-      { width: px, height: px }
-    );
-  }, [value.strokes.length, side, snapshot, bakedCount]);
 
   return (
     <View style={s.wrap}>
       <GestureDetector gesture={pan}>
         <View style={s.paper} onLayout={onLayout}>
           {side > 0 && (
-            /* One canvas, three things: the baked bitmap, the strokes drawn
-               since it was baked, and the one in progress. Splitting the live
-               stroke into its own stacked <Svg> would be cheaper still, but
-               it would sit above ALL the older wax and then drop behind it on
-               release — the settle is worse than the frames it saves. Keeping
-               one canvas preserves the exact paint order, and the bitmap caps
-               what has to be redrawn at SNAPSHOT_AFTER strokes no matter how
-               full the picture gets. */
-            <Svg
-              ref={baseRef}
-              width={side}
-              height={side}
-              viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}
-            >
-              {snapshot && (
-                /* Held at zero opacity until it decodes: it has to be in the
-                   tree to load at all, but the strokes it stands in for are
-                   still being drawn until then, and painting both would
-                   double the wax. */
-                <SvgImage
-                  href={{ uri: snapshot.uri }}
-                  x={0}
-                  y={0}
-                  width={CANVAS_SIZE}
-                  height={CANVAS_SIZE}
-                  preserveAspectRatio="none"
-                  opacity={snapshot.ready ? 1 : 0}
-                  onLoad={() =>
-                    setSnapshot((s) => (s && !s.ready ? { ...s, ready: true } : s))
-                  }
-                />
-              )}
-              {/* The grain tiles in canvas units, so a stroke lands on exactly
-                  the fibres it will still be on once it's been baked in. */}
-              <CrayonStrokes strokes={pending} live={liveStroke} />
+            <Svg width={side} height={side} viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}>
+              <CrayonStrokes strokes={drawn} live={liveStroke} />
             </Svg>
           )}
         </View>

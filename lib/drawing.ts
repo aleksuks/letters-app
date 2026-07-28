@@ -93,30 +93,6 @@ export function strokeToPath(points: [number, number][]): string {
   return d;
 }
 
-/** Axis-aligned bounds of a stroke's centreline: [minX, minY, maxX, maxY]. */
-export type Bounds = [number, number, number, number];
-
-/**
- * Bounds of the points themselves — the *centreline*, with no allowance for
- * nib width or spray. Callers add their own margin, since how far a stroke
- * bleeds past its centreline is a rendering question (see crayon-path.tsx,
- * where it decides how large a filter region each stroke needs).
- */
-export function strokeBounds(points: [number, number][]): Bounds {
-  if (points.length === 0) return [0, 0, 0, 0];
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const [x, y] of points) {
-    if (x < minX) minX = x;
-    if (y < minY) minY = y;
-    if (x > maxX) maxX = x;
-    if (y > maxY) maxY = y;
-  }
-  return [minX, minY, maxX, maxY];
-}
-
 /**
  * Drops points that fall within `min` units of the previously kept one. The
  * touch stream samples far denser than a crayon line needs, and thinning it

@@ -213,73 +213,20 @@ implementing any screen or table.
       index, and nib width, re-rendered client-side with react-native-svg
       (`lib/drawing.ts` for the model and palette, `components/drawing-
       view.tsx` to render, `components/drawing-canvas.tsx` to draw, and
-      `components/crayon-path.tsx` for the wax look — a stroke is stroked
-      ONCE at the nib width and given its falloff by an SVG filter: a
-      Gaussian blur, then a linear alpha remap (`a' = clamp(GAIN*a - CUT)`)
-      whose negative offset erases the faint tail so the line stays narrow
-      and whose gain restores a solid core. It is stroked twice: the spray
-      above, then a much tighter `CORE_*` pass masked through the same tooth
-      lifted toward white, because a single mask eats the same fraction of
-      wax everywhere and raising alpha in the middle only darkens the specks
-      rather than closing the holes. Both passes are Gaussians, so their sum
-      stays smooth and no boundary shows where one gives way to the other;
-      `CORE_FILL = 0` switches the second pass off and halves the cost. An
-      earlier version approximated
-      the same falloff by stacking four passes of descending width and
-      opacity; four samples of a smooth curve are not a smooth curve, and the
-      steps between passes were plainly visible as concentric bands. Blur is
-      continuous by construction, so there is no banding to tune away.
-      Note that react-native-svg implements only feBlend, feColorMatrix,
-      feComposite, feDropShadow, feFlood, feGaussianBlur, feMerge and
-      feOffset natively — feTurbulence and feComponentTransfer are TS stubs
-      that silently render nothing, so procedural noise and gamma curves are
-      not available. Paper tooth is therefore a single tiled mask, tiling in
-      canvas space so the grain belongs to the paper and two lines crossing
-      the same patch skip the same fibres. The texture
-      (`assets/images/crayon-grain.png`) is *generated*, not
-      downloaded: `scripts/generate-crayon-grain.mjs` builds it from
-      tileable value noise, so it's seamless by construction and carries no
-      third-party licence into a store build. Its octaves are deliberately
-      coarse — the tile is drawn into ~128 of 320 canvas units, so a lattice
-      finer than ~150 cells lands under a pixel per fleck and averages into
-      flat grey. Strokes are batched into runs of consecutive same-colour,
-      same-nib lines (one blur pass per run, and splitting on colour stops
-      the blur bleeding a purple fringe where a red line crosses a blue one),
-      and the in-progress stroke filters in its own pass so a touch sample
-      never re-blurs the whole drawing. Filter AND mask regions are emitted
-      next to the strokes that use them rather than shared from a separate
-      component, because a region is a property of the referenced element: a
-      shared one has to cover the worst case (the whole canvas), which made a
-      short flick allocate the same offscreen buffer as a stroke crossing the
-      page. Per-run regions are also why runs stop merging once the union
-      bbox gets wasteful (`RUN_MERGE_SLACK`) — batching two far-apart strokes
-      would hand them a region spanning both — and why mask regions snap
-      outward to a grid (`REGION_QUANTUM`), so the growing live stroke doesn't
-      rebuild the mask every touch sample. The grain pattern tiles in absolute
-      canvas units, so shrinking a mask region never slides the fibres a
-      stroke sits on. Note also that `INK` is folded into the mask rather than
-      applied as a third filter primitive: multiplying the mask is exactly
-      equivalent to multiplying alpha and costs nothing, where a primitive
-      costs a full extra pass over every run. Finally, the EDITOR (and only
-      the editor) folds finished strokes down to a bitmap every
-      `SNAPSHOT_AFTER` lifts via `Svg.toDataURL()`, so a drag redraws at most
-      that many blurred runs however full the picture is; the canvas re-bakes
-      the previous bitmap plus the new strokes, making each bake O(1) rather
-      than O(strokes). The bitmap is a display cache only — strokes stay
-      vectors on the wire, so what gets sent is unaffected. Two traps here,
-      both of which wipe the canvas rather than warn: (a) the size passed to
-      `toDataURL` is in DIFFERENT UNITS per platform — Android rescales the
-      viewBox to the bitmap so it wants device pixels, while iOS renders the
-      view at its natural geometry into a `bounds.size` canvas measured in
-      POINTS, so passing pixels there strands the drawing in the corner of a
-      9MP PNG that fails to decode; (b) the baked strokes must keep being
-      drawn as vectors until the bitmap reports `onLoad`, so a bake that
-      silently fails costs frame rate instead of the picture. Do not split the
-      live stroke into its own stacked `<Svg>` to save more: it would paint
-      above all older wax and then drop behind it on release. No
-      Storage bucket, no egress, no upload step to half-fail, nothing to
-      sweep on expiry. Colours are stored by index, so the palette may be
-      re-tinted but never reordered.
+      `components/crayon-path.tsx` for the actual line — plain SVG `Path`
+      elements, stroked once at the nib width with round caps/joins, no
+      filter, no mask, no grain texture. An earlier version rendered a
+      wax-crayon look — a Gaussian-blur-plus-alpha-remap spray pass, a second
+      tighter "core" pass, and a tiled paper-grain mask cut into both via SVG
+      filters — but that rig was too expensive on real devices (iOS barely
+      kept up, Android worse) and was scrapped in favour of plain lines. The
+      editor also used to bake finished strokes down to a bitmap periodically
+      (`Svg.toDataURL()`) to cap the cost of re-blurring a full canvas on
+      every touch sample; with no filters left to amortize, that baking step
+      is gone too — the canvas is just live SVG paths, committed and
+      in-progress, redrawn directly. No Storage bucket, no egress, no upload
+      step to half-fail, nothing to sweep on expiry. Colours are stored by
+      index, so the palette may be re-tinted but never reordered.
     - **The tool set is deliberately crude**: eight colours, three nib sizes,
       undo, clear. No fill, eraser, layers, or zoom — the picture is a
       scribble in the margin, and every added tool makes someone feel their

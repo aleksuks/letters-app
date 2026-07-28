@@ -2,13 +2,7 @@ import { useMemo } from "react";
 import { View, ViewStyle } from "react-native";
 import Svg from "react-native-svg";
 import { CrayonStroke, CrayonStrokes } from "@/components/crayon-path";
-import {
-  colorAt,
-  Drawing,
-  isValidDrawing,
-  strokeBounds,
-  strokeToPath,
-} from "@/lib/drawing";
+import { colorAt, Drawing, isValidDrawing, strokeToPath } from "@/lib/drawing";
 
 interface DrawingViewProps {
   drawing: unknown;
@@ -18,7 +12,7 @@ interface DrawingViewProps {
 }
 
 /**
- * Read-only render of a stored crayon drawing. The wax texture itself lives
+ * Read-only render of a stored crayon drawing. Line rendering itself lives
  * in `CrayonPath`, shared with the editor so a drawing looks identical while
  * it's being made and after it's sent.
  */
@@ -35,7 +29,6 @@ export function DrawingView({ drawing, size, style }: DrawingViewProps) {
         d: strokeToPath(stroke.p),
         color: colorAt(stroke.c),
         width: stroke.s,
-        bounds: strokeBounds(stroke.p),
       }))
       .filter((s) => s.d !== "");
   }, [parsed]);
