@@ -304,15 +304,12 @@ a reviewer opening the app sees a working feed rather than an empty state.
 
 **Yours, outside the repo:**
 
-- [ ] **Populate the `moderation_keywords` table — currently empty.** The
-      review notes in §6 tell both Apple and Google that "every letter passes
-      a keyword scoring gate"; with zero terms that gate scores everything 0
-      and rejects nothing, so the claim is false as it stands. Founder-managed
-      through the Supabase dashboard by design (RLS keeps it unreadable from
-      the app so it can't be mined for evasion). Migration 007's header
-      carries suggested weights — 1 mild, 3 strong profanity, 5 slurs — and
-      the reject threshold is 10, i.e. two slurs. **Do not submit to either
-      store before this has terms in it.**
+- [x] ~~Populate the `moderation_keywords` table~~ — done 2026-07-28, 51 terms
+      live (15 at 5pts, 26 at 3pts, 10 at 1pt), run by hand against the linked
+      DB from `credentials/moderation-keywords.sql` (gitignored on purpose —
+      see that file's header for why it must never be committed). The §6
+      review-notes claim ("every letter passes a keyword scoring gate") is
+      now true.
 
 - [x] ~~Decide the package/bundle id~~ — `lt.laiskelis.app`, 2026-07-28 (§1).
 - [x] ~~Add `laiskelis://auth/callback` to the Supabase redirect allowlist~~ —
