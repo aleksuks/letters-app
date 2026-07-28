@@ -59,20 +59,37 @@ const COLORS: ThemeColors = {
   switchTrackOff: "#8A7F6F",
 };
 
-// Contrast-boosted palette: darker text/subtext and stronger borders against
-// the same warm background, aimed at WCAG AA body-text contrast (>=4.5:1).
+// Contrast-boosted palette. Every paper surface goes white: the bone
+// background is the single biggest limit on this palette, because it is the
+// darkest thing anything is ever drawn on, so every foreground had to clear
+// its bar against bone rather than against the near-white card and letter
+// surfaces. Dropping it to #FFFFFF lifts the whole palette at once — the
+// worst pair in the mode goes from 7.27:1 to 10.09:1 — and it is the honest
+// trade for this mode: the warm paper is the product's identity, but someone
+// who has switched high contrast on has said they would rather read the text.
+//
+// Because all three surfaces are now the same white, tonal separation between
+// page and card is gone and `border` is the only thing left describing where
+// a card ends. It is therefore darker here than the 3:1 minimum needs
+// (5.99:1) — in the one mode whose entire purpose is legibility, a card edge
+// should not be a hairline you have to hunt for.
+//
+// `switchTrackOff` deliberately stays lighter (3.93:1, clears the 3:1 non-text
+// bar) rather than matching the border. The "on" state is `accent`, a dark
+// red; a dark warm-grey "off" track would read as another dark pill and make
+// the two states tell apart by hue alone.
 const HIGH_CONTRAST_COLORS: ThemeColors = {
-  bg: "#E3DAC9",
-  surface: "#F3EDE1",
-  surfaceAlt: "#FBF7F0",
+  bg: "#FFFFFF",
+  surface: "#FFFFFF",
+  surfaceAlt: "#FFFFFF",
   text: "#161210",
   subtext: "#4A4038",
   accent: "#6E0F09",
   accentText: "#ffffff",
-  border: "#8A7F6F",
+  border: "#6B6255",
   red: "#6E0F09",
-  tabBar: "#F3EDE1",
-  tabBarBorder: "#8A7F6F",
+  tabBar: "#FFFFFF",
+  tabBarBorder: "#6B6255",
   tabActive: "#6E0F09",
   tabInactive: "#4A4038",
   switchTrackOff: "#8A7F6F",

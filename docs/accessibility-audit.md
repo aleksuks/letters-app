@@ -42,9 +42,10 @@ non-text UI components need 3:1.
 | border on card | 1.38 | 3.0 | see below |
 | tab bar border | 1.13 | 3.0 | see below |
 
-**High-contrast palette — every pair passed, including the borders (3.37:1).**
-That is the palette doing its job, and it is why the fixes below are modest:
-the escape hatch already exists for users who need more.
+**High-contrast palette — every pair passed**, including the borders
+(3.37:1). That is the palette doing its job, and it is why the default-palette
+fixes below are modest: the escape hatch already exists for users who need
+more. It was then pushed further — see §1.3.
 
 ### What changed, and what deliberately did not
 
@@ -79,7 +80,44 @@ Reasoning:
 control. These are decorative rules between paper surfaces; every control
 near them is identifiable by its own label and contrast. Raising them turns
 the paper into a wireframe — and the high-contrast palette, which does exactly
-that at 3.37:1, is the right place for it.
+that, is the right place for it.
+
+### 1.3 High contrast: white paper, not bone
+
+The high-contrast palette originally kept the warm background and only
+darkened the foregrounds. That left the mode capped by the thing limiting it
+in the first place: `bg` at `#E3DAC9` is the darkest surface anything is ever
+drawn on, so every foreground had to clear its bar against bone rather than
+against the near-white card and letter surfaces.
+
+All three surfaces now go to `#FFFFFF` when the toggle is on. The effect is
+palette-wide rather than pair-by-pair — the *worst* pair in the whole mode
+improves from 7.27:1 to 10.09:1, and body text lands at 18.62:1:
+
+| Pair | Was (bone) | Now (white) |
+| --- | --- | --- |
+| body text on page | 13.42:1 | **18.62:1** |
+| subtext on page | 7.27:1 | **10.09:1** |
+| accent link on page | 8.72:1 | **12.10:1** |
+| inactive tab | 8.65:1 | **10.09:1** |
+| border on card | 3.37:1 | **5.99:1** |
+
+Two consequences worth naming:
+
+- **The warm paper is the product's identity, and this mode gives it up.**
+  That is the right trade in one direction only: someone who has switched high
+  contrast on has said, explicitly, that they would rather read the text. The
+  default palette is untouched, so nobody gets this unless they ask.
+- **Cards lost their tonal separation.** With page, card and letter paper all
+  the same white, `border` is the only thing describing where a card ends, so
+  it was darkened to `#6B6255` — well past the 3:1 minimum, because in the one
+  mode whose entire purpose is legibility a card edge should not be a hairline
+  you have to hunt for.
+
+`switchTrackOff` deliberately did *not* follow the border darker. It stays at
+`#8A7F6F` (3.93:1, clear of the 3:1 non-text bar): the "on" state is `accent`,
+a dark red, and a dark warm-grey "off" track would read as another dark pill,
+leaving the two states to be told apart by hue alone.
 
 ## 2. Screen readers
 
@@ -147,3 +185,19 @@ decision rather than built.
   have one. A crayon scribble is not describable; the letter's text carries
   the meaning, and a drawing-only letter is genuinely inaccessible. Worth
   stating plainly rather than pretending otherwise.
+- **The map WebView's own contents** are outside this palette entirely — the
+  mini-letter cards are styled inside `lib/map-html.ts`, so the high-contrast
+  toggle does not reach them. The map stays warm-paper even in high contrast.
+
+## 4. Housekeeping done alongside
+
+Thirteen files from the previous project's Expo template were still in the
+tree and referenced by nothing: `themed-text`, `themed-view`, `collapsible`,
+`icon-symbol` (+ `.ios`), `parallax-scroll-view`, `hello-wave`,
+`external-link`, `haptic-tab`, the stock `constants/theme.ts`, and the
+`use-theme-color` / `use-color-scheme` hooks that only served them. They were
+a closed loop — importing each other and nothing else — which is why the
+screen-reader scan kept reporting an unlabelled control in `collapsible.tsx`
+that no user could ever reach. Removed, along with the three dependencies they
+solely owned (`expo-symbols`, `expo-web-browser`, `expo-image`) and the
+now-dead `expo-web-browser` config plugin.
