@@ -12,7 +12,7 @@ import { TutorialTip } from "@/components/tutorial-tip";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
-import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { buildMapHtml, type MapHtmlLetter } from "@/lib/map-html";
 import { searchPlaces, type PlaceMatch } from "@/lib/place-search";
@@ -379,8 +379,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       height: 38,
       borderRadius: 19,
       backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
       alignItems: "center",
       justifyContent: "center",
       shadowColor: "#000",
@@ -388,6 +386,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 2 },
       elevation: 4,
+      ...outlineOver(colors, colors.border),
     },
     searchWrap: { position: "absolute", left: 12, right: 12 },
     searchBar: {
@@ -396,8 +395,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       gap: 8,
       backgroundColor: colors.surface,
       borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
       paddingHorizontal: 14,
       paddingVertical: 10,
       shadowColor: "#000",
@@ -405,6 +402,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 2 },
       elevation: 4,
+      ...outlineOver(colors, colors.border),
     },
     searchInput: { flex: 1, fontSize: 15, color: colors.text, padding: 0 },
     searchResults: {
@@ -412,14 +410,13 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       maxHeight: 260,
       backgroundColor: colors.surface,
       borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
       overflow: "hidden",
       shadowColor: "#000",
       shadowOpacity: 0.15,
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 2 },
       elevation: 4,
+      ...outlineOver(colors, colors.border),
     },
     searchResultRow: {
       flexDirection: "row",
@@ -446,8 +443,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       gap: 10,
       backgroundColor: colors.surface,
       borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
       paddingHorizontal: 14,
       paddingVertical: 12,
       shadowColor: "#000",
@@ -455,6 +450,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 2 },
       elevation: 4,
+      ...outlineOver(colors, colors.border),
     },
     placeBannerText: { flex: 1, fontSize: 14, color: colors.text, fontWeight: "600" },
     fabWrap: { position: "absolute", right: 16, bottom: 20 },

@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
@@ -134,6 +134,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     empty: { color: colors.subtext, fontSize: 15, marginTop: 4 },
     row: {
       backgroundColor: colors.surface,
+      ...outlineOnly(colors),
       borderRadius: 12,
       padding: 16,
       flexDirection: "row",
@@ -143,8 +144,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     nickname: { fontSize: 16, color: colors.text, fontWeight: "500" },
     unblockButton: {
-      borderWidth: 1,
-      borderColor: colors.border,
+      ...outlineOver(colors, colors.border),
       borderRadius: 8,
       paddingVertical: 8,
       paddingHorizontal: 14,

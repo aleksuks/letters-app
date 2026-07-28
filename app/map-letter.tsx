@@ -395,13 +395,12 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     requestInput: {
       backgroundColor: colors.surface,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
       color: colors.text,
       fontSize: 15,
       padding: 14,
       minHeight: 90,
       textAlignVertical: "top",
+      ...outlineOver(colors, colors.border),
     },
     requestActions: { flexDirection: "row", gap: 10 },
     sentNote: {
@@ -410,9 +409,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       gap: 10,
       backgroundColor: colors.surface,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
       padding: 14,
+      ...outlineOver(colors, colors.border),
     },
     sentNoteText: { flex: 1, fontSize: 14, color: colors.text, lineHeight: 19 },
   });

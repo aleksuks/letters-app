@@ -10,7 +10,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { Message } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
@@ -399,6 +399,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       paddingHorizontal: 16,
       paddingVertical: 8,
       backgroundColor: colors.surfaceAlt ?? colors.surface,
+      ...outlineOnly(colors),
     },
     reportedBannerText: { fontSize: 12, color: colors.subtext, flex: 1 },
     messageList: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
@@ -438,6 +439,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       fontSize: 15,
       color: colors.text,
       maxHeight: 120,
+      ...outlineOver(colors, colors.border),
     },
     sendButton: {
       width: 42,

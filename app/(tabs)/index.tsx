@@ -369,7 +369,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       paddingBottom: 32,
       justifyContent: "flex-start",
       borderTopWidth: 1,
-      borderColor: colors.border,
+      ...outlineOver(colors, colors.border),
     },
     sortMenuDragZone: {
       paddingVertical: 14,

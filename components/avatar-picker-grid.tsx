@@ -1,5 +1,5 @@
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOver } from "@/contexts/theme";
 import { AVATAR_EMOJIS } from "@/lib/avatars";
 
 interface AvatarPickerGridProps {
@@ -43,8 +43,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: colors.surface,
-      borderWidth: 2,
-      borderColor: "transparent",
+      ...outlineOver(colors, "transparent", 2),
     },
     cellSelected: { borderColor: colors.accent, backgroundColor: colors.surfaceAlt },
     emoji: { fontSize: 26 },

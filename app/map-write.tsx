@@ -8,7 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
@@ -258,9 +258,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginTop: 16,
       backgroundColor: colors.surface,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
       padding: 12,
+      ...outlineOver(colors, colors.border),
     },
     placeNoteText: { flex: 1, fontSize: 13, color: colors.subtext, lineHeight: 18 },
     input: {
@@ -287,9 +286,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 32,
       paddingVertical: 14,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
       backgroundColor: colors.surfaceAlt,
+      ...outlineOver(colors, colors.border),
     },
     drawToggleLarge: LARGE_BUTTON,
     drawToggleIcon: { fontSize: 18 },
@@ -317,11 +315,10 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       gap: 24,
     },
     sendCancelButton: {
-      borderWidth: 1,
-      borderColor: colors.border,
       borderRadius: 12,
       paddingHorizontal: 28,
       paddingVertical: 12,
+      ...outlineOver(colors, colors.border),
     },
     sendCancelButtonLarge: LARGE_BUTTON,
     sendCancelText: { color: colors.subtext, fontSize: 15, fontWeight: "600" },

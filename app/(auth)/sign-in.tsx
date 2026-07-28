@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 
 export default function SignInScreen() {
@@ -122,7 +122,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     subtitle: { fontSize: 16, color: colors.subtext, marginBottom: 40, lineHeight: 24 },
     input: {
       backgroundColor: colors.surface, color: colors.text, borderRadius: 12,
-      padding: 16, fontSize: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border,
+      padding: 16, fontSize: 16, marginBottom: 16,
+      ...outlineOver(colors, colors.border),
     },
     button: {
       backgroundColor: colors.accent, borderRadius: 12, padding: 16,

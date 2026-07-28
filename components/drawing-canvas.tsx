@@ -6,7 +6,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { Image as SvgImage } from "react-native-svg";
 import { CrayonStroke, CrayonStrokes } from "@/components/crayon-path";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import * as Haptics from "@/lib/haptics";
 import {
@@ -364,9 +364,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       width: "100%",
       backgroundColor: colors.surfaceAlt,
       borderRadius: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
       overflow: "hidden",
+      ...outlineOver(colors, colors.border),
     },
     tray: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
     swatch: {

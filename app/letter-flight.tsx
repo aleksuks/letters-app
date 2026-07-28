@@ -14,7 +14,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { DrawingView } from "@/components/drawing-view";
@@ -242,8 +242,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       width: 280,
       backgroundColor: colors.surfaceAlt,
       borderRadius: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
       paddingTop: 28,
       paddingHorizontal: 28,
       paddingBottom: 26,
@@ -255,6 +253,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       shadowRadius: 14,
       shadowOffset: { width: 0, height: 10 },
       elevation: 8,
+      ...outlineOver(colors, colors.border),
     },
     mark: {
       ...typed,

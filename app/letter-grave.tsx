@@ -244,14 +244,13 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     viewerCard: {
       backgroundColor: colors.surfaceAlt,
       borderRadius: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
       padding: 16,
       shadowColor: "#000",
       shadowOpacity: 0.3,
       shadowRadius: 18,
       shadowOffset: { width: 0, height: 10 },
       elevation: 12,
+      ...outlineOver(colors, colors.border),
     },
     stone: {
       width: 280,

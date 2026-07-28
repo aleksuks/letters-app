@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { supabase } from "@/lib/supabase";
 import { UserProfile } from "@/types";
@@ -124,6 +124,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     menuContainer: { marginTop: 48, gap: 12 },
     menuItem: {
       backgroundColor: colors.surface,
+      ...outlineOnly(colors),
       borderRadius: 12,
       padding: 16,
       flexDirection: "row",

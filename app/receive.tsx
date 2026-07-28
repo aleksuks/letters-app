@@ -621,11 +621,10 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     card: {
       flex: 1,
       backgroundColor: colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: colors.border,
       borderRadius: 18,
       borderCurve: "continuous",
       overflow: "hidden",
+      ...outlineOver(colors, colors.border),
     },
     cardScroll: { flex: 1 },
     cardScrollContent: { padding: 24, paddingTop: 28 },

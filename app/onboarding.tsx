@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme, outlineOnly } from "@/contexts/theme";
+import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { AvatarPickerGrid } from "@/components/avatar-picker-grid";
 import { randomAvatarEmoji } from "@/lib/avatars";
@@ -160,7 +160,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     label: { fontSize: 14, fontWeight: "600", color: colors.text, marginBottom: 10 },
     input: {
       backgroundColor: colors.surface, borderRadius: 12, padding: 16,
-      fontSize: 16, color: colors.text, borderWidth: 1, borderColor: colors.border,
+      fontSize: 16, color: colors.text,
+      ...outlineOver(colors, colors.border),
     },
     hint: { fontSize: 12, color: colors.subtext, marginTop: 8 },
     checkbox: { flexDirection: "row", alignItems: "center", marginTop: 36 },

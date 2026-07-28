@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 
 export default function AccessibilityScreen() {
@@ -140,6 +140,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     settingItem: {
       backgroundColor: colors.surface,
+      ...outlineOnly(colors),
       borderRadius: 12,
       padding: 16,
       flexDirection: "row",

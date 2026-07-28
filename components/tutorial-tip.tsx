@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from "react-nativ
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useTutorial } from "@/contexts/tutorial";
-import { useTheme } from "@/contexts/theme";
+import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 
 interface TutorialTipProps {
@@ -51,10 +51,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       gap: 10,
       backgroundColor: colors.surfaceAlt ?? colors.surface,
       borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.accent,
       padding: 14,
       marginBottom: 16,
+      ...outlineOver(colors, colors.accent),
     },
     icon: { marginTop: 1 },
     text: { flex: 1, fontSize: 13, color: colors.text, lineHeight: 19 },
