@@ -260,8 +260,8 @@ just on whichever device is nearest.
 >   the chat list. Reporting is available on any letter, conversation, or
 >   message.
 >
-> Terms: https://aleksuks.github.io/letters-app/terms.html
-> Privacy: https://aleksuks.github.io/letters-app/privacy.html
+> Terms: https://laiskelis.lt/terms
+> Privacy: https://laiskelis.lt/privacy
 
 The safety model is the strongest asset in a review of this category
 (App Store guideline 1.2, Play's UGC policy) — state it rather than assume the
@@ -327,8 +327,8 @@ shared dev/test account, which has been deleted outright rather than wiped
       now that real testers are about to take over that role.
 - [ ] Fix auth email delivery before the 12-tester cohort — full steps in
       [`email-setup.md`](email-setup.md). **Not a store requirement**: neither
-      store asks for a custom domain, and GitHub Pages already covers the
-      privacy/support URLs. The problem is that the built-in Supabase sender is
+      store asks for a custom domain, and the privacy/support URLs now point at
+      `laiskelis.lt` regardless. The problem is that the built-in Supabase sender is
       capped at a couple of emails an hour, so a burst of signups fails
       silently on the confirmation email. Registering `laiskelis.lt` + Resend
       is the clean fix; turning confirmation off is the free one, with the
