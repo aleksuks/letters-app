@@ -15,8 +15,8 @@ import { randomAvatarEmoji } from "@/lib/avatars";
 import { useStrings } from "@/lib/i18n";
 import { onboardingStrings } from "@/lib/i18n/strings/onboarding";
 
-const PRIVACY_POLICY_URL = "https://laiskelis.lt/privacy";
-const TERMS_OF_SERVICE_URL = "https://laiskelis.lt/terms";
+const PRIVACY_POLICY_URL = "https://laiskelis.lt/privacy.html";
+const TERMS_OF_SERVICE_URL = "https://laiskelis.lt/terms.html";
 
 export default function OnboardingScreen() {
   const { user } = useAuth();

@@ -17,8 +17,8 @@ import { supabase } from "@/lib/supabase";
 import { useStrings } from "@/lib/i18n";
 import { settingsStrings } from "@/lib/i18n/strings/settings";
 
-const PRIVACY_POLICY_URL = "https://laiskelis.lt/privacy";
-const TERMS_OF_SERVICE_URL = "https://laiskelis.lt/terms";
+const PRIVACY_POLICY_URL = "https://laiskelis.lt/privacy.html";
+const TERMS_OF_SERVICE_URL = "https://laiskelis.lt/terms.html";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "—";
 

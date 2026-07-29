@@ -260,8 +260,8 @@ just on whichever device is nearest.
 >   the chat list. Reporting is available on any letter, conversation, or
 >   message.
 >
-> Terms: https://laiskelis.lt/terms
-> Privacy: https://laiskelis.lt/privacy
+> Terms: https://laiskelis.lt/terms.html
+> Privacy: https://laiskelis.lt/privacy.html
 
 The safety model is the strongest asset in a review of this category
 (App Store guideline 1.2, Play's UGC policy) — state it rather than assume the
