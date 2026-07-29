@@ -92,6 +92,7 @@ export default function OnboardingScreen() {
       >
       <ScrollView
         style={s.content}
+        contentContainerStyle={s.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -177,7 +178,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     keyboardAvoider: { flex: 1 },
-    content: { flex: 1, paddingHorizontal: 24, paddingTop: 48, paddingBottom: 24 },
+    content: { flex: 1 },
+    contentContainer: { paddingHorizontal: 24, paddingTop: 48, paddingBottom: 24 },
     title: { fontSize: 34, fontWeight: "bold", color: colors.text },
     subtitle: { fontSize: 16, color: colors.subtext, marginTop: 12, lineHeight: 24 },
     field: { marginTop: 48 },
