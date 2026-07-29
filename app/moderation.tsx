@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator, Alert,
   FlatList, ScrollView, StyleSheet,
-  Text, TouchableOpacity, View,
+  Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -20,6 +20,23 @@ type QueueMapLetter = MapLetter & { author: { nickname: string } | null };
 type ConvMessage = { sender: string; body: string };
 
 type ReportItem = Report & { preview: string; messages?: ConvMessage[] };
+
+// Same paper/letter look as the Supabase auth email templates (brick red
+// #96150D accent) so a manual send doesn't read as visually distinct from
+// signup/reset mail. The one placeholder paragraph is what gets replaced;
+// header/footer scaffold stays as-is.
+const DEFAULT_EMAIL_BODY = `<div style="background-color:#f4ede0; padding:40px 20px; font-family: Georgia, 'Times New Roman', serif;">
+  <div style="max-width:480px; margin:0 auto; background-color:#fffaf0; border:1px solid #e0d5c0; border-radius:8px; padding:32px 28px;">
+    <p style="font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#9c8a6e; margin:0 0 24px;">Laiškelis</p>
+    <p style="font-size:15px; line-height:1.6; color:#4a3f30; margin:0 0 24px;">
+      Rašykite žinutę čia.
+    </p>
+    <p style="font-size:13px; color:#9c8a6e; margin:0; line-height:1.5;">
+      — Laiškelis
+    </p>
+  </div>
+  <p style="text-align:center; font-size:12px; color:#b0a58e; margin-top:20px;">Laiškelis · laiskelis.lt</p>
+</div>`;
 
 type OverviewStats = {
   active_letters_count: number;
@@ -50,6 +67,11 @@ export default function ModerationScreen() {
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [activeLettersOpen, setActiveLettersOpen] = useState(false);
   const [activeMapLettersOpen, setActiveMapLettersOpen] = useState(false);
+  const [emailFormOpen, setEmailFormOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState(DEFAULT_EMAIL_BODY);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -255,6 +277,27 @@ export default function ModerationScreen() {
     );
   }
 
+  async function sendManualEmail() {
+    if (!emailTo || !emailSubject || !emailBody) {
+      Alert.alert("Klaida", "Fill in to, subject, and body.");
+      return;
+    }
+    setSendingEmail(true);
+    const { error } = await supabase.functions.invoke("send-manual-email", {
+      body: { to: emailTo, subject: emailSubject, html: emailBody },
+    });
+    setSendingEmail(false);
+    if (error) {
+      Alert.alert("Klaida", error.message);
+      return;
+    }
+    Alert.alert("Sent", `Email sent to ${emailTo}.`);
+    setEmailTo("");
+    setEmailSubject("");
+    setEmailBody(DEFAULT_EMAIL_BODY);
+    setEmailFormOpen(false);
+  }
+
   function daysLeft(expiresAt: string) {
     const diff = new Date(expiresAt).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
@@ -309,6 +352,62 @@ export default function ModerationScreen() {
         ListHeaderComponent={
           <View>
             {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 12 }} />}
+
+            {!loading && (
+              <View style={s.reportsSection}>
+                <TouchableOpacity
+                  style={s.sectionToggle}
+                  onPress={() => setEmailFormOpen(v => !v)}
+                  hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
+                >
+                  <Text style={s.sectionTitle}>Send email</Text>
+                  <Ionicons
+                    name={emailFormOpen ? "chevron-up" : "chevron-down"}
+                    size={16}
+                    color={colors.subtext}
+                  />
+                </TouchableOpacity>
+                {emailFormOpen && (
+                  <View style={s.card}>
+                    <TextInput
+                      style={s.input}
+                      placeholder="To"
+                      placeholderTextColor={colors.subtext}
+                      value={emailTo}
+                      onChangeText={setEmailTo}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                    />
+                    <TextInput
+                      style={s.input}
+                      placeholder="Subject"
+                      placeholderTextColor={colors.subtext}
+                      value={emailSubject}
+                      onChangeText={setEmailSubject}
+                    />
+                    <TextInput
+                      style={[s.input, s.inputMultiline]}
+                      placeholder="Body (HTML allowed)"
+                      placeholderTextColor={colors.subtext}
+                      value={emailBody}
+                      onChangeText={setEmailBody}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[s.actionButton, s.approveButton, largeTouchTargets && s.actionButtonLarge]}
+                      onPress={sendManualEmail}
+                      disabled={sendingEmail}
+                    >
+                      {sendingEmail ? (
+                        <ActivityIndicator color={colors.accentText} />
+                      ) : (
+                        <Text style={s.approveText}>Send</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
 
             {!loading && overview && (
               <View style={s.statsSection}>
@@ -638,5 +737,16 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     muteText: { fontSize: 14, color: colors.accent, fontWeight: "600" },
     banButton: { backgroundColor: colors.red ?? "#ef4444" },
     banText: { fontSize: 14, color: "#fff", fontWeight: "600" },
+    input: {
+      backgroundColor: colors.surfaceAlt ?? colors.bg,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 10,
+      ...outlineOnly(colors),
+    },
+    inputMultiline: { minHeight: 100, textAlignVertical: "top" },
   });
 }

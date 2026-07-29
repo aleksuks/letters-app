@@ -73,9 +73,10 @@ Cloudflare's free tier if their panel is unpleasant.
    region is fixed at creation and cannot be changed afterwards; an EU region
    keeps the mail path inside the EU, which is the right default for a
    Lithuania-only product.
-3. Add it as a **subdomain**, e.g. `mail.laiskelis.lt`, not the root. A
-   deliverability problem then damages the subdomain's reputation, not the
-   apex — worth the zero extra effort.
+3. ~~Add it as a subdomain, e.g. `mail.laiskelis.lt`, not the root.~~ Not
+   how it was actually set up — `laiskelis.lt` (the apex) is the only domain
+   added to Resend, and everything (auth SMTP, the manual-send function)
+   sends from it directly. No subdomain exists.
 4. Resend prints four DNS records. Add them at the registrar verbatim:
    - `MX` on the send subdomain → an Amazon SES feedback host (bounce handling)
    - `TXT` SPF on the send subdomain
@@ -91,7 +92,7 @@ Settings. Enable custom SMTP and fill in:
 
 | Field | Value |
 | --- | --- |
-| Sender email | `noreply@mail.laiskelis.lt` (must be on the verified domain) |
+| Sender email | `noreply@laiskelis.lt` (must be on the verified domain) |
 | Sender name | `Laiškelis` |
 | Host | `smtp.resend.com` |
 | Port | `465` |
