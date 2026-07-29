@@ -17,7 +17,7 @@ export const chatStrings = defineStrings({
     deleteMessageBody: "Ji ir toliau bus matoma kitam pokalbio dalyviui.",
 
     messageRejectedTitle: "Žinutė neišsiųsta",
-    messageRejectedBody: "Be šansų seni.",
+    messageRejectedBody: "Be šansų seni - nuorodų čia siųsti negalima.",
 
     leaveTitle: "Palikti pokalbį (visam laikui)",
     leaveBody: "Tai užbaigs ir ištrins pokalbį abiems.",

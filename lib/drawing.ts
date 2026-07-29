@@ -68,25 +68,21 @@ export function colorAt(index: number): string {
 }
 
 /**
- * Points -> SVG path. A single point becomes a dot, which is what a tap on
- * the canvas should leave behind. That's rendered as a hairline segment
- * rather than a truly zero-length one: react-native-svg's path handling
- * (confirmed misbehaving on iOS; not verified either way on Android) does
- * not reliably draw a round cap for an exact `M x y L x y` degenerate
- * subpath. A 0.01-unit nudge is invisible at any nib width in the tray —
- * the cap radius, not the segment length, is what makes the mark — but
- * gives the renderer an actual non-zero segment to cap.
+ * Points -> SVG path, for strokes of two points or more. A single point — a
+ * tap, which should leave a dot — is deliberately NOT a path job: every
+ * stroked-path encoding of a dot has failed on iOS's renderer (an exact
+ * `M x y L x y` drew no cap, a 0.01-unit hairline nudge drew nothing, and a
+ * stroked 0.5-unit-radius arc circle drew a hollow ring). Dots are rendered
+ * as filled `Circle` elements instead — see `strokeDot` and
+ * `components/crayon-path.tsx` — which involves no cap, arc, or stroking
+ * machinery at all. This returns "" for them.
  *
  * Segments are joined with quadratic curves through the midpoints of
  * consecutive samples, which smooths the polyline the touch stream actually
  * produces without needing to store more points than were sampled.
  */
 export function strokeToPath(points: [number, number][]): string {
-  if (points.length === 0) return "";
-  if (points.length === 1) {
-    const [x, y] = points[0];
-    return `M ${x} ${y} L ${x + 0.01} ${y}`;
-  }
+  if (points.length < 2) return "";
 
   let d = `M ${points[0][0]} ${points[0][1]}`;
   for (let i = 1; i < points.length - 1; i++) {
@@ -97,6 +93,16 @@ export function strokeToPath(points: [number, number][]): string {
   const last = points[points.length - 1];
   d += ` L ${last[0]} ${last[1]}`;
   return d;
+}
+
+/**
+ * The dot counterpart to `strokeToPath`: a single-point stroke's centre, or
+ * null for anything that is a real line (or empty). Rendered as a filled
+ * circle at half the nib width — exactly the mark a round line cap would
+ * have left, minus the iOS path-rendering bugs described above.
+ */
+export function strokeDot(points: [number, number][]): [number, number] | null {
+  return points.length === 1 ? points[0] : null;
 }
 
 /**

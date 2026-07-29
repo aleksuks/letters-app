@@ -20,6 +20,7 @@ import {
   MAX_STROKES,
   shouldKeepPoint,
   Stroke,
+  strokeDot,
   strokeToPath,
 } from "@/lib/drawing";
 
@@ -52,6 +53,7 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
   const [side, setSide] = useState(0);
   const [live, setLive] = useState<[number, number][]>([]);
   const liveRef = useRef<[number, number][]>([]);
+  const activePointer = useRef<number | null>(null);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     setSide(e.nativeEvent.layout.width);
@@ -107,22 +109,54 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
   // runOnJS: the stroke lives in React state, so there is nothing to gain
   // from marshalling these through the UI thread first.
   //
-  // manualActivation + activating on the first touch: with minDistance(0),
-  // the built-in activation heuristic still expects some movement before it
-  // commits to ACTIVE, so a tap that lands and lifts without ever moving can
-  // fail to reach onEnd — dropping the very "dot" a crayon canvas needs to
-  // support. Forcing activate() on touch-down guarantees the ACTIVE -> END
-  // lifecycle always completes, tap or drag alike.
+  // Points are captured from the raw touch stream (onTouchesDown/Move/Up),
+  // never from the pan's own onBegin/onUpdate/onEnd. The two pipelines are
+  // not equally reliable: RNGH's orchestrator delivers touch events for
+  // every motion event once the handler has begun, unconditionally, but
+  // dispatches onUpdate only for an ACTIVE, non-awaiting handler — and
+  // calling activate() from the first onTouchesDown (which we must, see
+  // below) corrupts the pan's own tracking on Android so onUpdate starves
+  // entirely (every stroke collapsed to a dot, any direction), while on iOS
+  // a moveless tap never completes the BEGAN -> ACTIVE -> END lifecycle at
+  // all (taps left nothing). See deliverEventToGestureHandler in RNGH's
+  // GestureHandlerOrchestrator.kt for the ordering guarantees.
+  //
+  // activate() is still forced — on touch-down and again on every move,
+  // where it is a no-op once active — but only so the gesture holds its
+  // claim against the enclosing (RNGH) scroll view, which would otherwise
+  // cancel the pan mid-line on Android; capturing points does not depend
+  // on it.
+  //
+  // One tracked pointer: a second finger on the paper is ignored rather than
+  // averaged, so it can never teleport the line across the canvas.
   const pan = Gesture.Pan()
     .runOnJS(true)
-    .minDistance(0)
-    .averageTouches(true)
+    .maxPointers(1)
     .manualActivation(true)
-    .onTouchesDown((_e, state) => state.activate())
-    .onBegin((e) => begin(e.x, e.y))
-    .onUpdate((e) => extend(e.x, e.y))
-    .onEnd(commit)
-    .onFinalize(commit);
+    .onTouchesDown((e, state) => {
+      state.activate();
+      if (activePointer.current !== null) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      activePointer.current = touch.id;
+      begin(touch.x, touch.y);
+    })
+    .onTouchesMove((e, state) => {
+      state.activate();
+      for (const touch of e.changedTouches) {
+        if (touch.id === activePointer.current) extend(touch.x, touch.y);
+      }
+    })
+    .onTouchesUp((e) => {
+      if (e.changedTouches.some((t) => t.id === activePointer.current)) {
+        activePointer.current = null;
+        commit();
+      }
+    })
+    .onFinalize(() => {
+      activePointer.current = null;
+      commit();
+    });
 
   const undo = useCallback(() => {
     if (value.strokes.length === 0) return;
@@ -141,17 +175,19 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
       value.strokes
         .map((stroke) => ({
           d: strokeToPath(stroke.p),
+          dot: strokeDot(stroke.p),
           color: colorAt(stroke.c),
           width: stroke.s,
         }))
-        .filter((s) => s.d !== ""),
+        .filter((s) => s.d !== "" || s.dot),
     [value.strokes]
   );
 
   const liveStroke = useMemo<CrayonStroke | null>(() => {
     const d = strokeToPath(live);
-    if (d === "") return null;
-    return { d, color: colorAt(colorIndex), width };
+    const dot = strokeDot(live);
+    if (d === "" && !dot) return null;
+    return { d, dot, color: colorAt(colorIndex), width };
   }, [live, colorIndex, width]);
 
   return (

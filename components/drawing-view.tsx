@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { View, ViewStyle } from "react-native";
 import Svg from "react-native-svg";
 import { CrayonStroke, CrayonStrokes } from "@/components/crayon-path";
-import { colorAt, Drawing, isValidDrawing, strokeToPath } from "@/lib/drawing";
+import { colorAt, Drawing, isValidDrawing, strokeDot, strokeToPath } from "@/lib/drawing";
 
 interface DrawingViewProps {
   drawing: unknown;
@@ -27,10 +27,11 @@ export function DrawingView({ drawing, size, style }: DrawingViewProps) {
     return parsed.strokes
       .map((stroke) => ({
         d: strokeToPath(stroke.p),
+        dot: strokeDot(stroke.p),
         color: colorAt(stroke.c),
         width: stroke.s,
       }))
-      .filter((s) => s.d !== "");
+      .filter((s) => s.d !== "" || s.dot);
   }, [parsed]);
 
   if (!parsed || parsed.strokes.length === 0) return null;

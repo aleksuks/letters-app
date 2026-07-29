@@ -13,12 +13,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert, Keyboard, KeyboardAvoidingView, Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput, TouchableOpacity, TouchableWithoutFeedback,
   View,
 } from "react-native";
+// RNGH's ScrollView, not core RN's: the core one grabs the Android touch
+// lock on a vertical drag, which makes gesture-handler cancel the drawing
+// canvas's pan mid-stroke. RNGH's participates in gesture orchestration,
+// so an active crayon stroke keeps the touch and the page doesn't scroll.
+import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useStrings, format } from "@/lib/i18n";

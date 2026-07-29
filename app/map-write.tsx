@@ -1,9 +1,12 @@
 import { useRef, useState } from "react";
 import {
   Alert, Keyboard, KeyboardAvoidingView, Platform,
-  ScrollView, StyleSheet, Text, TextInput,
+  StyleSheet, Text, TextInput,
   TouchableOpacity, TouchableWithoutFeedback, View,
 } from "react-native";
+// RNGH's ScrollView, not core RN's — see app/write.tsx for why (Android
+// scroll-steal cancels the drawing canvas's pan mid-stroke otherwise).
+import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";

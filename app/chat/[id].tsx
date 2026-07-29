@@ -54,6 +54,16 @@ export default function ChatScreen() {
 
   const s = makeStyles(colors);
 
+  // Postgres/PostgREST error text is English, untranslatable, and often
+  // leaks schema detail (migration 042 surfaced a bare "permission denied
+  // for function contains_link" to users). Anything we haven't recognised
+  // and written copy for gets the generic line; the raw text goes to the
+  // console for debugging.
+  const showError = useCallback((error: { message: string }) => {
+    console.warn("[chat]", error.message);
+    Alert.alert(c.error, c.somethingWentWrong);
+  }, [c]);
+
   useEffect(() => {
     if (!id || !user) return;
 
@@ -138,7 +148,7 @@ export default function ChatScreen() {
       p_message_id: messageId,
       p_reason: reason,
     });
-    if (error) { Alert.alert(c.error, error.message); return; }
+    if (error) { showError(error); return; }
     Alert.alert(t.thanksTitle, t.reportReceivedBody);
   }
 
@@ -161,13 +171,13 @@ export default function ChatScreen() {
               setMessages(prev => prev.map(m =>
                 m.id === messageId ? { ...m, deleted_for_sender: false } : m
               ));
-              Alert.alert(c.error, error.message);
+              showError(error);
             }
           },
         },
       ]
     );
-  }, [t, c]);
+  }, [t, c, showError]);
 
   async function handleSend() {
     if (!input.trim() || !user || sending) return;
@@ -188,7 +198,10 @@ export default function ChatScreen() {
       if (error.message.includes("message_rejected_link")) {
         Alert.alert(t.messageRejectedTitle, t.messageRejectedBody);
       } else {
-        Alert.alert(c.error, error.message);
+        // Put the text back in the box — a failed send shouldn't cost the
+        // user what they typed.
+        setInput(body);
+        showError(error);
       }
     }
   }
@@ -248,7 +261,7 @@ export default function ChatScreen() {
           style: "destructive",
           onPress: async () => {
             const { error } = await supabase.rpc("block_user", { p_user_id: otherId });
-            if (error) { Alert.alert(c.error, error.message); return; }
+            if (error) { showError(error); return; }
             router.back();
           },
         },
@@ -283,7 +296,7 @@ export default function ChatScreen() {
       p_conversation_id: conv.id,
       p_reason: reason,
     });
-    if (error) { Alert.alert(c.error, error.message); return; }
+    if (error) { showError(error); return; }
     setConv({ ...conv, status: "blocked", reported_at: new Date().toISOString() });
     Alert.alert(t.thanksTitle, t.reportReceivedConversationBody);
   }
