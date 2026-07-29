@@ -34,6 +34,8 @@ export default function SignInScreen() {
       if (error) {
         if (error.message === "account_already_registered") {
           Alert.alert(t.accountExistsTitle, t.accountExistsBody);
+        } else if (error.message === "disposable_email_not_allowed") {
+          Alert.alert(t.disposableEmailTitle, t.disposableEmailBody);
         } else {
           Alert.alert(t.errorTitle, error.message);
         }

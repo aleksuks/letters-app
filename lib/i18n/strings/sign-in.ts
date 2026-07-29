@@ -4,6 +4,8 @@ export const signInStrings = defineStrings({
   lt: {
     accountExistsTitle: "Paskyra jau egzistuoja",
     accountExistsBody: "Su šiuo el. paštu jau yra sukurta paskyra. Prisijunkite arba atkurkite slaptažodį.",
+    disposableEmailTitle: "Šis el. paštas netinka",
+    disposableEmailBody: "Laikini/vienkartiniai el. pašto adresai neleidžiami — jei paskyrą reikės atkurti, laiškas turi kur nueiti. Naudokite tikrą el. paštą.",
     errorTitle: "Klaida",
 
     checkEmailTitle: "Patikrinkite savo el. paštą",
@@ -31,6 +33,8 @@ export const signInStrings = defineStrings({
   en: {
     accountExistsTitle: "Account already exists",
     accountExistsBody: "There's already an account with this email. Sign in or reset your password.",
+    disposableEmailTitle: "This email won't work",
+    disposableEmailBody: "Temporary/disposable email addresses aren't allowed — if you ever need to recover your account, the email needs somewhere to land. Please use a real address.",
     errorTitle: "Error",
 
     checkEmailTitle: "Check your email",
