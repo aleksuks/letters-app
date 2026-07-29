@@ -38,6 +38,8 @@ export interface Letter {
   travel_count: number;
   dislike_count: number;
   last_delivered_at: string | null;
+  /** Send-pacing gate (migration 043) — internal only, never surfaced in UI. */
+  eligible_at: string;
   died_at: string | null;
   approved_for_obituary: boolean;
   last_notified_like_milestone: number;
