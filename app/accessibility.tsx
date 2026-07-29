@@ -7,6 +7,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useStrings } from "@/lib/i18n";
+import { accessibilityScreenStrings } from "@/lib/i18n/strings/accessibility-screen";
 
 export default function AccessibilityScreen() {
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function AccessibilityScreen() {
     reducedMotionOverride, setReducedMotionOverride, reducedMotion,
     largeTouchTargets, setLargeTouchTargets,
   } = useAccessibility();
+  const t = useStrings(accessibilityScreenStrings);
   const s = makeStyles(colors);
 
   return (
@@ -25,23 +28,22 @@ export default function AccessibilityScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Atgal"
+          accessibilityLabel={t.backLabel}
         >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>Pritaikymas neįgaliesiems</Text>
+        <Text style={s.title}>{t.title}</Text>
       </View>
 
       <ScrollView style={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Judesys</Text>
+          <Text style={s.sectionTitle}>{t.motionSection}</Text>
 
           <View style={s.settingItem}>
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Visada mažinti animacijas</Text>
+              <Text style={s.settingLabel}>{t.reduceMotionLabel}</Text>
               <Text style={s.settingDesc}>
-                Laiško vokelio, siuntimo ir skirtukų animacijos bus beveik
-                akimirksniu, nepriklausomai nuo telefono nustatymų.
+                {t.reduceMotionDesc}
               </Text>
             </View>
             <Switch
@@ -49,7 +51,7 @@ export default function AccessibilityScreen() {
               onValueChange={(v) => setReducedMotionOverride(v ? "on" : "system")}
               trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
               thumbColor="#fff"
-              accessibilityLabel="Visada mažinti animacijas"
+              accessibilityLabel={t.reduceMotionLabel}
               accessibilityRole="switch"
             />
           </View>
@@ -57,21 +59,20 @@ export default function AccessibilityScreen() {
           <Text style={s.statusHint}>
             {reducedMotionOverride === "system"
               ? reducedMotion
-                ? "Šiuo metu mažinama, nes tai įjungta telefono nustatymuose."
-                : "Šiuo metu animacijos rodomos įprastai, kaip nustatyta telefone."
-              : "Animacijos sumažintos šioje programėlėje."}
+                ? t.motionHintSystemReduced
+                : t.motionHintSystemNormal
+              : t.motionHintAppOverride}
           </Text>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Regėjimas</Text>
+          <Text style={s.sectionTitle}>{t.visionSection}</Text>
 
           <View style={s.settingItem}>
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Didesnis kontrastas</Text>
+              <Text style={s.settingLabel}>{t.highContrastLabel}</Text>
               <Text style={s.settingDesc}>
-                Tamsesnis tekstas ir ryškesni kraštai visoje programėlėje,
-                kad būtų lengviau skaityti.
+                {t.highContrastDesc}
               </Text>
             </View>
             <Switch
@@ -79,26 +80,24 @@ export default function AccessibilityScreen() {
               onValueChange={setHighContrast}
               trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
               thumbColor="#fff"
-              accessibilityLabel="Didesnis kontrastas"
+              accessibilityLabel={t.highContrastLabel}
               accessibilityRole="switch"
             />
           </View>
 
           <Text style={s.statusHint}>
-            Teksto dydis seka telefono bendrojo teksto dydžio nustatymą —
-            jį galima keisti telefono nustatymuose.
+            {t.textSizeHint}
           </Text>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Lietimas</Text>
+          <Text style={s.sectionTitle}>{t.touchSection}</Text>
 
           <View style={s.settingItem}>
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Didesni mygtukai</Text>
+              <Text style={s.settingLabel}>{t.largeTouchLabel}</Text>
               <Text style={s.settingDesc}>
-                Padidina mygtukų ir piktogramų lietimo sritį visoje
-                programėlėje — patogiau, jei taikliai paliesti sunkiau.
+                {t.largeTouchDesc}
               </Text>
             </View>
             <Switch
@@ -106,7 +105,7 @@ export default function AccessibilityScreen() {
               onValueChange={setLargeTouchTargets}
               trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
               thumbColor="#fff"
-              accessibilityLabel="Didesni mygtukai"
+              accessibilityLabel={t.largeTouchLabel}
               accessibilityRole="switch"
             />
           </View>

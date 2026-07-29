@@ -7,6 +7,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
+import { useStrings } from "@/lib/i18n";
+import { resetPasswordStrings } from "@/lib/i18n/strings/reset-password";
 
 // Reached only via the recovery deep link handled in app/_layout.tsx, which
 // calls setSession() from the emailed tokens before routing here — so a
@@ -16,6 +18,7 @@ export default function ResetPasswordScreen() {
   const { updatePassword, signOut } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
+  const t = useStrings(resetPasswordStrings);
   const s = makeStyles(colors);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,18 +26,18 @@ export default function ResetPasswordScreen() {
 
   async function handleSubmit() {
     if (password.length < 6) {
-      Alert.alert("Klaida", "Slaptažodis turi būti bent 6 simbolių.");
+      Alert.alert(t.errorTitle, t.passwordTooShort);
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert("Klaida", "Slaptažodžiai nesutampa.");
+      Alert.alert(t.errorTitle, t.passwordsDontMatch);
       return;
     }
     setLoading(true);
     const { error } = await updatePassword(password);
     setLoading(false);
     if (error) {
-      Alert.alert("Klaida", error.message);
+      Alert.alert(t.errorTitle, error.message);
       return;
     }
     router.replace("/(tabs)");
@@ -51,12 +54,12 @@ export default function ResetPasswordScreen() {
         style={s.inner}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Text style={s.title}>Naujas slaptažodis</Text>
-        <Text style={s.subtitle}>Įveskite naują slaptažodį savo paskyrai.</Text>
+        <Text style={s.title}>{t.title}</Text>
+        <Text style={s.subtitle}>{t.subtitle}</Text>
 
         <TextInput
           style={s.input}
-          placeholder="Naujas slaptažodis"
+          placeholder={t.newPasswordPlaceholder}
           placeholderTextColor={colors.subtext}
           value={password}
           onChangeText={setPassword}
@@ -64,7 +67,7 @@ export default function ResetPasswordScreen() {
         />
         <TextInput
           style={s.input}
-          placeholder="Pakartokite slaptažodį"
+          placeholder={t.confirmPasswordPlaceholder}
           placeholderTextColor={colors.subtext}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -75,13 +78,13 @@ export default function ResetPasswordScreen() {
           {loading ? (
             <ActivityIndicator color={colors.accentText} />
           ) : (
-            <Text style={s.buttonText}>Išsaugoti slaptažodį</Text>
+            <Text style={s.buttonText}>{t.save}</Text>
           )}
         </TouchableOpacity>
 
         <View style={s.switchRow}>
           <TouchableOpacity onPress={handleCancel}>
-            <Text style={s.switchLink}>Atšaukti</Text>
+            <Text style={s.switchLink}>{t.cancel}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

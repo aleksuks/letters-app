@@ -1,6 +1,7 @@
 import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/contexts/profile";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
 import { EnvelopeLetter } from "@/components/envelope-letter";
@@ -35,6 +36,9 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { useStrings, format } from "@/lib/i18n";
+import { receiveStrings } from "@/lib/i18n/strings/receive";
+import { common } from "@/lib/i18n/strings/common";
 
 type LetterWithAuthor = Letter & { author: { nickname: string; accepts_requests: boolean } | null };
 
@@ -54,9 +58,12 @@ const SWIPE_FLICK_MIN_DRAG = 40;
 export default function ReceiveScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { colors } = useTheme();
   const { largeTouchTargets, reducedMotion } = useAccessibility();
   const { width } = useWindowDimensions();
+  const t = useStrings(receiveStrings);
+  const c = useStrings(common);
   const [state, setState] = useState<ScreenState>({ phase: "loading" });
 
   // The receive_letter() claim is provisional until the server hears the
@@ -151,9 +158,9 @@ export default function ReceiveScreen() {
   function letterWithdrawn() {
     claimRef.current = null;
     Alert.alert(
-      "Laiškelis atšauktas",
-      "Siuntėjas atšaukė savo laiškelį prieš tau spėjant jį perskaityti.",
-      [{ text: "Gerai", onPress: () => router.back() }]
+      t.withdrawnTitle,
+      t.withdrawnBody,
+      [{ text: c.ok, onPress: () => router.back() }]
     );
   }
 
@@ -229,7 +236,7 @@ export default function ReceiveScreen() {
         letterWithdrawn();
         return false;
       }
-      Alert.alert("Klaida", error.message);
+      Alert.alert(t.errorTitle, error.message);
       return false;
     }
     if (kind === "liked") {
@@ -304,20 +311,48 @@ export default function ReceiveScreen() {
       p_letter_id: state.letter.id,
       p_reason: reason,
     });
-    if (error) { Alert.alert("Klaida", error.message); return; }
-    Alert.alert("Ačiū", "Praneštas laiškelis pašalintas iš apyvartos, kol jį peržiūrės administratorius.");
+    if (error) { Alert.alert(t.errorTitle, error.message); return; }
+    Alert.alert(t.reportThanksTitle, t.reportThanksBody);
     router.back();
   }
 
   function confirmReport() {
     if (state.phase !== "ready") return;
     Alert.alert(
-      "Pranešti apie laiškelį?",
-      "Laiškelis bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius.",
+      t.reportConfirmTitle,
+      t.reportConfirmBody,
       [
-        { text: "Atšaukti", style: "cancel" },
-        { text: "Netinkamas turinys", onPress: () => handleReport("Netinkamas turinys") },
-        { text: "Priekabiavimas ar grasinimai", onPress: () => handleReport("Priekabiavimas ar grasinimai") },
+        { text: c.cancel, style: "cancel" },
+        // The reason stored on the report row stays canonical Lithuanian
+        // regardless of UI language, matching chat/[id].tsx and
+        // map-letter.tsx — the single founder moderator's queue should not
+        // fragment by reporter language. Only the button label is translated.
+        { text: t.reportReasonContent, onPress: () => handleReport("Netinkamas turinys") },
+        { text: t.reportReasonHarassment, onPress: () => handleReport("Priekabiavimas ar grasinimai") },
+      ]
+    );
+  }
+
+  // Moderator-only escape hatch (migration 044): permanent, straight-away
+  // delete, independent of the report/review pipeline above.
+  function confirmModeratorDelete() {
+    if (state.phase !== "ready") return;
+    const letterId = state.letter.id;
+    Alert.alert(
+      "Delete permanently?",
+      "This deletes the letter outright — no review queue, no undo.",
+      [
+        { text: c.cancel, style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            claimRef.current = null;
+            const { error } = await supabase.from("letters").delete().eq("id", letterId);
+            if (error) { Alert.alert(t.errorTitle, error.message); return; }
+            router.back();
+          },
+        },
       ]
     );
   }
@@ -338,18 +373,15 @@ export default function ReceiveScreen() {
     if (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error.code === "23505") {
-        Alert.alert("Leidimo jau prašyta", "Jau išsiuntei užklausą susisiekti su siuntėju.");
+        Alert.alert(t.alreadyRequestedTitle, t.alreadyRequestedBody);
       } else if (error.message?.includes("conversation_exists")) {
         // Deliberately doesn't say who — the letter is anonymous-ish, and
         // naming the author here would deanonymize their other letters.
-        Alert.alert(
-          "Pokalbis jau vyksta",
-          "Su šio laiškelio autoriumi jau turi pokalbį — atsiverskite jį skiltyje „Pokalbiai“."
-        );
+        Alert.alert(t.conversationExistsTitle, t.conversationExistsBody);
       } else if (error.code === "42501") {
-        Alert.alert("Nepriima užklausų", "Šis žmogus šiuo metu nepriima pokalbių užklausų.");
+        Alert.alert(t.requestsClosedTitle, t.requestsClosedBody);
       } else {
-        Alert.alert("Klaida", error.message);
+        Alert.alert(t.errorTitle, error.message);
       }
       return;
     }
@@ -378,17 +410,17 @@ export default function ReceiveScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti"
+          accessibilityLabel={t.close}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.center}>
-          <Text style={s.emptyTitle}>Kol kas jokių laiškelių</Text>
+          <Text style={s.emptyTitle}>{t.emptyTitle}</Text>
           <Text style={s.emptyHint}>
-            Pasaulis tylus. Pabandyk vėliau, arba parašyk pats.
+            {t.emptyHint}
           </Text>
           <TouchableOpacity style={s.emptyButton} onPress={() => router.back()}>
-            <Text style={s.emptyButtonText}>Atgal</Text>
+            <Text style={s.emptyButtonText}>{t.emptyButton}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -405,25 +437,37 @@ export default function ReceiveScreen() {
           onPress={handleClose}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti laiškelį"
+          accessibilityLabel={t.closeLetter}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.from}>nuo {letter.author?.nickname ?? "nepažįstamasis"}</Text>
-        <TouchableOpacity
-          onPress={confirmReport}
-          hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
-          accessibilityRole="button"
-          accessibilityLabel="Pranešti apie laiškelį"
-          accessibilityHint="Laiškelis bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius"
-        >
-          <Ionicons name="flag-outline" size={22} color={colors.subtext} />
-        </TouchableOpacity>
+        <Text style={s.from}>{format(t.from, { nickname: letter.author?.nickname ?? t.unknownAuthor })}</Text>
+        <View style={s.headerActions}>
+          {profile?.is_moderator && (
+            <TouchableOpacity
+              onPress={confirmModeratorDelete}
+              hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+              accessibilityRole="button"
+              accessibilityLabel="Delete letter"
+            >
+              <Ionicons name="trash-outline" size={22} color={colors.subtext} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={confirmReport}
+            hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+            accessibilityRole="button"
+            accessibilityLabel={t.reportLabel}
+            accessibilityHint={t.reportHint}
+          >
+            <Ionicons name="flag-outline" size={22} color={colors.subtext} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {reaction === "none" ? (
           <View style={s.cardArea}>
@@ -447,12 +491,12 @@ export default function ReceiveScreen() {
 
                 <Animated.View style={[s.badge, s.likeBadge, likeBadgeStyle]} pointerEvents="none">
                   <Ionicons name="heart" size={20} color={colors.accent} />
-                  <Text style={s.likeBadgeText}>Persiųsti kitam</Text>
+                  <Text style={s.likeBadgeText}>{t.likeBadge}</Text>
                 </Animated.View>
 
                 <Animated.View style={[s.badge, s.dislikeBadge, dislikeBadgeStyle]} pointerEvents="none">
                   <MaterialCommunityIcons name="grave-stone" size={20} color={colors.subtext} />
-                  <Text style={s.dislikeBadgeText}>Į kapines</Text>
+                  <Text style={s.dislikeBadgeText}>{t.dislikeBadge}</Text>
                 </Animated.View>
               </Animated.View>
             </GestureDetector>
@@ -462,14 +506,14 @@ export default function ReceiveScreen() {
             {reaction === "liked" ? (
               <>
                 <Ionicons name="heart" size={40} color={colors.accent} />
-                <Text style={s.resultTitle}>Persiųstas kitam</Text>
-                <Text style={s.resultHint}>Laiškelis keliauja pas naują nepažįstamąjį.</Text>
+                <Text style={s.resultTitle}>{t.resultLikedTitle}</Text>
+                <Text style={s.resultHint}>{t.resultLikedHint}</Text>
               </>
             ) : (
               <>
                 <MaterialCommunityIcons name="grave-stone" size={40} color={colors.subtext} />
-                <Text style={s.resultTitle}>Iškeliavo į kapines</Text>
-                <Text style={s.resultHint}>Trys tokie balsai — ir laiškelis baigia kelionę.</Text>
+                <Text style={s.resultTitle}>{t.resultDislikedTitle}</Text>
+                <Text style={s.resultHint}>{t.resultDislikedHint}</Text>
               </>
             )}
           </Animated.View>
@@ -482,7 +526,7 @@ export default function ReceiveScreen() {
           {introDone && (
             <TutorialTip
               id="receive_actions_intro"
-              text="Jei laiškelis patiko, brauk jį dešinėn ir jis keliaus pas kitą gavėją. Jei jis dėmesio nevertas, brauk kairėn, ir siųsim jį į kapines. Jei nori pabendrauti su autoriumi, gali nusiųsti užklausą."
+              text={t.actionsTip}
             />
           )}
 
@@ -495,23 +539,23 @@ export default function ReceiveScreen() {
                   style={[s.reactionButton, s.dislikeButton]}
                   onPress={() => commitSwipe(-1)}
                   activeOpacity={0.7}
-                  accessibilityLabel="Į kapines"
+                  accessibilityLabel={t.dislikeBadge}
                 >
                   <MaterialCommunityIcons name="grave-stone" size={20} color={colors.text} />
-                  <Text style={s.dislikeText}>Į kapines</Text>
+                  <Text style={s.dislikeText}>{t.dislikeBadge}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[s.reactionButton, s.likeButton]}
                   onPress={() => commitSwipe(1)}
                   activeOpacity={0.7}
-                  accessibilityLabel="Persiųsti kitam"
+                  accessibilityLabel={t.likeBadge}
                 >
                   <Ionicons name="heart-outline" size={22} color={colors.accent} />
-                  <Text style={s.likeText}>Persiųsti kitam</Text>
+                  <Text style={s.likeText}>{t.likeBadge}</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={s.swipeHint}>Brauk laiškelį į šoną arba spausk mygtuką</Text>
+              <Text style={s.swipeHint}>{t.swipeHint}</Text>
             </>
           )}
 
@@ -526,12 +570,12 @@ export default function ReceiveScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="chatbubble-outline" size={20} color={colors.subtext} />
-              <Text style={s.requestText}>Prašymas susisiekti</Text>
+              <Text style={s.requestText}>{t.requestButton}</Text>
             </TouchableOpacity>
           )}
 
           {!canRequest && !requestSent && (
-            <Text style={s.requestClosedText}>Šis žmogus šiuo metu nepriima pokalbių užklausų.</Text>
+            <Text style={s.requestClosedText}>{t.requestClosed}</Text>
           )}
 
           {showRequestForm && (
@@ -540,7 +584,7 @@ export default function ReceiveScreen() {
                 style={s.greetingInput}
                 value={greeting}
                 onChangeText={setGreeting}
-                placeholder="Trumpai pasisveikink…"
+                placeholder={t.greetingPlaceholder}
                 placeholderTextColor={colors.subtext}
                 multiline
                 maxLength={200}
@@ -554,7 +598,7 @@ export default function ReceiveScreen() {
                   style={[s.cancelButton, largeTouchTargets && s.cancelButtonLarge]}
                   onPress={() => { setShowRequestForm(false); setGreeting(""); }}
                 >
-                  <Text style={s.cancelText}>Atšaukti</Text>
+                  <Text style={s.cancelText}>{c.cancel}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[s.sendGreetingButton, largeTouchTargets && s.sendGreetingButtonLarge, (!greeting.trim() || sendingRequest) && s.disabledButton]}
@@ -563,7 +607,7 @@ export default function ReceiveScreen() {
                 >
                   {sendingRequest
                     ? <ActivityIndicator color={colors.accentText} size="small" />
-                    : <Text style={s.sendGreetingText}>Išsiųsti</Text>}
+                    : <Text style={s.sendGreetingText}>{t.sendGreeting}</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -572,7 +616,7 @@ export default function ReceiveScreen() {
           {requestSent && (
             <View style={s.sentRow}>
               <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
-              <Text style={s.sentText}>Prašymas išsiųstas, o siuntėjas pagalvos ar sutinka.</Text>
+              <Text style={s.sentText}>{t.requestSent}</Text>
             </View>
           )}
         </Animated.View>
@@ -617,6 +661,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderBottomColor: colors.border,
     },
     from: { fontSize: 14, color: colors.subtext, fontStyle: "italic" },
+    headerActions: { flexDirection: "row", alignItems: "center", gap: 16 },
     cardArea: { flex: 1, padding: 16 },
     card: {
       flex: 1,

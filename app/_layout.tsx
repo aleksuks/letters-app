@@ -10,6 +10,7 @@ import * as Notifications from "expo-notifications";
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import { ThemeProvider } from "@/contexts/theme";
+import { LanguageProvider } from "@/contexts/language";
 import { AccessibilityProvider } from "@/contexts/accessibility";
 import { TutorialProvider } from "@/contexts/tutorial";
 import { UnreadMessagesProvider } from "@/contexts/unread-messages";
@@ -148,29 +149,31 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AccessibilityProvider>
           <ThemeProvider>
-            <TutorialProvider>
-              <ProfileProvider>
-                <UnreadMessagesProvider>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="onboarding" />
-                    <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
-                    <Stack.Screen name="blocked-users" options={{ animation: "slide_from_right" }} />
-                    <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
-                    <Stack.Screen name="avatar-picker" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                    <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                    <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                    <Stack.Screen name="map-write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                    <Stack.Screen name="map-letter" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                    <Stack.Screen name="letter-grave" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                    <Stack.Screen name="letter-flight" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-                    <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
-                  </Stack>
-                </UnreadMessagesProvider>
-              </ProfileProvider>
-            </TutorialProvider>
+            <LanguageProvider>
+              <TutorialProvider>
+                <ProfileProvider>
+                  <UnreadMessagesProvider>
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="index" />
+                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen name="(auth)" />
+                      <Stack.Screen name="onboarding" />
+                      <Stack.Screen name="settings" options={{ animation: "slide_from_right" }} />
+                      <Stack.Screen name="blocked-users" options={{ animation: "slide_from_right" }} />
+                      <Stack.Screen name="accessibility" options={{ animation: "slide_from_right" }} />
+                      <Stack.Screen name="avatar-picker" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                      <Stack.Screen name="write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                      <Stack.Screen name="receive" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                      <Stack.Screen name="map-write" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                      <Stack.Screen name="map-letter" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                      <Stack.Screen name="letter-grave" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                      <Stack.Screen name="letter-flight" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+                      <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
+                    </Stack>
+                  </UnreadMessagesProvider>
+                </ProfileProvider>
+              </TutorialProvider>
+            </LanguageProvider>
           </ThemeProvider>
         </AccessibilityProvider>
       </SafeAreaProvider>

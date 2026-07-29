@@ -11,6 +11,9 @@ import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
+import { useStrings, format } from "@/lib/i18n";
+import { common } from "@/lib/i18n/strings/common";
+import { blockedUsersStrings } from "@/lib/i18n/strings/blocked-users";
 
 interface BlockedRow {
   id: string;
@@ -24,6 +27,8 @@ export default function BlockedUsersScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const t = useStrings(blockedUsersStrings);
+  const c = useStrings(common);
   const s = makeStyles(colors);
 
   const [rows, setRows] = useState<BlockedRow[]>([]);
@@ -48,11 +53,11 @@ export default function BlockedUsersScreen() {
 
   function confirmUnblock(row: BlockedRow) {
     Alert.alert(
-      "Atblokuoti?",
-      `${row.blocked?.nickname ?? "Šis vartotojas"} vėl galės siųsti tau užklausas pokalbiams ir žinutes.`,
+      t.unblockConfirmTitle,
+      format(t.unblockConfirmBody, { nickname: row.blocked?.nickname ?? t.genericUserFallback }),
       [
-        { text: "Atšaukti", style: "cancel" },
-        { text: "Atblokuoti", onPress: () => handleUnblock(row) },
+        { text: c.cancel, style: "cancel" },
+        { text: t.unblockAction, onPress: () => handleUnblock(row) },
       ]
     );
   }
@@ -67,7 +72,7 @@ export default function BlockedUsersScreen() {
     setUnblocking(null);
     if (error) {
       setRows(prev);
-      Alert.alert("Klaida", error.message);
+      Alert.alert(c.error, error.message);
     }
   }
 
@@ -79,11 +84,11 @@ export default function BlockedUsersScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Grįžti atgal"
+          accessibilityLabel={c.goBack}
         >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>Blokuoti vartotojai</Text>
+        <Text style={s.title}>{t.title}</Text>
       </View>
 
       {loading ? (
@@ -94,20 +99,20 @@ export default function BlockedUsersScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={s.list}
           ListEmptyComponent={
-            <Text style={s.empty}>Niekas nėra užblokuotas.</Text>
+            <Text style={s.empty}>{t.emptyList}</Text>
           }
           renderItem={({ item }) => (
             <View style={s.row}>
-              <Text style={s.nickname}>{item.blocked?.nickname ?? "nepažįstamasis"}</Text>
+              <Text style={s.nickname}>{item.blocked?.nickname ?? t.strangerFallback}</Text>
               <TouchableOpacity
                 style={s.unblockButton}
                 onPress={() => confirmUnblock(item)}
                 disabled={unblocking === item.id}
                 accessibilityRole="button"
-                accessibilityLabel={`Atblokuoti ${item.blocked?.nickname ?? ""}`}
+                accessibilityLabel={format(t.unblockLabel, { nickname: item.blocked?.nickname ?? "" })}
               >
                 <Text style={s.unblockText}>
-                  {unblocking === item.id ? "..." : "Atblokuoti"}
+                  {unblocking === item.id ? "..." : t.unblockAction}
                 </Text>
               </TouchableOpacity>
             </View>

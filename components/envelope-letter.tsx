@@ -10,6 +10,8 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { Defs, Image as SvgImage, Line, Path, Pattern, Rect } from "react-native-svg";
 import { DrawingView } from "@/components/drawing-view";
 import { isValidDrawing } from "@/lib/drawing";
+import { useStrings } from "@/lib/i18n";
+import { envelopeLetterStrings } from "@/lib/i18n/strings/envelope-letter";
 import Animated, {
   Easing,
   interpolate,
@@ -253,6 +255,7 @@ function buildDragStage({
 export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling, autoPlay }: Props) {
   const { colors } = useTheme();
   const { reducedMotion } = useAccessibility();
+  const t = useStrings(envelopeLetterStrings);
   const playWoosh = useSound(require("@/assets/sounds/woosh.wav"));
   const tear = useScrubSound(require("@/assets/sounds/tear.wav"));
   const { width, height } = useWindowDimensions();
@@ -1094,23 +1097,23 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
 
   const promptCopy: Record<string, { label: string; icon: "gesture-swipe-up" | "gesture-swipe-down" }> = {
     waitingToClose: {
-      label: "Brūkštelėkite žemyn, kad uždarytumėte voką",
+      label: t.waitingToClose,
       icon: "gesture-swipe-down",
     },
     waitingToSend: {
-      label: "Brūkštelėkite aukštyn, kad išsiųstumėte laiškelį",
+      label: t.waitingToSend,
       icon: "gesture-swipe-up",
     },
     waitingToOpen: {
-      label: "Brūkštelėkite aukštyn, kad atplėštumėte voką",
+      label: t.waitingToOpen,
       icon: "gesture-swipe-up",
     },
     waitingToPull: {
-      label: "Brūkštelėkite aukštyn, kad ištrauktumėte laiškelį",
+      label: t.waitingToPull,
       icon: "gesture-swipe-up",
     },
     waitingToPullPicture: {
-      label: "Brūkštelėkite aukštyn, kad ištrauktumėte piešinį",
+      label: t.waitingToPullPicture,
       icon: "gesture-swipe-up",
     },
   };

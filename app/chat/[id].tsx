@@ -16,6 +16,9 @@ import { Message } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { useUnreadMessages } from "@/contexts/unread-messages";
 import { AvatarCircle } from "@/components/avatar-circle";
+import { useStrings } from "@/lib/i18n";
+import { common } from "@/lib/i18n/strings/common";
+import { chatStrings } from "@/lib/i18n/strings/chat";
 
 interface ConversationDetails {
   id: string;
@@ -36,6 +39,8 @@ export default function ChatScreen() {
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
   const { markRead } = useUnreadMessages();
+  const t = useStrings(chatStrings);
+  const c = useStrings(common);
 
   const [conv, setConv] = useState<ConversationDetails | null>(null);
   const [messages, setMessages] = useState<MessageWithSender[]>([]);
@@ -107,39 +112,44 @@ export default function ChatScreen() {
 
   const handleReportMessage = useCallback((messageId: string) => {
     Alert.alert(
-      "Pranešti apie žinutę?",
-      "Žinutė liks matoma, bet administratorius ją peržiūrės.",
+      t.reportMessageTitle,
+      t.reportMessageBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: c.cancel, style: "cancel" },
         {
-          text: "Netinkamas turinys",
+          // Reason values are persisted to the moderation queue verbatim —
+          // kept as stable Lithuanian canonical strings (the founder
+          // reviewer's language) regardless of the UI language, so the
+          // review queue stays consistent. Only the displayed label is
+          // translated.
+          text: t.reasonInappropriate,
           onPress: () => reportMessage(messageId, "Netinkamas turinys"),
         },
         {
-          text: "Priekabiavimas ar grasinimai",
+          text: t.reasonHarassment,
           onPress: () => reportMessage(messageId, "Priekabiavimas ar grasinimai"),
         },
       ]
     );
-  }, []);
+  }, [t, c]);
 
   async function reportMessage(messageId: string, reason: string) {
     const { error } = await supabase.rpc("report_message", {
       p_message_id: messageId,
       p_reason: reason,
     });
-    if (error) { Alert.alert("Klaida", error.message); return; }
-    Alert.alert("Ačiū", "Pranešimas gautas.");
+    if (error) { Alert.alert(c.error, error.message); return; }
+    Alert.alert(t.thanksTitle, t.reportReceivedBody);
   }
 
   const handleDeleteForMe = useCallback((messageId: string) => {
     Alert.alert(
-      "Ištrinti žinutę sau?",
-      "Ji ir toliau bus matoma kitam pokalbio dalyviui.",
+      t.deleteMessageTitle,
+      t.deleteMessageBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: c.cancel, style: "cancel" },
         {
-          text: "Ištrinti",
+          text: c.delete,
           style: "destructive",
           onPress: async () => {
             setMessages(prev => prev.map(m =>
@@ -151,13 +161,13 @@ export default function ChatScreen() {
               setMessages(prev => prev.map(m =>
                 m.id === messageId ? { ...m, deleted_for_sender: false } : m
               ));
-              Alert.alert("Klaida", error.message);
+              Alert.alert(c.error, error.message);
             }
           },
         },
       ]
     );
-  }, []);
+  }, [t, c]);
 
   async function handleSend() {
     if (!input.trim() || !user || sending) return;
@@ -176,9 +186,9 @@ export default function ChatScreen() {
       // Raised by trg_messages_link_check (migration 042) — links are the
       // one thing that defeats blocking/reporting/anonymity in one step.
       if (error.message.includes("message_rejected_link")) {
-        Alert.alert("Žinutė neišsiųsta", "Be šansų seni.");
+        Alert.alert(t.messageRejectedTitle, t.messageRejectedBody);
       } else {
-        Alert.alert("Klaida", error.message);
+        Alert.alert(c.error, error.message);
       }
     }
   }
@@ -186,12 +196,12 @@ export default function ChatScreen() {
   async function handleLeave() {
     if (!conv || !user) return;
     Alert.alert(
-      "Palikti pokalbį (visam laikui)",
-      "Tai užbaigs ir ištrins pokalbį abiems.",
+      t.leaveTitle,
+      t.leaveBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: c.cancel, style: "cancel" },
         {
-          text: "Į kapines",
+          text: t.leaveConfirm,
           style: "destructive",
           onPress: async () => {
             const statusValue = conv.user_a_id === user.id ? "left_by_a" : "left_by_b";
@@ -209,8 +219,8 @@ export default function ChatScreen() {
   function otherNickname() {
     if (!conv || !user) return "…";
     return conv.user_a_id === user.id
-      ? conv.user_b?.nickname ?? "nepažįstamasis"
-      : conv.user_a?.nickname ?? "nepažįstamasis";
+      ? conv.user_b?.nickname ?? t.strangerFallback
+      : conv.user_a?.nickname ?? t.strangerFallback;
   }
 
   function otherAvatar() {
@@ -229,16 +239,16 @@ export default function ChatScreen() {
     const otherId = otherUserId();
     if (!otherId) return;
     Alert.alert(
-      "Blokuoti šį žmogų?",
-      "Jis nebegalės tau rašyti ar siųsti naujų užklausų susisiekti. Šis pokalbis bus užbaigtas.",
+      t.blockTitle,
+      t.blockBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: c.cancel, style: "cancel" },
         {
-          text: "Blokuoti",
+          text: t.blockConfirm,
           style: "destructive",
           onPress: async () => {
             const { error } = await supabase.rpc("block_user", { p_user_id: otherId });
-            if (error) { Alert.alert("Klaida", error.message); return; }
+            if (error) { Alert.alert(c.error, error.message); return; }
             router.back();
           },
         },
@@ -249,16 +259,18 @@ export default function ChatScreen() {
   async function handleReport() {
     if (!conv) return;
     Alert.alert(
-      "Pranešti apie pokalbį?",
-      "Pokalbis bus iškart baigtas abiem pusėms. Istorija išliks matoma peržiūrai.",
+      t.reportConversationTitle,
+      t.reportConversationBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: c.cancel, style: "cancel" },
         {
-          text: "Netinkamas turinys",
+          // See handleReportMessage above — reason values sent to the
+          // backend stay canonical Lithuanian; only the label is translated.
+          text: t.reasonInappropriate,
           onPress: () => reportConversation("Netinkamas turinys"),
         },
         {
-          text: "Priekabiavimas ar grasinimai",
+          text: t.reasonHarassment,
           onPress: () => reportConversation("Priekabiavimas ar grasinimai"),
         },
       ]
@@ -271,20 +283,20 @@ export default function ChatScreen() {
       p_conversation_id: conv.id,
       p_reason: reason,
     });
-    if (error) { Alert.alert("Klaida", error.message); return; }
+    if (error) { Alert.alert(c.error, error.message); return; }
     setConv({ ...conv, status: "blocked", reported_at: new Date().toISOString() });
-    Alert.alert("Ačiū", "Pranešimas gautas, pokalbis baigtas.");
+    Alert.alert(t.thanksTitle, t.reportReceivedConversationBody);
   }
 
   function handleMore() {
     Alert.alert(
-      "Pokalbio veiksmai",
+      t.moreActionsLabel,
       undefined,
       [
-        { text: "Blokuoti", style: "destructive", onPress: handleBlock },
-        { text: "Pranešti", onPress: handleReport },
-        { text: "Palikti pokalbį", style: "destructive", onPress: handleLeave },
-        { text: "Atšaukti", style: "cancel" },
+        { text: t.blockConfirm, style: "destructive", onPress: handleBlock },
+        { text: t.reportAction, onPress: handleReport },
+        { text: t.leaveActionLabel, style: "destructive", onPress: handleLeave },
+        { text: c.cancel, style: "cancel" },
       ]
     );
   }
@@ -312,7 +324,7 @@ export default function ChatScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Grįžti atgal"
+          accessibilityLabel={c.goBack}
         >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
@@ -324,8 +336,8 @@ export default function ChatScreen() {
           onPress={handleMore}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Pokalbio veiksmai"
-          accessibilityHint="Išeiti iš pokalbio, blokuoti arba pranešti"
+          accessibilityLabel={t.moreActionsLabel}
+          accessibilityHint={t.moreActionsHint}
         >
           <Ionicons name="ellipsis-vertical" size={22} color={colors.text} />
         </TouchableOpacity>
@@ -333,7 +345,7 @@ export default function ChatScreen() {
 
       <TutorialTip
         id="chat_intro"
-        text="Pokalbis neįpareigoja - gali ištrinti ir išeiti be įspėjimo arba pranešti jei turinys visai nepriimtinas."
+        text={t.tutorialIntro}
         style={s.tip}
       />
 
@@ -341,14 +353,14 @@ export default function ChatScreen() {
         <View style={s.reportedBanner}>
           <Ionicons name="flag" size={14} color={colors.subtext} />
           <Text style={s.reportedBannerText}>
-            Pokalbis baigtas — pranešta administratoriui.
+            {t.reportedBanner}
           </Text>
         </View>
       )}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <FlatList
@@ -389,7 +401,7 @@ export default function ChatScreen() {
               style={s.input}
               value={input}
               onChangeText={setInput}
-              placeholder="Bla bla bla..."
+              placeholder={t.inputPlaceholder}
               placeholderTextColor={colors.subtext}
               multiline
               maxLength={1000}
@@ -400,7 +412,7 @@ export default function ChatScreen() {
               onPress={handleSend}
               disabled={!input.trim() || sending}
               accessibilityRole="button"
-              accessibilityLabel="Siųsti žinutę"
+              accessibilityLabel={t.sendMessageLabel}
             >
               <Ionicons name="send" size={20} color={colors.accentText} />
             </TouchableOpacity>

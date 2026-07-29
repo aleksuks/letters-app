@@ -7,12 +7,17 @@ import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useProfile } from "@/contexts/profile";
 import { AvatarCircle } from "@/components/avatar-circle";
+import { useStrings } from "@/lib/i18n";
+import { common } from "@/lib/i18n/strings/common";
+import { profileStrings } from "@/lib/i18n/strings/profile";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
   const { colors } = useTheme();
   const { profile, refreshProfile } = useProfile();
+  const t = useStrings(profileStrings);
+  const c = useStrings(common);
 
   const s = makeStyles(colors);
 
@@ -34,23 +39,23 @@ export default function ProfileScreen() {
   }
 
   function handleAtsijungti() {
-    Alert.alert("Atsijungti", "Ar tikrai norite atsijungti? Gal ne?", [
-      { text: "Atšaukti", style: "cancel" },
-      { text: "Atsijungti", style: "destructive", onPress: signOut },
+    Alert.alert(t.signOutConfirmTitle, t.signOutConfirmBody, [
+      { text: c.cancel, style: "cancel" },
+      { text: t.signOutLabel, style: "destructive", onPress: signOut },
     ]);
   }
 
   return (
     <TabPage style={s.container}>
       <View style={s.content}>
-        <Text style={s.title}>Profilis</Text>
+        <Text style={s.title}>{t.title}</Text>
 
         <View style={s.profileSection}>
           <TouchableOpacity
             onPress={handleChangeAvatar}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Keisti avatarą"
+            accessibilityLabel={t.changeAvatarLabel}
           >
             <AvatarCircle emoji={profile?.avatar_emoji ?? "🦊"} size={96} />
             <View style={s.avatarEditBadge}>
@@ -64,7 +69,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={s.menuItem} onPress={handleSettings}>
             <View style={s.menuItemContent}>
               <Ionicons name="cog-outline" size={24} color={colors.text} />
-              <Text style={s.menuItemText}>Nustatymai</Text>
+              <Text style={s.menuItemText}>{t.settingsLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={colors.subtext} />
           </TouchableOpacity>
@@ -73,7 +78,7 @@ export default function ProfileScreen() {
             <TouchableOpacity style={s.menuItem} onPress={handleModeration}>
               <View style={s.menuItemContent}>
                 <Ionicons name="shield-checkmark-outline" size={24} color={colors.text} />
-                <Text style={s.menuItemText}>Moderuoti</Text>
+                <Text style={s.menuItemText}>{t.moderateLabel}</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color={colors.subtext} />
             </TouchableOpacity>
@@ -82,7 +87,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={s.menuItem} onPress={handleAtsijungti}>
             <View style={s.menuItemContent}>
               <Ionicons name="log-out-outline" size={24} color={colors.red} />
-              <Text style={s.logoutText}>Atsijungti</Text>
+              <Text style={s.logoutText}>{t.signOutLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={colors.subtext} />
           </TouchableOpacity>

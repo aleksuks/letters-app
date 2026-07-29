@@ -19,6 +19,10 @@ import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { DrawingView } from "@/components/drawing-view";
 import type { Letter } from "@/types";
+import { useStrings, format } from "@/lib/i18n";
+import { letterFlightStrings } from "@/lib/i18n/strings/letter-flight";
+
+type LetterFlightStrings = typeof letterFlightStrings.lt;
 
 // The living twin of `letter-grave`. Same stats, same typewriter engraving,
 // but on paper instead of granite — a letter that is still out there gets a
@@ -46,9 +50,12 @@ function remainingUntil(expiresAt: string): Remaining | null {
 
 // Days are only shown once there is at least one, so a letter in its final
 // hours counts down in the units its author actually cares about by then.
-function formatRemaining(r: Remaining): string {
-  const tail = `${r.hours} val. ${r.minutes} min.`;
-  return r.days > 0 ? `${r.days} d. ${tail}` : tail;
+// Takes `t` from its caller since it's a module-level helper and can't call
+// useStrings itself.
+function formatRemaining(r: Remaining, t: LetterFlightStrings): string {
+  return r.days > 0
+    ? format(t.daysHoursMinutes, { days: r.days, hours: r.hours, minutes: r.minutes })
+    : format(t.hoursMinutes, { hours: r.hours, minutes: r.minutes });
 }
 
 function daysTravelled(letter: Letter): number {
@@ -69,6 +76,7 @@ export default function LetterFlightScreen() {
   const { colors } = useTheme();
   const { largeTouchTargets, reducedMotion } = useAccessibility();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const t = useStrings(letterFlightStrings);
   const [letter, setLetter] = useState<Letter | null | undefined>(undefined);
   const [, setTick] = useState(0);
 
@@ -131,13 +139,13 @@ export default function LetterFlightScreen() {
             onPress={() => router.back()}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
             accessibilityRole="button"
-            accessibilityLabel="Uždaryti"
+            accessibilityLabel={t.close}
           >
             <Ionicons name="close" size={28} color={colors.text} />
           </TouchableOpacity>
         </View>
         <View style={s.center}>
-          <Text style={s.emptyTitle}>Laiškelio nebėra</Text>
+          <Text style={s.emptyTitle}>{t.gone}</Text>
         </View>
       </SafeAreaView>
     );
@@ -154,7 +162,7 @@ export default function LetterFlightScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti"
+          accessibilityLabel={t.close}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
@@ -162,9 +170,7 @@ export default function LetterFlightScreen() {
 
       <View style={s.body}>
         <Text style={s.caption}>
-          {stillFlying
-            ? "Šis laiškelis vis dar keliauja."
-            : "Šio laiškelio kelionė jau baigta."}
+          {stillFlying ? t.stillFlying : t.journeyOver}
         </Text>
 
         <Animated.View entering={FadeInDown.duration(500)} style={driftStyle}>
@@ -184,16 +190,16 @@ export default function LetterFlightScreen() {
 
             <View style={s.stats}>
               <View style={s.statRow}>
-                <Text style={s.statLabel}>Sustojimai</Text>
+                <Text style={s.statLabel}>{t.statStops}</Text>
                 <Text style={s.statValue}>{letter.travel_count}</Text>
               </View>
               <View style={s.statRow}>
-                <Text style={s.statLabel}>Širdelės</Text>
+                <Text style={s.statLabel}>{t.statHearts}</Text>
                 <Text style={s.statValue}>{letter.like_count}</Text>
               </View>
               <View style={s.statRow}>
-                <Text style={s.statLabel}>Keliauja</Text>
-                <Text style={s.statValue}>{travelled} d.</Text>
+                <Text style={s.statLabel}>{t.statTravelling}</Text>
+                <Text style={s.statValue}>{format(t.daysSuffix, { days: travelled })}</Text>
               </View>
             </View>
 
@@ -201,14 +207,14 @@ export default function LetterFlightScreen() {
 
             {left && letter.status === "active" ? (
               <>
-                <Text style={s.countdownLabel}>Iki kelionės pabaigos</Text>
-                <Text style={s.countdownValue}>{formatRemaining(left)}</Text>
+                <Text style={s.countdownLabel}>{t.countdownLabel}</Text>
+                <Text style={s.countdownValue}>{formatRemaining(left, t)}</Text>
               </>
             ) : (
-              <Text style={s.countdownLabel}>Kelionė baigta</Text>
+              <Text style={s.countdownLabel}>{t.countdownDone}</Text>
             )}
 
-            <Text style={s.dates}>išsiųstas {formatDate(letter.created_at)}</Text>
+            <Text style={s.dates}>{format(t.sentOn, { date: formatDate(letter.created_at) })}</Text>
           </View>
         </Animated.View>
       </View>

@@ -9,6 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import * as Haptics from "@/lib/haptics";
+import { useStrings, format } from "@/lib/i18n";
+import { drawingCanvasStrings } from "@/lib/i18n/strings/drawing-canvas";
 import {
   CANVAS_SIZE,
   CRAYON_COLORS,
@@ -42,6 +44,7 @@ interface DrawingCanvasProps {
 export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const t = useStrings(drawingCanvasStrings);
   const s = makeStyles(colors);
 
   const [colorIndex, setColorIndex] = useState(0);
@@ -103,10 +106,19 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
 
   // runOnJS: the stroke lives in React state, so there is nothing to gain
   // from marshalling these through the UI thread first.
+  //
+  // manualActivation + activating on the first touch: with minDistance(0),
+  // the built-in activation heuristic still expects some movement before it
+  // commits to ACTIVE, so a tap that lands and lifts without ever moving can
+  // fail to reach onEnd — dropping the very "dot" a crayon canvas needs to
+  // support. Forcing activate() on touch-down guarantees the ACTIVE -> END
+  // lifecycle always completes, tap or drag alike.
   const pan = Gesture.Pan()
     .runOnJS(true)
     .minDistance(0)
     .averageTouches(true)
+    .manualActivation(true)
+    .onTouchesDown((_e, state) => state.activate())
     .onBegin((e) => begin(e.x, e.y))
     .onUpdate((e) => extend(e.x, e.y))
     .onEnd(commit)
@@ -160,7 +172,7 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
             key={color}
             onPress={() => setColorIndex(i)}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 6}
-            accessibilityLabel={`Spalva ${i + 1}`}
+            accessibilityLabel={format(t.colorLabel, { n: i + 1 })}
             accessibilityState={{ selected: colorIndex === i }}
             style={[
               s.swatch,
@@ -179,7 +191,7 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
               key={w}
               onPress={() => setWidth(w)}
               hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 6}
-              accessibilityLabel={`Storis ${w}`}
+              accessibilityLabel={format(t.widthLabel, { n: w })}
               accessibilityState={{ selected: width === w }}
               style={[s.nib, width === w && s.nibActive]}
             >
@@ -200,7 +212,7 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
             onPress={undo}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 6}
             style={s.actionBtn}
-            accessibilityLabel="Atšaukti paskutinį brūkšnį"
+            accessibilityLabel={t.undoLabel}
           >
             <Ionicons name="arrow-undo-outline" size={20} color={colors.text} />
           </TouchableOpacity>
@@ -208,9 +220,9 @@ export function DrawingCanvas({ value, onChange }: DrawingCanvasProps) {
             onPress={clear}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 6}
             style={s.actionBtn}
-            accessibilityLabel="Išvalyti piešinį"
+            accessibilityLabel={t.clearLabel}
           >
-            <Text style={s.clearText}>Išvalyti</Text>
+            <Text style={s.clearText}>{t.clearText}</Text>
           </TouchableOpacity>
         </View>
       </View>

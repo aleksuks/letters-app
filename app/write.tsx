@@ -21,6 +21,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useStrings, format } from "@/lib/i18n";
+import { writeStrings } from "@/lib/i18n/strings/write";
 
 const MAX_LENGTH = 1000;
 const DRAFT_KEY = "letters.write.draft";
@@ -46,25 +48,29 @@ const PROMPTS_HIDE_AT_LENGTH = 3;
 // (perfect day, treasured memory, long-postponed dream, gained quality)
 // and the letter-writing/journaling classics (advice to a younger self,
 // gratitude, encouraging an unknown reader).
-const PROMPTS = [
-  "Ką pasakytum jaunesniam sau?",
-  "Ko niekam nedrįsai pasakyti?",
-  "Kaip atrodytų tobula tavo diena?",
-  "Apie ką seniai svajoji, bet vis atidedi?",
-  "Koks prisiminimas tau brangiausias?",
-  "Už ką šiandien esi dėkingas?",
-  "Ko bijai?",
-  "Jei rytoj atsibustum įgijęs vieną naują savybę — kokią?",
-  "Padrąsink žmogų, kuriam šiandien sunku.",
-  "Kas tave neseniai nustebino gerąja prasme?",
-];
+// Keys into writeStrings rather than literal text, so the same random
+// selection works regardless of the active language — the component looks
+// up each key's translated text at render time.
+const PROMPT_KEYS = [
+  "promptYoungerSelf",
+  "promptNeverDaredSay",
+  "promptPerfectDay",
+  "promptPostponedDream",
+  "promptDearestMemory",
+  "promptGrateful",
+  "promptAfraid",
+  "promptNewTrait",
+  "promptEncourage",
+  "promptSurprised",
+] as const;
 const PROMPTS_SHOWN = 3;
 
 // Picks a few prompts at random rather than always the same ones, so the
-// set feels fresh across visits to the screen.
-function pickRandomPrompts(source: string[], count: number) {
+// set feels fresh across visits to the screen. Generic so it preserves the
+// literal key type when called with PROMPT_KEYS, letting t[key] type-check.
+function pickRandomPrompts<T>(source: T[], count: number): T[] {
   const pool = [...source];
-  const picked: string[] = [];
+  const picked: T[] = [];
   while (picked.length < count && pool.length > 0) {
     const i = Math.floor(Math.random() * pool.length);
     picked.push(pool.splice(i, 1)[0]);
@@ -77,6 +83,7 @@ export default function WriteScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const t = useStrings(writeStrings);
   const [body, setBody] = useState("");
   const [drawing, setDrawing] = useState<Drawing>(emptyDrawing);
   const [drawingOpen, setDrawingOpen] = useState(false);
@@ -97,7 +104,7 @@ export default function WriteScreen() {
   drawingRef.current = drawing;
   const scrollRef = useRef<ScrollView>(null);
   // Chosen once per screen visit, not re-rolled on every render.
-  const [prompts] = useState(() => pickRandomPrompts(PROMPTS, PROMPTS_SHOWN));
+  const [promptKeys] = useState(() => pickRandomPrompts([...PROMPT_KEYS], PROMPTS_SHOWN));
 
   const s = makeStyles(colors);
 
@@ -175,7 +182,7 @@ export default function WriteScreen() {
     draftDisabledRef.current = false;
     if (letterId) {
       const { error } = await supabase.from("letters").delete().eq("id", letterId);
-      if (error) Alert.alert("Klaida", error.message);
+      if (error) Alert.alert(t.errorTitle, error.message);
     }
   }
 
@@ -214,25 +221,19 @@ export default function WriteScreen() {
       // Cyrillic. Separate from the keyword rejection because this one is a
       // fixable mistake rather than a judgment — so it says what to change.
       if (message.includes("letter_rejected_script")) {
-        Alert.alert(
-          "Laiškelis neiškeliavo",
-          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laiškelį lietuviškai ir pabandyk dar kartą."
-        );
+        Alert.alert(t.rejectedTitle, t.rejectedScriptBody);
       }
       // Raised by the same trigger (migration 042) when the body contains
       // a link — the one thing that defeats the app's whole safety model.
       else if (message.includes("letter_rejected_link")) {
-        Alert.alert("Laiškelis neiškeliavo", "Be šansų seni.");
+        Alert.alert(t.rejectedTitle, t.rejectedLinkBody);
       }
       // Raised by the trg_letters_moderation_gate trigger (migration 007)
       // when the letter's keyword score crosses the reject threshold.
       else if (message.includes("letter_rejected_moderation")) {
-        Alert.alert(
-          "Laiškelis neiškeliavo",
-          "Tavo laiškelyje per daug įžeidžiančios kalbos. Stipresnė kalba nieko tokio, bet šiuo atveju truputį persistengta, ir toks laiškelis niekur neskris. Pabandyk perrašyti."
-        );
+        Alert.alert(t.rejectedTitle, t.rejectedModerationBody);
       } else {
-        Alert.alert("Klaida", message);
+        Alert.alert(t.errorTitle, message);
       }
     } finally {
       setLoading(false);
@@ -247,17 +248,17 @@ export default function WriteScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti"
+          accessibilityLabel={t.close}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Parašyti laiškelį</Text>
+        <Text style={s.headerTitle}>{t.headerTitle}</Text>
         <TouchableOpacity
           style={[s.sendButton, largeTouchTargets && s.sendButtonLarge, (!canSubmit || loading) && s.sendButtonDisabled]}
           onPress={handleSubmit}
           disabled={!canSubmit || loading}
         >
-          <Text style={s.sendButtonText}>Išsiųsti</Text>
+          <Text style={s.sendButtonText}>{t.sendButton}</Text>
         </TouchableOpacity>
       </View>
 
@@ -268,7 +269,7 @@ export default function WriteScreen() {
         <ScrollView ref={scrollRef} style={s.scroll} keyboardShouldPersistTaps="handled">
           <TutorialTip
             id="write_intro"
-            text="Nebijok rašyti nuoširdžiai — dalinamasi tik tavo slapyvardžiu."
+            text={t.tipIntro}
             style={s.tip}
           />
 
@@ -277,7 +278,7 @@ export default function WriteScreen() {
               style={s.input}
               value={body}
               onChangeText={setBody}
-              placeholder="Brangus gavėjau..."
+              placeholder={t.inputPlaceholder}
               placeholderTextColor={colors.subtext}
               multiline
               autoFocus
@@ -297,14 +298,14 @@ export default function WriteScreen() {
                 pointerEvents="none"
                 exiting={FadeOut.duration(300)}
               >
-                <Text style={s.promptsLabel}>Pasiūlymai</Text>
+                <Text style={s.promptsLabel}>{t.promptsLabel}</Text>
                 <View style={s.promptsRow}>
-                  {prompts.map((p) => (
+                  {promptKeys.map((key) => (
                     <View
-                      key={p}
+                      key={key}
                       style={[s.promptChip, largeTouchTargets && s.promptChipLarge]}
                     >
-                      <Text style={s.promptChipText}>{p}</Text>
+                      <Text style={s.promptChipText}>{t[key]}</Text>
                     </View>
                   ))}
                 </View>
@@ -313,7 +314,7 @@ export default function WriteScreen() {
           </View>
 
           <Text style={[s.counter, remaining < 100 && s.counterWarning]}>
-            liko {remaining} simbolių
+            {format(t.counter, { remaining })}
           </Text>
 
           {/* A picture is optional and stays folded away until asked for, so
@@ -335,12 +336,12 @@ export default function WriteScreen() {
               activeOpacity={0.7}
             >
               <Text style={s.drawToggleIcon}>🖍️</Text>
-              <Text style={s.drawToggleText}>Pridėti piešinį</Text>
+              <Text style={s.drawToggleText}>{t.addDrawing}</Text>
             </TouchableOpacity>
           ) : (
             <View style={s.drawSection}>
               <View style={s.drawHeader}>
-                <Text style={s.drawTitle}>Piešinys</Text>
+                <Text style={s.drawTitle}>{t.drawingTitle}</Text>
                 <TouchableOpacity
                   onPress={() => {
                     setDrawing(emptyDrawing());
@@ -348,7 +349,7 @@ export default function WriteScreen() {
                   }}
                   hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
                 >
-                  <Text style={s.drawRemove}>Pašalinti</Text>
+                  <Text style={s.drawRemove}>{t.drawingRemove}</Text>
                 </TouchableOpacity>
               </View>
               <DrawingCanvas value={drawing} onChange={setDrawing} />
@@ -368,7 +369,7 @@ export default function WriteScreen() {
           />
           {folding ? (
             <Animated.Text entering={FadeIn.duration(300)} style={s.sendCaption}>
-              Tavo laiškas iškeliavo pas nepažįstamąjį…
+              {t.sendCaption}
             </Animated.Text>
           ) : (
             // Available only until the launch swipe commits — after that the
@@ -378,7 +379,7 @@ export default function WriteScreen() {
               onPress={handleCancelSend}
               activeOpacity={0.7}
             >
-              <Text style={s.sendCancelText}>Atšaukti</Text>
+              <Text style={s.sendCancelText}>{t.sendCancel}</Text>
             </TouchableOpacity>
           )}
         </Animated.View>

@@ -13,8 +13,13 @@ import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/acces
 import { DoubleTapLike } from "@/components/double-tap-like";
 import { DrawingView } from "@/components/drawing-view";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/contexts/profile";
+import { useLanguage } from "@/contexts/language";
 import { supabase } from "@/lib/supabase";
 import * as Haptics from "@/lib/haptics";
+import { useStrings, format } from "@/lib/i18n";
+import { mapLetterStrings } from "@/lib/i18n/strings/map-letter";
+import { common } from "@/lib/i18n/strings/common";
 import type { MapLetter } from "@/types";
 
 interface LoadedMapLetter extends MapLetter {
@@ -27,8 +32,12 @@ interface LoadedMapLetter extends MapLetter {
 export default function MapLetterScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const { lang } = useLanguage();
+  const t = useStrings(mapLetterStrings);
+  const tc = useStrings(common);
   const { id, openRequest } = useLocalSearchParams<{ id: string; openRequest?: string }>();
   const [letter, setLetter] = useState<LoadedMapLetter | null | undefined>(undefined);
   const [liked, setLiked] = useState(false);
@@ -76,7 +85,7 @@ export default function MapLetterScreen() {
   }, [letter, openRequest]);
 
   function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString("lt-LT", { month: "long", day: "numeric" });
+    return new Date(iso).toLocaleDateString(lang === "lt" ? "lt-LT" : "en-GB", { month: "long", day: "numeric" });
   }
 
   // Fired by the double-tap gesture on the paper. The heart burst plays
@@ -95,9 +104,9 @@ export default function MapLetterScreen() {
       setLiked(wasLiked);
       setLikeCount((c) => c + (wasLiked ? 1 : -1));
       if (error.message?.includes("letter_not_active")) {
-        Alert.alert("Laiškelio nebėra", "Šis laiškelis jau pasibaigė.");
+        Alert.alert(t.letterGoneTitle, t.letterGoneBody);
       } else if (!error.message?.includes("cannot_like_own")) {
-        Alert.alert("Klaida", error.message);
+        Alert.alert(tc.error, error.message);
       }
     }
   }
@@ -118,18 +127,15 @@ export default function MapLetterScreen() {
     if (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error.code === "23505") {
-        Alert.alert("Leidimo jau prašyta", "Jau išsiuntei užklausą susisiekti su siuntėju.");
+        Alert.alert(t.alreadyRequestedTitle, t.alreadyRequestedBody);
       } else if (error.message?.includes("conversation_exists")) {
         // Deliberately doesn't say who — naming the author here would
         // deanonymize their other letters.
-        Alert.alert(
-          "Pokalbis jau vyksta",
-          "Su šio laiškelio autoriumi jau turi pokalbį — atsiverskite jį skiltyje „Pokalbiai“."
-        );
+        Alert.alert(t.conversationExistsTitle, t.conversationExistsBody);
       } else if (error.code === "42501") {
-        Alert.alert("Nepriima užklausų", "Šis žmogus šiuo metu nepriima pokalbių užklausų.");
+        Alert.alert(t.notAcceptingTitle, t.notAcceptingBody);
       } else {
-        Alert.alert("Klaida", error.message);
+        Alert.alert(tc.error, error.message);
       }
       return;
     }
@@ -146,36 +152,39 @@ export default function MapLetterScreen() {
       p_map_letter_id: letter.id,
       p_reason: reason,
     });
-    if (error) { Alert.alert("Klaida", error.message); return; }
-    Alert.alert("Ačiū", "Praneštas laiškelis pašalintas iš žemėlapio, kol jį peržiūrės administratorius.");
+    if (error) { Alert.alert(tc.error, error.message); return; }
+    Alert.alert(t.reportThanksTitle, t.reportThanksBody);
     router.back();
   }
 
   function confirmReport() {
+    // The reason passed to the RPC stays in Lithuanian regardless of UI
+    // language — it's free text read only by the (single, Lithuanian-
+    // speaking) moderator in the review queue, not shown back to any user.
     Alert.alert(
-      "Pranešti apie laiškelį?",
-      "Laiškelis bus iškart pašalintas iš žemėlapio, kol jį peržiūrės administratorius.",
+      t.confirmReportTitle,
+      t.confirmReportBody,
       [
-        { text: "Atšaukti", style: "cancel" },
-        { text: "Netinkamas turinys", onPress: () => handleReport("Netinkamas turinys") },
-        { text: "Priekabiavimas ar grasinimai", onPress: () => handleReport("Priekabiavimas ar grasinimai") },
+        { text: tc.cancel, style: "cancel" },
+        { text: t.reasonInappropriate, onPress: () => handleReport("Netinkamas turinys") },
+        { text: t.reasonHarassment, onPress: () => handleReport("Priekabiavimas ar grasinimai") },
       ]
     );
   }
 
   function confirmDelete() {
     Alert.alert(
-      "Pašalinti laiškelį?",
-      "Laiškelis visam laikui dings iš žemėlapio.",
+      t.confirmDeleteTitle,
+      t.confirmDeleteBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: tc.cancel, style: "cancel" },
         {
-          text: "Pašalinti",
+          text: t.delete,
           style: "destructive",
           onPress: async () => {
             if (!letter) return;
             const { error } = await supabase.from("map_letters").delete().eq("id", letter.id);
-            if (error) { Alert.alert("Klaida", error.message); return; }
+            if (error) { Alert.alert(tc.error, error.message); return; }
             router.back();
           },
         },
@@ -201,13 +210,13 @@ export default function MapLetterScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti"
+          accessibilityLabel={t.close}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.center}>
-          <Text style={s.emptyTitle}>Laiškelio čia nebėra</Text>
-          <Text style={s.emptyHint}>Jis pasibaigė arba buvo pašalintas.</Text>
+          <Text style={s.emptyTitle}>{t.emptyTitle}</Text>
+          <Text style={s.emptyHint}>{t.emptyHint}</Text>
         </View>
       </SafeAreaView>
     );
@@ -220,20 +229,32 @@ export default function MapLetterScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti"
+          accessibilityLabel={t.close}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         {!isOwn && (
-          <TouchableOpacity
-            onPress={confirmReport}
-            hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
-            accessibilityRole="button"
-            accessibilityLabel="Pranešti apie laiškelį"
-            accessibilityHint="Laiškelis bus iškart pašalintas iš žemėlapio, kol jį peržiūrės administratorius"
-          >
-            <Ionicons name="flag-outline" size={22} color={colors.subtext} />
-          </TouchableOpacity>
+          <View style={s.headerActions}>
+            {profile?.is_moderator && (
+              <TouchableOpacity
+                onPress={confirmDelete}
+                hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+                accessibilityRole="button"
+                accessibilityLabel="Delete letter"
+              >
+                <Ionicons name="trash-outline" size={22} color={colors.subtext} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={confirmReport}
+              hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+              accessibilityRole="button"
+              accessibilityLabel={t.reportLabel}
+              accessibilityHint={t.reportHint}
+            >
+              <Ionicons name="flag-outline" size={22} color={colors.subtext} />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -255,19 +276,17 @@ export default function MapLetterScreen() {
                 <DrawingView drawing={letter.drawing} size={Math.min(width - 96, 300)} />
               </View>
             )}
-            <Text style={s.signature}>— {letter.author?.nickname ?? "nepažįstamasis"}</Text>
+            <Text style={s.signature}>— {letter.author?.nickname ?? t.strangerSignature}</Text>
           </DoubleTapLike>
 
           <Text style={s.meta}>
-            Paliktas {formatDate(letter.created_at)} · guls čia iki {formatDate(letter.expires_at)}
+            {format(t.meta, { left: formatDate(letter.created_at), until: formatDate(letter.expires_at) })}
             {likeCount > 0 ? ` · ❤ ${likeCount}` : ""}
           </Text>
 
           {!isOwn && (
             <Text style={s.likeHint}>
-              {liked
-                ? "Patiko. Bakstelėk dar kartą du kartus, jei nori atšaukti."
-                : "Patiko? Bakstelėk laiškelį du kartus."}
+              {liked ? t.likeHintLiked : t.likeHintUnliked}
             </Text>
           )}
 
@@ -277,25 +296,25 @@ export default function MapLetterScreen() {
               onPress={confirmDelete}
             >
               <Ionicons name="trash-outline" size={18} color={colors.red} />
-              <Text style={[s.secondaryButtonText, { color: colors.red }]}>Pašalinti laiškelį</Text>
+              <Text style={[s.secondaryButtonText, { color: colors.red }]}>{t.deleteLetter}</Text>
             </TouchableOpacity>
           ) : requestSent ? (
             <Animated.View entering={FadeIn.duration(300)} style={s.sentNote}>
               <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
               <Text style={s.sentNoteText}>
-                Užklausa išsiųsta. Jei autorius sutiks, pokalbį rasi skiltyje „Pokalbiai“.
+                {t.requestSentNote}
               </Text>
             </Animated.View>
           ) : showRequestForm ? (
             <View style={s.requestForm}>
               <Text style={s.requestLabel}>
-                Parašyk trumpą žinutę — autorius nuspręs, ar pradėti pokalbį.
+                {t.requestLabel}
               </Text>
               <TextInput
                 style={s.requestInput}
                 value={greeting}
                 onChangeText={setGreeting}
-                placeholder="Sveiki! Manau, šis laiškelis skirtas man..."
+                placeholder={t.requestPlaceholder}
                 placeholderTextColor={colors.subtext}
                 multiline
                 autoFocus
@@ -307,14 +326,14 @@ export default function MapLetterScreen() {
                   style={[s.secondaryButton, largeTouchTargets && s.buttonLarge]}
                   onPress={() => setShowRequestForm(false)}
                 >
-                  <Text style={s.secondaryButtonText}>Atšaukti</Text>
+                  <Text style={s.secondaryButtonText}>{t.cancel}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[s.primaryButton, largeTouchTargets && s.buttonLarge, (!greeting.trim() || sendingRequest) && s.buttonDisabled]}
                   onPress={handleSendRequest}
                   disabled={!greeting.trim() || sendingRequest}
                 >
-                  <Text style={s.primaryButtonText}>Siųsti</Text>
+                  <Text style={s.primaryButtonText}>{t.send}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -324,7 +343,7 @@ export default function MapLetterScreen() {
               onPress={() => setShowRequestForm(true)}
             >
               <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.accentText} />
-              <Text style={s.primaryButtonText}>Atsiliepti autoriui</Text>
+              <Text style={s.primaryButtonText}>{t.replyToAuthor}</Text>
             </TouchableOpacity>
           ) : null}
         </ScrollView>
@@ -345,6 +364,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       paddingHorizontal: 16,
       paddingVertical: 12,
     },
+    headerActions: { flexDirection: "row", alignItems: "center", gap: 16 },
     scroll: { padding: 20, gap: 16 },
     paper: {
       backgroundColor: colors.surfaceAlt,

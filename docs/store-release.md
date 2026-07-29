@@ -325,6 +325,15 @@ shared dev/test account, which has been deleted outright rather than wiped
       `TEST_ACCOUNT.md`, `scripts/seed-test-account.mjs`, and a stray
       `scripts_seed_test_tmp.mjs` leftover from the repo. No longer needed
       now that real testers are about to take over that role.
+- [ ] Fix auth email delivery before the 12-tester cohort — full steps in
+      [`email-setup.md`](email-setup.md). **Not a store requirement**: neither
+      store asks for a custom domain, and GitHub Pages already covers the
+      privacy/support URLs. The problem is that the built-in Supabase sender is
+      capped at a couple of emails an hour, so a burst of signups fails
+      silently on the confirmation email. Registering `laiskelis.lt` + Resend
+      is the clean fix; turning confirmation off is the free one, with the
+      trade-off written up in the doc. The Lithuanian auth email templates
+      belong to the same job either way.
 - [ ] Write real founder seed letters (cold-start content). Your voice, not
       mine — but I can draft candidates to edit.
 - [x] ~~Create the reviewer demo account~~ — done 2026-07-28,

@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTutorial } from "@/contexts/tutorial";
 import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useStrings } from "@/lib/i18n";
+import { tutorialTipStrings } from "@/lib/i18n/strings/tutorial-tip";
 
 interface TutorialTipProps {
   id: string;
@@ -17,6 +19,7 @@ export function TutorialTip({ id, text, style }: TutorialTipProps) {
   const { isSeen, markSeen } = useTutorial();
   const { colors } = useTheme();
   const { largeTouchTargets, reducedMotion } = useAccessibility();
+  const t = useStrings(tutorialTipStrings);
 
   if (isSeen(id)) return null;
 
@@ -35,7 +38,7 @@ export function TutorialTip({ id, text, style }: TutorialTipProps) {
         hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
         style={s.closeButton}
         accessibilityRole="button"
-        accessibilityLabel="Uždaryti patarimą"
+        accessibilityLabel={t.closeLabel}
       >
         <Ionicons name="close" size={16} color={colors.subtext} />
       </TouchableOpacity>

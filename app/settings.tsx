@@ -1,30 +1,61 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity,
-  StyleSheet, Switch, ScrollView, Alert, Linking,
+  StyleSheet, Switch, ScrollView, Alert, Linking, LayoutChangeEvent,
 } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Constants from "expo-constants";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useLanguage } from "@/contexts/language";
 import { useAuth } from "@/hooks/use-auth";
 import { useTutorial } from "@/contexts/tutorial";
 import { supabase } from "@/lib/supabase";
+import { useStrings } from "@/lib/i18n";
+import { settingsStrings } from "@/lib/i18n/strings/settings";
 
 const PRIVACY_POLICY_URL = "https://aleksuks.github.io/letters-app/privacy.html";
 const TERMS_OF_SERVICE_URL = "https://aleksuks.github.io/letters-app/terms.html";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "—";
 
+// Mirrors langToggle's own padding/gap below — read by the sliding
+// highlight's translateX math, so keep the two in sync if either changes.
+const LANG_TOGGLE_PAD = 4;
+const LANG_TOGGLE_GAP = 4;
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { colors } = useTheme();
-  const { largeTouchTargets } = useAccessibility();
+  const { largeTouchTargets, reducedMotion } = useAccessibility();
+  const { lang, setLang } = useLanguage();
   const { resetAll: resetTutorial } = useTutorial();
+  const t = useStrings(settingsStrings);
   const s = makeStyles(colors);
+
+  // Sliding pill behind the active option, mirroring the spring/timing feel
+  // used for ceremony elsewhere (e.g. envelope-letter.tsx, receive.tsx) —
+  // duration 1 rather than 0 under reduced motion, matching that same
+  // convention, since some Reanimated versions treat a literal 0 oddly.
+  const [langToggleWidth, setLangToggleWidth] = useState(0);
+  const langButtonWidth = langToggleWidth > 0 ? (langToggleWidth - LANG_TOGGLE_PAD * 2 - LANG_TOGGLE_GAP) / 2 : 0;
+  const langHighlightX = useSharedValue(lang === "lt" ? 0 : 1);
+
+  useEffect(() => {
+    langHighlightX.value = withTiming(lang === "lt" ? 0 : 1, { duration: reducedMotion ? 1 : 220 });
+  }, [lang, reducedMotion, langHighlightX]);
+
+  const langHighlightStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: langHighlightX.value * (langButtonWidth + LANG_TOGGLE_GAP) }],
+  }));
+
+  function onLangToggleLayout(e: LayoutChangeEvent) {
+    setLangToggleWidth(e.nativeEvent.layout.width);
+  }
 
   const [acceptsRequests, setAcceptsRequests] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
@@ -59,7 +90,7 @@ export default function SettingsScreen() {
 
     if (error) {
       setAcceptsRequests(!value);
-      Alert.alert("Klaida", error.message);
+      Alert.alert(t.errorTitle, error.message);
     }
   }
 
@@ -73,7 +104,7 @@ export default function SettingsScreen() {
 
     if (error) {
       setRemindersEnabled(!value);
-      Alert.alert("Klaida", error.message);
+      Alert.alert(t.errorTitle, error.message);
     }
   }
 
@@ -87,27 +118,27 @@ export default function SettingsScreen() {
 
     if (error) {
       setActivityNotificationsEnabled(!value);
-      Alert.alert("Klaida", error.message);
+      Alert.alert(t.errorTitle, error.message);
     }
   }
 
   function handleDeleteAccount() {
     Alert.alert(
-      "Ištrinti paskyrą?",
-      "Šis veiksmas negrįžtamas. Bus visam laikui ištrinta Jūsų paskyra, laiškeliai, pokalbiai ir žinutės.",
+      t.deleteConfirmTitle,
+      t.deleteConfirmBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: t.deleteConfirmCancel, style: "cancel" },
         {
-          text: "Tęsti",
+          text: t.deleteConfirmContinue,
           style: "destructive",
           onPress: () => {
             Alert.alert(
-              "Ar tikrai?",
-              "Paskutinis patvirtinimas — šio veiksmo atšaukti nebus galima.",
+              t.deleteFinalTitle,
+              t.deleteFinalBody,
               [
-                { text: "Atšaukti", style: "cancel" },
+                { text: t.deleteFinalCancel, style: "cancel" },
                 {
-                  text: "Ištrinti paskyrą",
+                  text: t.deleteFinalConfirm,
                   style: "destructive",
                   onPress: confirmDeleteAccount,
                 },
@@ -124,7 +155,7 @@ export default function SettingsScreen() {
     const { error } = await supabase.rpc("delete_own_account");
     if (error) {
       setDeleting(false);
-      Alert.alert("Klaida", error.message);
+      Alert.alert(t.errorTitle, error.message);
       return;
     }
     await signOut();
@@ -138,21 +169,57 @@ export default function SettingsScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Grįžti atgal"
+          accessibilityLabel={t.goBack}
         >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>Nustatymai</Text>
+        <Text style={s.title}>{t.title}</Text>
       </View>
 
       <ScrollView style={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Užklausos susisiekti</Text>
+          <Text style={s.sectionTitle}>{t.languageSectionTitle}</Text>
+          <View style={[s.settingItem, { marginBottom: 0 }]}>
+            <View style={s.langToggle} onLayout={onLangToggleLayout}>
+              {langButtonWidth > 0 && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[s.langHighlight, { width: langButtonWidth }, langHighlightStyle]}
+                />
+              )}
+              <TouchableOpacity
+                style={s.langOption}
+                onPress={() => setLang("lt")}
+                accessibilityRole="button"
+                accessibilityLabel={t.languageLt}
+                accessibilityState={{ selected: lang === "lt" }}
+              >
+                <Text style={[s.langOptionText, lang === "lt" && s.langOptionTextActive]}>
+                  {t.languageLt}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.langOption}
+                onPress={() => setLang("en")}
+                accessibilityRole="button"
+                accessibilityLabel={t.languageEn}
+                accessibilityState={{ selected: lang === "en" }}
+              >
+                <Text style={[s.langOptionText, lang === "en" && s.langOptionTextActive]}>
+                  {t.languageEn}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>{t.connectionsSectionTitle}</Text>
           <View style={s.settingItem}>
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Leisti užklausas pokalbiams</Text>
+              <Text style={s.settingLabel}>{t.acceptRequestsLabel}</Text>
               <Text style={s.settingDesc}>
-                Leisti laiškelių gavėjams siųsti užklausas pokalbiams
+                {t.acceptRequestsDesc}
               </Text>
             </View>
             <Switch
@@ -161,35 +228,35 @@ export default function SettingsScreen() {
               disabled={!loaded}
               trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
               thumbColor="#fff"
-              accessibilityLabel="Leisti užklausas pokalbiams"
+              accessibilityLabel={t.acceptRequestsLabel}
               accessibilityRole="switch"
             />
           </View>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Privatumas</Text>
+          <Text style={s.sectionTitle}>{t.privacySectionTitle}</Text>
           <TouchableOpacity
             style={[s.settingItem, { marginBottom: 0 }]}
             onPress={() => router.push("/blocked-users" as any)}
             accessibilityRole="button"
-            accessibilityLabel="Blokuoti vartotojai"
+            accessibilityLabel={t.blockedUsersLabel}
           >
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Blokuoti vartotojai</Text>
-              <Text style={s.settingDesc}>Peržiūrėk ir atblokuok užblokuotus žmones</Text>
+              <Text style={s.settingLabel}>{t.blockedUsersLabel}</Text>
+              <Text style={s.settingDesc}>{t.blockedUsersDesc}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Pranešimai</Text>
+          <Text style={s.sectionTitle}>{t.notificationsSectionTitle}</Text>
           <View style={s.settingItem}>
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Laiškelio kelionė</Text>
+              <Text style={s.settingLabel}>{t.activityNotificationsLabel}</Text>
               <Text style={s.settingDesc}>
-                Pranešimai apie patiktukus, laiškelio pabaigą ir patekimą į „Kapinių“ skiltį
+                {t.activityNotificationsDesc}
               </Text>
             </View>
             <Switch
@@ -198,15 +265,15 @@ export default function SettingsScreen() {
               disabled={!loaded}
               trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
               thumbColor="#fff"
-              accessibilityLabel="Pranešimai apie laiškelio kelionę"
+              accessibilityLabel={t.activityNotificationsLabel}
               accessibilityRole="switch"
             />
           </View>
           <View style={[s.settingItem, { marginBottom: 0 }]}>
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Priminti apie naujus laiškelius</Text>
+              <Text style={s.settingLabel}>{t.remindersLabel}</Text>
               <Text style={s.settingDesc}>
-                Retas, švelnus priminimas — tik jei tikrai yra laiškelis, kurį gali gauti
+                {t.remindersDesc}
               </Text>
             </View>
             <Switch
@@ -215,57 +282,57 @@ export default function SettingsScreen() {
               disabled={!loaded}
               trackColor={{ false: colors.switchTrackOff, true: colors.accent }}
               thumbColor="#fff"
-              accessibilityLabel="Priminti apie naujus laiškelius"
+              accessibilityLabel={t.remindersLabel}
               accessibilityRole="switch"
             />
           </View>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Pagalba</Text>
+          <Text style={s.sectionTitle}>{t.helpSectionTitle}</Text>
           <TouchableOpacity
             style={[s.settingItem, { marginBottom: 0 }]}
             onPress={() => {
               resetTutorial();
-              Alert.alert("Gerai", "Patarimai vėl pasirodys, kai atidarysi atitinkamus ekranus.");
+              Alert.alert(t.resetTutorialDoneTitle, t.resetTutorialDoneBody);
             }}
             accessibilityRole="button"
-            accessibilityLabel="Rodyti patarimus iš naujo"
+            accessibilityLabel={t.resetTutorialLabel}
           >
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Rodyti patarimus iš naujo</Text>
-              <Text style={s.settingDesc}>Grąžina visus paaiškinimus, kuriuos jau uždarei</Text>
+              <Text style={s.settingLabel}>{t.resetTutorialLabel}</Text>
+              <Text style={s.settingDesc}>{t.resetTutorialDesc}</Text>
             </View>
             <Ionicons name="refresh" size={20} color={colors.subtext} />
           </TouchableOpacity>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Pritaikymas</Text>
+          <Text style={s.sectionTitle}>{t.accessibilitySectionTitle}</Text>
           <TouchableOpacity
             style={[s.settingItem, { marginBottom: 0 }]}
             onPress={() => router.push("/accessibility" as any)}
             accessibilityRole="button"
-            accessibilityLabel="Pritaikymo neįgaliesiems nustatymai"
+            accessibilityLabel={t.accessibilityLabel}
           >
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Pritaikymas neįgaliesiems</Text>
-              <Text style={s.settingDesc}>Animacijos, kontrastas</Text>
+              <Text style={s.settingLabel}>{t.accessibilityLabel}</Text>
+              <Text style={s.settingDesc}>{t.accessibilityDesc}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Paskyra</Text>
+          <Text style={s.sectionTitle}>{t.accountSectionTitle}</Text>
           <TouchableOpacity
             style={s.settingItem}
             onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
             accessibilityRole="button"
-            accessibilityLabel="Privatumo politika"
+            accessibilityLabel={t.privacyPolicyLabel}
           >
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Privatumo politika</Text>
+              <Text style={s.settingLabel}>{t.privacyPolicyLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
@@ -273,16 +340,16 @@ export default function SettingsScreen() {
             style={s.settingItem}
             onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
             accessibilityRole="button"
-            accessibilityLabel="Naudojimo sąlygos"
+            accessibilityLabel={t.termsLabel}
           >
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Naudojimo sąlygos</Text>
+              <Text style={s.settingLabel}>{t.termsLabel}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.subtext} />
           </TouchableOpacity>
           <View style={s.settingItem}>
             <View style={s.settingContent}>
-              <Text style={s.settingLabel}>Laiškelio versija</Text>
+              <Text style={s.settingLabel}>{t.versionLabel}</Text>
             </View>
             <Text style={s.versionText}>{APP_VERSION}</Text>
           </View>
@@ -291,13 +358,13 @@ export default function SettingsScreen() {
             onPress={handleDeleteAccount}
             disabled={deleting}
             accessibilityRole="button"
-            accessibilityLabel="Ištrinti paskyrą"
+            accessibilityLabel={t.deleteAccountLabel}
           >
             <View style={s.settingContent}>
               <Text style={[s.settingLabel, s.dangerText]}>
-                {deleting ? "Trinama..." : "Ištrinti paskyrą"}
+                {deleting ? t.deleteAccountDeleting : t.deleteAccountLabel}
               </Text>
-              <Text style={s.settingDesc}>Visam laikui ištrina paskyrą, laiškelius, pokalbius ir žinutes</Text>
+              <Text style={s.settingDesc}>{t.deleteAccountDesc}</Text>
             </View>
             <Ionicons name="trash-outline" size={20} color={colors.red} />
           </TouchableOpacity>
@@ -346,5 +413,36 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     dangerText: { color: colors.red },
     settingDesc: { fontSize: 13, color: colors.subtext, marginTop: 4 },
     versionText: { fontSize: 14, color: colors.subtext },
+    langToggle: {
+      flexDirection: "row",
+      flex: 1,
+      backgroundColor: colors.bg,
+      borderRadius: 10,
+      padding: LANG_TOGGLE_PAD,
+      gap: LANG_TOGGLE_GAP,
+      position: "relative",
+    },
+    langHighlight: {
+      position: "absolute",
+      top: LANG_TOGGLE_PAD,
+      bottom: LANG_TOGGLE_PAD,
+      left: LANG_TOGGLE_PAD,
+      borderRadius: 8,
+      backgroundColor: colors.accent,
+    },
+    langOption: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    langOptionText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.subtext,
+    },
+    langOptionTextActive: {
+      color: colors.accentText,
+    },
   });
 }

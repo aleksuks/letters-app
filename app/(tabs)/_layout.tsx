@@ -12,6 +12,8 @@ import {
 } from "react-native-reanimated";
 import { AnimatedTabBar } from "@/components/tab-bar";
 import { useAccessibility } from "@/contexts/accessibility";
+import { useStrings } from "@/lib/i18n";
+import { tabsStrings } from "@/lib/i18n/strings/tabs";
 import {
   TAB_TRANSITION_BLUR,
   TAB_TRANSITION_DURATION,
@@ -24,6 +26,7 @@ import {
 export default function TabLayout() {
   const { width } = useWindowDimensions();
   const { reducedMotion } = useAccessibility();
+  const t = useStrings(tabsStrings);
 
   const position = useSharedValue(0);
   const blurIntensity = useSharedValue(0);
@@ -122,7 +125,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "Kapinės",
+            title: t.obituary,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="book-outline" size={size} color={color} />
             ),
@@ -131,7 +134,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="letters"
           options={{
-            title: "Laiškeliai",
+            title: t.letters,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="mail-outline" size={size} color={color} />
             ),
@@ -140,7 +143,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="map"
           options={{
-            title: "Žemėlapis",
+            title: t.map,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="map-outline" size={size} color={color} />
             ),
@@ -149,7 +152,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="conversations"
           options={{
-            title: "Pokalbiai",
+            title: t.conversations,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="chatbubbles-outline" size={size} color={color} />
             ),
@@ -158,7 +161,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
-            title: "Profilis",
+            title: t.profile,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="person" size={size} color={color} />
             ),

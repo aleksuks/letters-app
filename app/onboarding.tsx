@@ -12,6 +12,8 @@ import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { AvatarPickerGrid } from "@/components/avatar-picker-grid";
 import { randomAvatarEmoji } from "@/lib/avatars";
+import { useStrings } from "@/lib/i18n";
+import { onboardingStrings } from "@/lib/i18n/strings/onboarding";
 
 const PRIVACY_POLICY_URL = "https://aleksuks.github.io/letters-app/privacy.html";
 const TERMS_OF_SERVICE_URL = "https://aleksuks.github.io/letters-app/terms.html";
@@ -21,6 +23,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const t = useStrings(onboardingStrings);
   const s = makeStyles(colors);
   const [nickname, setNickname] = useState("");
   const [avatarEmoji, setAvatarEmoji] = useState(randomAvatarEmoji);
@@ -34,11 +37,11 @@ export default function OnboardingScreen() {
     if (!user) return;
     if (!canProceed) {
       if (nickname.trim().length < 2) {
-        Alert.alert("Trūksta slapyvardžio", "Įvesk bent 2 simbolių slapyvardį.");
+        Alert.alert(t.missingNicknameTitle, t.missingNicknameBody);
       } else if (!ageConfirmed) {
-        Alert.alert("Trūksta patvirtinimo", "Patvirtink, jog esi pilnametis.");
+        Alert.alert(t.missingAgeTitle, t.missingAgeBody);
       } else if (!termsAccepted) {
-        Alert.alert("Trūksta sutikimo", "Sutik su naudojimo sąlygomis ir privatumo politika.");
+        Alert.alert(t.missingTermsTitle, t.missingTermsBody);
       }
       return;
     }
@@ -54,18 +57,18 @@ export default function OnboardingScreen() {
 
       if (error) {
         if (error.code === "23505") {
-          Alert.alert("Vartotojo vardas užimtas", "Pabandyk kitą.");
+          Alert.alert(t.nicknameTakenTitle, t.nicknameTakenBody);
         } else if (error.message.includes("nickname_rejected_script")) {
           // Migration 040 — a Cyrillic nickname is the app's easiest
           // impersonation vector, since it's the only identity others see.
           Alert.alert(
-            "Netinkamas slapyvardis",
-            "Slapyvardį galima rašyti tik lotyniškomis raidėmis. Pasirink kitą."
+            t.invalidNicknameScriptTitle,
+            t.invalidNicknameScriptBody
           );
         } else if (error.message.includes("nickname_rejected_moderation")) {
           Alert.alert(
-            "Netinkamas slapyvardis",
-            "Šis slapyvardis per daug įžeidžiantis. Pasirink kitą."
+            t.invalidNicknameModerationTitle,
+            t.invalidNicknameModerationBody
           );
         } else {
           throw error;
@@ -75,7 +78,7 @@ export default function OnboardingScreen() {
 
       router.replace("/(tabs)");
     } catch (e) {
-      Alert.alert("Klaida", (e as Error).message);
+      Alert.alert(t.errorTitle, (e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -85,35 +88,35 @@ export default function OnboardingScreen() {
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView
         style={s.keyboardAvoider}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
       <ScrollView
         style={s.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={s.title}>Sveiki :)</Text>
+        <Text style={s.title}>{t.title}</Text>
         <Text style={s.subtitle}>
-          Laiškelis yra galimybė pasakyti kažką asmeniško, kažkam, ko (gal) niekada nesutiksi.
+          {t.subtitle}
         </Text>
 
         <View style={s.field}>
-          <Text style={s.label}>Pasirink slapyvardį</Text>
+          <Text style={s.label}>{t.nicknameLabel}</Text>
           <TextInput
             style={s.input}
             value={nickname}
             onChangeText={setNickname}
-            placeholder="pvz. rasytojas67"
+            placeholder={t.nicknamePlaceholder}
             placeholderTextColor={colors.subtext}
             autoCapitalize="none"
             autoCorrect={false}
             maxLength={32}
           />
-          <Text style={s.hint}>Tai vienintelis vardas kurį matys kiti - tikro nereikia.</Text>
+          <Text style={s.hint}>{t.nicknameHint}</Text>
         </View>
 
         <View style={s.field}>
-          <Text style={s.label}>Pasirink avatarą</Text>
+          <Text style={s.label}>{t.avatarLabel}</Text>
           <AvatarPickerGrid selected={avatarEmoji} onSelect={setAvatarEmoji} />
         </View>
 
@@ -126,7 +129,7 @@ export default function OnboardingScreen() {
           <View style={[s.checkBox, ageConfirmed && s.checkBoxChecked]}>
             {ageConfirmed && <Text style={s.checkMark}>✓</Text>}
           </View>
-          <Text style={s.checkLabel}>Patvirtinu, jog esu pilnametis.</Text>
+          <Text style={s.checkLabel}>{t.ageConfirmLabel}</Text>
         </TouchableOpacity>
 
         <View style={s.checkboxMulti}>
@@ -140,13 +143,13 @@ export default function OnboardingScreen() {
             </View>
           </TouchableOpacity>
           <Text style={[s.checkLabel, s.checkLabelMulti]}>
-            Sutinku su{" "}
+            {t.termsPrefix}{" "}
             <Text style={s.link} onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}>
-              naudojimo sąlygomis
+              {t.termsLink}
             </Text>
-            {" "}ir{" "}
+            {" "}{t.termsMiddle}{" "}
             <Text style={s.link} onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}>
-              privatumo politika
+              {t.privacyLink}
             </Text>.
           </Text>
         </View>
@@ -161,7 +164,7 @@ export default function OnboardingScreen() {
           {loading ? (
             <ActivityIndicator color={colors.accentText} />
           ) : (
-            <Text style={s.buttonText}>Baigiau</Text>
+            <Text style={s.buttonText}>{t.finish}</Text>
           )}
         </TouchableOpacity>
       </View>

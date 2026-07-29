@@ -18,9 +18,13 @@ import { buildMapHtml, type MapHtmlLetter } from "@/lib/map-html";
 import { searchPlaces, type PlaceMatch } from "@/lib/place-search";
 import * as Haptics from "@/lib/haptics";
 import type { MapLetterWithNickname } from "@/types";
+import { useStrings } from "@/lib/i18n";
+import { common } from "@/lib/i18n/strings/common";
+import { mapStrings } from "@/lib/i18n/strings/map";
 
 type WebMessage =
   | { type: "ready" }
+  | { type: "contextLost" }
   | { type: "letterTap"; id: string; openRequest?: boolean }
   | { type: "likeTap"; id: string }
   | { type: "placePick"; lat: number; lng: number };
@@ -44,6 +48,8 @@ export default function MapScreen() {
   // The letters live in a ref (not state) because their only consumer is the
   // WebView injection below — re-rendering the RN tree for them is wasted.
   const lettersRef = useRef<MapLetterWithNickname[]>([]);
+  const t = useStrings(mapStrings);
+  const c = useStrings(common);
 
   // The map is full-bleed (no SafeAreaView — the map itself should reach
   // the screen edges), so floating overlays clear the notch/status bar
@@ -53,9 +59,9 @@ export default function MapScreen() {
   const s = makeStyles(colors);
 
   // Rebuilding the HTML would reload the whole map, so it's frozen for the
-  // screen's lifetime; a theme change applies on next mount.
+  // screen's lifetime; a theme or language change applies on next mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const html = useMemo(() => buildMapHtml(colors), []);
+  const html = useMemo(() => buildMapHtml(colors, { cardReadMore: t.cardReadMore, cardHasDrawingLabel: t.cardHasDrawingLabel }), []);
 
   const pushLetters = useCallback(() => {
     if (!webRef.current) return;
@@ -119,10 +125,19 @@ export default function MapScreen() {
     armReadyTimeout();
   }
 
-  function handleWebProcessCrash() {
-    // iOS WKWebView content process / Android renderer process died —
-    // usually a rare memory-pressure eviction, not a coding error. The
-    // WebView survives but shows blank; only an explicit reload recovers.
+  function recoverDeadWebView() {
+    // Covers three distinct ways the WebView ends up permanently blank
+    // without the "ready" watchdog ever getting a chance to catch it —
+    // it only guards the *initial* boot, and since this tab's WebView is
+    // never unmounted (components/tab-pager.tsx keeps every tab mounted
+    // for the app's whole life) there's no second boot to watch:
+    //   - iOS WKWebView content process died (memory-pressure eviction)
+    //   - Android renderer process died
+    //   - the canvas's WebGL context was lost (GPU pressure, long
+    //     backgrounding) without the WebView process itself dying —
+    //     reported proactively by lib/map-html.ts's "contextLost" message
+    // In every case the WebView survives but shows blank; only an
+    // explicit reload gets a fresh process/GL context.
     setWebReady(false);
     webRef.current?.reload();
   }
@@ -138,6 +153,8 @@ export default function MapScreen() {
       if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
       setWebReady(true);
       pushLetters();
+    } else if (msg.type === "contextLost") {
+      recoverDeadWebView();
     } else if (msg.type === "letterTap") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push({
@@ -218,12 +235,12 @@ export default function MapScreen() {
         // the product deliberately does not have), not a labelling fix.
         accessible
         accessibilityRole="image"
-        accessibilityLabel="Lietuvos žemėlapis su laiškeliais"
-        accessibilityHint="Žemėlapio turinys nepasiekiamas ekrano skaitytuvui. Naudok vietos paiešką, kad pereitum prie miesto."
+        accessibilityLabel={t.mapAccessibilityLabel}
+        accessibilityHint={t.mapAccessibilityHint}
         onMessage={handleMessage}
         onLoadStart={handleWebLoadStart}
-        onContentProcessDidTerminate={handleWebProcessCrash}
-        onRenderProcessGone={handleWebProcessCrash}
+        onContentProcessDidTerminate={recoverDeadWebView}
+        onRenderProcessGone={recoverDeadWebView}
         // Subresources (Leaflet CDN, tiles) don't go through this — only
         // top-frame navigations do. The initial html-string load is
         // about:blank/data:, so blocking http(s) here only stops taps on
@@ -244,7 +261,7 @@ export default function MapScreen() {
       {!placeMode && !searchOpen && (
         <TutorialTip
           id="map_intro_v2"
-          text="Čia išdėlioti laiškeliai, kurie ieško savo gavėjo konkrečioje vietoje, galbūt ten sutiktam žmogui, o galbūt įspėti būsimus. Gali pasižvalgyti, o patikusiems uždėti širdutę. Jei manai, kad laiškelis tau, gali su rašytoju susisiekti."
+          text={t.tutorialIntro}
           style={{ ...s.tip, top: overlayTop, right: 56 }}
         />
       )}
@@ -256,7 +273,7 @@ export default function MapScreen() {
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Ieškoti vietos žemėlapyje"
+          accessibilityLabel={t.searchButtonLabel}
         >
           <Ionicons name="search" size={19} color={colors.text} />
         </TouchableOpacity>
@@ -274,7 +291,7 @@ export default function MapScreen() {
               style={s.searchInput}
               value={query}
               onChangeText={setQuery}
-              placeholder="Miestas, miestelis, kaimas..."
+              placeholder={t.searchPlaceholder}
               placeholderTextColor={colors.subtext}
               autoFocus
               autoCorrect={false}
@@ -284,7 +301,7 @@ export default function MapScreen() {
               onPress={closeSearch}
               hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
               accessibilityRole="button"
-              accessibilityLabel="Uždaryti paiešką"
+              accessibilityLabel={t.closeSearchLabel}
             >
               <Ionicons name="close" size={20} color={colors.subtext} />
             </TouchableOpacity>
@@ -293,7 +310,7 @@ export default function MapScreen() {
           {query.trim().length >= 2 && (
             <View style={s.searchResults}>
               {results.length === 0 ? (
-                <Text style={s.searchEmpty}>Vietų nerasta</Text>
+                <Text style={s.searchEmpty}>{t.searchEmpty}</Text>
               ) : (
                 <FlatList
                   data={results}
@@ -320,14 +337,14 @@ export default function MapScreen() {
         <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={[s.placeBanner, { top: overlayTop }]}>
           <Text style={s.placeBannerText}>
             {picked
-              ? "Vieta pažymėta — rašyk laiškelį"
-              : "Bakstelėk vietą, kurioje nori palikti laiškelį"}
+              ? t.placePickedText
+              : t.placePendingText}
           </Text>
           <TouchableOpacity
             onPress={cancelPlacing}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
             accessibilityRole="button"
-            accessibilityLabel="Atšaukti"
+            accessibilityLabel={c.cancel}
           >
             <Ionicons name="close" size={22} color={colors.text} />
           </TouchableOpacity>
@@ -342,7 +359,7 @@ export default function MapScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="create-outline" size={20} color={colors.accentText} />
-            <Text style={s.fabText}>Rašyti čia</Text>
+            <Text style={s.fabText}>{t.writeHereButton}</Text>
           </TouchableOpacity>
         </Animated.View>
       ) : !placeMode ? (
@@ -353,7 +370,7 @@ export default function MapScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="location-outline" size={20} color={colors.accentText} />
-            <Text style={s.fabText}>Palikti laiškelį</Text>
+            <Text style={s.fabText}>{t.leaveLetterButton}</Text>
           </TouchableOpacity>
         </View>
       ) : null}

@@ -16,6 +16,9 @@ import { EnvelopeLetter } from "@/components/envelope-letter";
 import { DrawingCanvas } from "@/components/drawing-canvas";
 import { Drawing, emptyDrawing, isDrawingEmpty } from "@/lib/drawing";
 import * as Haptics from "@/lib/haptics";
+import { useStrings, format } from "@/lib/i18n";
+import { mapWriteStrings } from "@/lib/i18n/strings/map-write";
+import { common } from "@/lib/i18n/strings/common";
 
 const MAX_LENGTH = 600;
 
@@ -30,6 +33,8 @@ export default function MapWriteScreen() {
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
   const params = useLocalSearchParams<{ lat: string; lng: string }>();
+  const t = useStrings(mapWriteStrings);
+  const tc = useStrings(common);
   const [body, setBody] = useState("");
   const [drawing, setDrawing] = useState<Drawing>(emptyDrawing);
   const [drawingOpen, setDrawingOpen] = useState(false);
@@ -61,7 +66,7 @@ export default function MapWriteScreen() {
     setFolding(false);
     if (letterId) {
       const { error } = await supabase.from("map_letters").delete().eq("id", letterId);
-      if (error) Alert.alert("Klaida", error.message);
+      if (error) Alert.alert(tc.error, error.message);
     }
   }
 
@@ -93,23 +98,17 @@ export default function MapWriteScreen() {
       const message = (e as Error).message ?? "";
       // Same script gate as pool letters (migration 040).
       if (message.includes("letter_rejected_script")) {
-        Alert.alert(
-          "Laiškelis nepaliktas",
-          "Laiškelius galima rašyti tik lotyniškomis raidėmis. Perrašyk laiškelį lietuviškai ir pabandyk dar kartą."
-        );
+        Alert.alert(t.rejectedTitle, t.scriptRejectedBody);
       }
       // Same link gate as pool letters (migration 042).
       else if (message.includes("letter_rejected_link")) {
-        Alert.alert("Laiškelis nepaliktas", "Be šansų seni.");
+        Alert.alert(t.rejectedTitle, t.linkRejectedBody);
       }
       // Same keyword gate as pool letters (migration 007, reused in 031).
       else if (message.includes("letter_rejected_moderation")) {
-        Alert.alert(
-          "Laiškelis nepaliktas",
-          "Tavo laiškelyje per daug įžeidžiančios kalbos. Stipresnė kalba nieko tokio, bet šiuo atveju truputį persistengta, ir toks laiškelis čia būti negalės. Pabandyk perrašyti."
-        );
+        Alert.alert(t.rejectedTitle, t.moderationRejectedBody);
       } else {
-        Alert.alert("Klaida", message);
+        Alert.alert(tc.error, message);
       }
     } finally {
       setLoading(false);
@@ -124,17 +123,17 @@ export default function MapWriteScreen() {
             onPress={() => router.back()}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
             accessibilityRole="button"
-            accessibilityLabel="Uždaryti"
+            accessibilityLabel={t.close}
           >
             <Ionicons name="close" size={28} color={colors.text} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Palikti laiškelį čia</Text>
+          <Text style={s.headerTitle}>{t.headerTitle}</Text>
           <TouchableOpacity
             style={[s.sendButton, largeTouchTargets && s.sendButtonLarge, (!canSubmit || loading) && s.sendButtonDisabled]}
             onPress={handleSubmit}
             disabled={!canSubmit || loading}
           >
-            <Text style={s.sendButtonText}>Palikti</Text>
+            <Text style={s.sendButtonText}>{t.sendButton}</Text>
           </TouchableOpacity>
         </View>
 
@@ -146,7 +145,7 @@ export default function MapWriteScreen() {
             <View style={s.placeNote}>
               <Ionicons name="location" size={16} color={colors.accent} />
               <Text style={s.placeNoteText}>
-                Laiškelis gulės pažymėtoje vietoje 30 dienų — galbūt jį ras tas, kam jis skirtas.
+                {t.placeNote}
               </Text>
             </View>
 
@@ -154,7 +153,7 @@ export default function MapWriteScreen() {
               style={s.input}
               value={body}
               onChangeText={setBody}
-              placeholder="Tau, kurį čia sutikau..."
+              placeholder={t.placeholder}
               placeholderTextColor={colors.subtext}
               multiline
               autoFocus
@@ -163,7 +162,7 @@ export default function MapWriteScreen() {
             />
 
             <Text style={[s.counter, remaining < 60 && s.counterWarning]}>
-              liko {remaining} simbolių
+              {format(t.counter, { remaining })}
             </Text>
 
             {!drawingOpen ? (
@@ -179,12 +178,12 @@ export default function MapWriteScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={s.drawToggleIcon}>🖍️</Text>
-                <Text style={s.drawToggleText}>Pridėti piešinį</Text>
+                <Text style={s.drawToggleText}>{t.drawToggle}</Text>
               </TouchableOpacity>
             ) : (
               <View style={s.drawSection}>
                 <View style={s.drawHeader}>
-                  <Text style={s.drawTitle}>Piešinys</Text>
+                  <Text style={s.drawTitle}>{t.drawTitle}</Text>
                   <TouchableOpacity
                     onPress={() => {
                       setDrawing(emptyDrawing());
@@ -192,7 +191,7 @@ export default function MapWriteScreen() {
                     }}
                     hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
                   >
-                    <Text style={s.drawRemove}>Pašalinti</Text>
+                    <Text style={s.drawRemove}>{t.drawRemove}</Text>
                   </TouchableOpacity>
                 </View>
                 <DrawingCanvas value={drawing} onChange={setDrawing} />
@@ -212,7 +211,7 @@ export default function MapWriteScreen() {
             />
             {folding ? (
               <Animated.Text entering={FadeIn.duration(300)} style={s.sendCaption}>
-                Tavo laiškelis liko gulėti šioje vietoje…
+                {t.sendCaption}
               </Animated.Text>
             ) : (
               <TouchableOpacity
@@ -220,7 +219,7 @@ export default function MapWriteScreen() {
                 onPress={handleCancelSend}
                 activeOpacity={0.7}
               >
-                <Text style={s.sendCancelText}>Atšaukti</Text>
+                <Text style={s.sendCancelText}>{t.sendCancel}</Text>
               </TouchableOpacity>
             )}
           </Animated.View>

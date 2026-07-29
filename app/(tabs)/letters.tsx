@@ -21,6 +21,9 @@ import { TutorialTip } from "@/components/tutorial-tip";
 import { FlyingLetter } from "@/components/flying-letter";
 import { DrawingView } from "@/components/drawing-view";
 import { Letter } from "@/types";
+import { useStrings, format } from "@/lib/i18n";
+import { common } from "@/lib/i18n/strings/common";
+import { lettersStrings } from "@/lib/i18n/strings/letters";
 
 export default function LettersScreen() {
   const router = useRouter();
@@ -30,6 +33,8 @@ export default function LettersScreen() {
   const [myLetters, setMyLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const t = useStrings(lettersStrings);
+  const c = useStrings(common);
 
   const s = makeStyles(colors);
 
@@ -70,17 +75,17 @@ export default function LettersScreen() {
 
   function handleDelete(letter: Letter) {
     Alert.alert(
-      "Ištrinti laiškelį?",
-      "Šio veiksmo atšaukti negalėsi.",
+      t.deleteConfirmTitle,
+      t.deleteConfirmBody,
       [
-        { text: "Atšaukti", style: "cancel" },
+        { text: c.cancel, style: "cancel" },
         {
-          text: "Ištrinti",
+          text: c.delete,
           style: "destructive",
           onPress: async () => {
             const { error } = await supabase.from("letters").delete().eq("id", letter.id);
             if (error) {
-              Alert.alert("Klaida", error.message);
+              Alert.alert(c.error, error.message);
               return;
             }
             setMyLetters((prev) => prev.filter((l) => l.id !== letter.id));
@@ -105,9 +110,9 @@ export default function LettersScreen() {
   }
 
   function statusLabel(letter: Letter) {
-    if (letter.status === "active") return `jam liko ${daysLeft(letter.expires_at)} d.`;
-    if (letter.status === "expired") return "nebegaliojantis";
-    return "ištrintas moderatoriaus";
+    if (letter.status === "active") return format(t.statusActive, { days: daysLeft(letter.expires_at) });
+    if (letter.status === "expired") return t.statusExpired;
+    return t.statusRemoved;
   }
 
   return (
@@ -117,11 +122,11 @@ export default function LettersScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View>
-            <Text style={s.title}>Laiškeliai</Text>
+            <Text style={s.title}>{t.title}</Text>
 
             <TutorialTip
               id="letters_intro"
-              text="Čia gali parašyti arba gauti laiškelį iš atsitiktinio žmogaus."
+              text={t.tutorialIntro}
             />
 
             <View style={s.actions}>
@@ -132,7 +137,7 @@ export default function LettersScreen() {
               >
                 <Ionicons name="create-outline" size={largeTouchTargets ? 26 : 22} color={colors.accentText} />
                 <Text style={[s.primaryButtonText, largeTouchTargets && LARGE_BUTTON_TEXT]}>
-                  Parašyti laiškelį
+                  {t.writeButton}
                 </Text>
               </TouchableOpacity>
 
@@ -143,18 +148,18 @@ export default function LettersScreen() {
               >
                 <Ionicons name="mail-open-outline" size={largeTouchTargets ? 26 : 22} color={colors.accent} />
                 <Text style={[s.secondaryButtonText, largeTouchTargets && LARGE_BUTTON_TEXT]}>
-                  Gauti laiškelį
+                  {t.receiveButton}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={s.sectionTitle}>Mano laiškeliai</Text>
+            <Text style={s.sectionTitle}>{t.myLettersSectionTitle}</Text>
 
             {loading && (
               <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />
             )}
             {!loading && myLetters.length === 0 && (
-              <Text style={s.empty}>Kol kas nieko neparašei.</Text>
+              <Text style={s.empty}>{t.emptyText}</Text>
             )}
           </View>
         }
@@ -183,7 +188,7 @@ export default function LettersScreen() {
                     onPress={() => router.push(`/letter-grave?id=${item.id}` as any)}
                     hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
                     style={s.graveBtn}
-                    accessibilityLabel="Peržiūrėti laiškelio kapą"
+                    accessibilityLabel={t.viewGraveLabel}
                   >
                     <Text style={s.graveIcon}>🪦</Text>
                   </TouchableOpacity>
@@ -196,7 +201,7 @@ export default function LettersScreen() {
                     onPress={() => router.push(`/letter-flight?id=${item.id}` as any)}
                     hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
                     style={s.graveBtn}
-                    accessibilityLabel="Peržiūrėti keliaujantį laiškelį"
+                    accessibilityLabel={t.viewFlightLabel}
                   >
                     <FlyingLetter size={18} />
                   </TouchableOpacity>
@@ -206,7 +211,7 @@ export default function LettersScreen() {
                   hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
                   style={s.deleteBtn}
                   accessibilityRole="button"
-                  accessibilityLabel="Ištrinti laiškelį"
+                  accessibilityLabel={t.deleteLetterLabel}
                 >
                   <Ionicons name="trash-outline" size={18} color={colors.subtext} />
                 </TouchableOpacity>
@@ -224,11 +229,11 @@ export default function LettersScreen() {
                 letters too — no toggle here, you can't afterlike your own. */}
             <View style={s.heartStats}>
               <View style={s.metaCountRow}>
-                <Text style={s.metaCountLabel}>surinko beskraidant:</Text>
+                <Text style={s.metaCountLabel}>{t.statLikesFlying}</Text>
                 <Text style={s.heartText}>❤ {item.like_count}</Text>
               </View>
               <View style={s.metaCountRow}>
-                <Text style={s.metaCountLabel}>surinko patekus į kapines:</Text>
+                <Text style={s.metaCountLabel}>{t.statLikesGrave}</Text>
                 <Text style={s.heartText}>❤ {item.after_like_count}</Text>
               </View>
             </View>

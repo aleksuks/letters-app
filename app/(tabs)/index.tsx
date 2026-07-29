@@ -5,7 +5,7 @@ import { Letter } from "@/types";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { WelcomeLetter } from "@/components/welcome-letter";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -27,6 +27,8 @@ import Animated, {
 import { TabPage } from "@/components/tab-pager";
 import { DoubleTapLike } from "@/components/double-tap-like";
 import { DrawingView } from "@/components/drawing-view";
+import { useStrings, format } from "@/lib/i18n";
+import { homeStrings } from "@/lib/i18n/strings/home";
 
 type ObituaryLetter = Letter & { author: { nickname: string } | null };
 type SortMode = "popular" | "recent" | "original";
@@ -54,12 +56,15 @@ const PERIOD_DAYS: Partial<Record<PopularPeriod, number>> = {
   week: 7,
 };
 
-const SORT_OPTIONS: SortOption[] = [
-  { key: "popular_all", sort: "popular", period: "all", label: "Populiariausi (visų laikų)" },
-  { key: "popular_month", sort: "popular", period: "month", label: "Populiariausi (šį mėnesį)" },
-  { key: "popular_week", sort: "popular", period: "week", label: "Populiariausi (šią savaitę)" },
-  { key: "recent", sort: "recent", period: "all", label: "Naujausi" },
-  { key: "original", sort: "original", period: "all", label: "Daugiausiai surinkę dar beskraidant" },
+// Labels come from homeStrings (t.sortPopularAll etc.) so they can be
+// translated — SORT_META below stays language-agnostic and lives at module
+// scope; the labelled SORT_OPTIONS array is built inside the component.
+const SORT_META: Omit<SortOption, "label">[] = [
+  { key: "popular_all", sort: "popular", period: "all" },
+  { key: "popular_month", sort: "popular", period: "month" },
+  { key: "popular_week", sort: "popular", period: "week" },
+  { key: "recent", sort: "recent", period: "all" },
+  { key: "original", sort: "original", period: "all" },
 ];
 
 const ITEM_HEIGHT = 60;
@@ -76,9 +81,21 @@ export default function HomeScreen() {
   const { largeTouchTargets } = useAccessibility();
   const s = makeStyles(colors);
   const itemHeight = largeTouchTargets ? ITEM_HEIGHT_LARGE : ITEM_HEIGHT;
+  const t = useStrings(homeStrings);
+
+  const SORT_OPTIONS: SortOption[] = useMemo(() => {
+    const LABELS: Record<string, string> = {
+      popular_all: t.sortPopularAll,
+      popular_month: t.sortPopularMonth,
+      popular_week: t.sortPopularWeek,
+      recent: t.sortRecent,
+      original: t.sortOriginal,
+    };
+    return SORT_META.map((option) => ({ ...option, label: LABELS[option.key] }));
+  }, [t]);
 
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const [sortKey, setSortKey] = useState<string>(SORT_OPTIONS[0].key);
+  const [sortKey, setSortKey] = useState<string>(SORT_META[0].key);
   const sortOption = SORT_OPTIONS.find((o) => o.key === sortKey) ?? SORT_OPTIONS[0];
   const [sortMenuVisible, setSortMenuVisible] = useState(false);
   const backdropOpacity = useSharedValue(0);
@@ -163,7 +180,7 @@ export default function HomeScreen() {
     setSortMenuVisible(true);
     backdropOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
     sheetY.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) });
-  }, [sortKey, itemHeight, windowHeight, indicatorY, sheetY, backdropOpacity]);
+  }, [sortKey, itemHeight, windowHeight, indicatorY, sheetY, backdropOpacity, SORT_OPTIONS]);
 
   const closeSortMenu = useCallback(() => {
     backdropOpacity.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.cubic) });
@@ -186,7 +203,7 @@ export default function HomeScreen() {
         if (finished) runOnJS(setSortMenuVisible)(false);
       }
     );
-  }, [itemHeight, windowHeight, indicatorY, backdropOpacity, sheetY]);
+  }, [itemHeight, windowHeight, indicatorY, backdropOpacity, sheetY, SORT_OPTIONS]);
 
   const dragGesture = Gesture.Pan()
     .onUpdate((e) => {
@@ -218,12 +235,12 @@ export default function HomeScreen() {
         contentContainerStyle={s.list}
         ListHeaderComponent={
           <View>
-            <Text style={s.title}>Kapinės</Text>
-            <Text style={s.subtitle}>Šiems laiškeliams kelionė jau baigta.</Text>
+            <Text style={s.title}>{t.title}</Text>
+            <Text style={s.subtitle}>{t.subtitle}</Text>
 
             <TutorialTip
               id="obituary_intro_v2"
-              text="Čia ilsisi laiškeliai, kurių kelionė jau baigta. Laiškeliai nustoja keliauti, kai juos išbalsuoja arba praėjus savaitei. Dukart bakstelėk laiškelį — paliksi jam širdelę."
+              text={t.tutorialIntro}
             />
 
             <TouchableOpacity
@@ -237,8 +254,8 @@ export default function HomeScreen() {
             {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: 24 }} />}
             {!loading && letters.length === 0 && (
               <View style={s.empty}>
-                <Text style={s.emptyText}>Kol kas jokių laiškelių.</Text>
-                <Text style={s.emptyHint}>Seni arba nepatikę laiškeliai bus čia.</Text>
+                <Text style={s.emptyText}>{t.emptyText}</Text>
+                <Text style={s.emptyHint}>{t.emptyHint}</Text>
               </View>
             )}
           </View>
@@ -262,11 +279,11 @@ export default function HomeScreen() {
               <View style={s.cardMeta}>
                 <View style={s.cardMetaLeft}>
                   <Text style={s.cardAuthor} numberOfLines={1}>
-                    {item.author?.nickname ?? "nežinomas"}
+                    {item.author?.nickname ?? t.unknownAuthor}
                   </Text>
                   {lived !== null && (
                     <Text style={s.metaText}>
-                      {lived === 0 ? "gyveno < 1 d." : `gyveno ${lived} d.`}
+                      {lived === 0 ? t.livedLessThanDay : format(t.livedDays, { days: lived })}
                     </Text>
                   )}
                 </View>
@@ -277,16 +294,16 @@ export default function HomeScreen() {
                     four facts in two columns rather than a row of icons. */}
                 <View style={s.cardMetaRight}>
                   <View style={s.metaCountRow}>
-                    <Text style={s.metaCountLabel}>surinko beskraidant:</Text>
+                    <Text style={s.metaCountLabel}>{t.statLikesFlying}</Text>
                     <Text style={s.heartText}>❤ {item.like_count}</Text>
                   </View>
                   <TouchableOpacity
                     style={[s.metaCountRow, s.afterLikeButton, largeTouchTargets && s.afterLikeButtonLarge]}
                     onPress={() => toggleAfterLike(item.id)}
                     hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 6}
-                    accessibilityLabel={given ? "Atšaukti širdelę po mirties" : "Skirti širdelę po mirties"}
+                    accessibilityLabel={given ? t.afterLikeUndo : t.afterLikeGive}
                   >
-                    <Text style={s.metaCountLabel}>surinko patekus į kapines:</Text>
+                    <Text style={s.metaCountLabel}>{t.statLikesGrave}</Text>
                     <Text style={s.heartText}>{given ? "❤" : "🤍"} {item.after_like_count}</Text>
                   </TouchableOpacity>
                 </View>
@@ -301,7 +318,7 @@ export default function HomeScreen() {
             style={StyleSheet.absoluteFillObject}
             onPress={closeSortMenu}
             accessibilityRole="button"
-            accessibilityLabel="Uždaryti rikiavimo meniu"
+            accessibilityLabel={t.closeSortMenu}
           />
           <Animated.View style={[s.sortMenu, sheetStyle]}>
             <GestureDetector gesture={dragGesture}>

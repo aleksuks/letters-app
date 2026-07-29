@@ -7,11 +7,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useStrings, format } from "@/lib/i18n";
+import { signInStrings } from "@/lib/i18n/strings/sign-in";
 
 export default function SignInScreen() {
   const { signInWithEmail, signUpWithEmail, sendPasswordReset } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const t = useStrings(signInStrings);
   const s = makeStyles(colors);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,12 +33,9 @@ export default function SignInScreen() {
       setLoading(false);
       if (error) {
         if (error.message === "account_already_registered") {
-          Alert.alert(
-            "Paskyra jau egzistuoja",
-            "Su šiuo el. paštu jau yra sukurta paskyra. Prisijunkite arba atkurkite slaptažodį."
-          );
+          Alert.alert(t.accountExistsTitle, t.accountExistsBody);
         } else {
-          Alert.alert("Klaida", error.message);
+          Alert.alert(t.errorTitle, error.message);
         }
       } else {
         setAwaitingConfirmation(true);
@@ -43,7 +43,7 @@ export default function SignInScreen() {
     } else {
       const { error } = await signInWithEmail(email, password);
       setLoading(false);
-      if (error) Alert.alert("Klaida", error.message);
+      if (error) Alert.alert(t.errorTitle, error.message);
     }
   }
 
@@ -53,7 +53,7 @@ export default function SignInScreen() {
     const { error } = await sendPasswordReset(email);
     setLoading(false);
     if (error) {
-      Alert.alert("Klaida", error.message);
+      Alert.alert(t.errorTitle, error.message);
     } else {
       setResetSent(true);
     }
@@ -64,16 +64,15 @@ export default function SignInScreen() {
       return (
         <SafeAreaView style={s.container}>
           <View style={s.inner}>
-            <Text style={s.title}>Patikrinkite savo el. paštą</Text>
+            <Text style={s.title}>{t.checkEmailTitle}</Text>
             <Text style={s.subtitle}>
-              Jei paskyra su adresu {email} egzistuoja, nusiuntėme nuorodą
-              slaptažodžiui atkurti.
+              {format(t.resetSentBody, { email })}
             </Text>
             <TouchableOpacity
               style={s.button}
               onPress={() => { setForgotPassword(false); setResetSent(false); }}
             >
-              <Text style={s.buttonText}>Grįžti į prisijungimą</Text>
+              <Text style={s.buttonText}>{t.backToSignIn}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -86,14 +85,14 @@ export default function SignInScreen() {
           style={s.inner}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <Text style={s.title}>Pamiršote slaptažodį?</Text>
+          <Text style={s.title}>{t.forgotPasswordTitle}</Text>
           <Text style={s.subtitle}>
-            Įveskite savo el. paštą — atsiųsime nuorodą slaptažodžiui atkurti.
+            {t.forgotPasswordSubtitle}
           </Text>
 
           <TextInput
             style={s.input}
-            placeholder="El. paštas"
+            placeholder={t.emailPlaceholder}
             placeholderTextColor={colors.subtext}
             value={email}
             onChangeText={setEmail}
@@ -105,7 +104,7 @@ export default function SignInScreen() {
             {loading ? (
               <ActivityIndicator color={colors.accentText} />
             ) : (
-              <Text style={s.buttonText}>Siųsti nuorodą</Text>
+              <Text style={s.buttonText}>{t.sendLink}</Text>
             )}
           </TouchableOpacity>
 
@@ -114,7 +113,7 @@ export default function SignInScreen() {
               onPress={() => setForgotPassword(false)}
               hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
             >
-              <Text style={s.switchLink}>Grįžti į prisijungimą</Text>
+              <Text style={s.switchLink}>{t.backToSignIn}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -126,15 +125,15 @@ export default function SignInScreen() {
     return (
       <SafeAreaView style={s.container}>
         <View style={s.inner}>
-          <Text style={s.title}>Patikrinkite savo el. paštą</Text>
+          <Text style={s.title}>{t.checkEmailTitle}</Text>
           <Text style={s.subtitle}>
-            Nusiuntėme patvirtinimo nuorodą į {email}. Patvirtinus, grįžkite čia.
+            {format(t.confirmationSentBody, { email })}
           </Text>
           <TouchableOpacity
             style={s.button}
             onPress={() => { setAwaitingConfirmation(false); setIsSignUp(false); }}
           >
-            <Text style={s.buttonText}>Prisijungti</Text>
+            <Text style={s.buttonText}>{t.signIn}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -148,17 +147,17 @@ export default function SignInScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <Text style={s.title}>
-          {isSignUp ? "Tapti nariu" : "Sveiki sugrįžę"}
+          {isSignUp ? t.signUpTitle : t.signInTitle}
         </Text>
         <Text style={s.subtitle}>
           {isSignUp
-            ? "Rašyk ir gauk laiškelius."
-            : "Norint tęsti, prisijunk"}
+            ? t.signUpSubtitle
+            : t.signInSubtitle}
         </Text>
 
         <TextInput
           style={s.input}
-          placeholder="El. paštas"
+          placeholder={t.emailPlaceholder}
           placeholderTextColor={colors.subtext}
           value={email}
           onChangeText={setEmail}
@@ -167,7 +166,7 @@ export default function SignInScreen() {
         />
         <TextInput
           style={s.input}
-          placeholder="Slaptažodis"
+          placeholder={t.passwordPlaceholder}
           placeholderTextColor={colors.subtext}
           value={password}
           onChangeText={setPassword}
@@ -178,7 +177,7 @@ export default function SignInScreen() {
           {loading ? (
             <ActivityIndicator color={colors.accentText} />
           ) : (
-            <Text style={s.buttonText}>{isSignUp ? "Registruotis" : "Prisijungti"}</Text>
+            <Text style={s.buttonText}>{isSignUp ? t.signUpAction : t.signIn}</Text>
           )}
         </TouchableOpacity>
 
@@ -188,19 +187,19 @@ export default function SignInScreen() {
             style={s.forgotPassword}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
           >
-            <Text style={s.switchLink}>Pamiršote slaptažodį?</Text>
+            <Text style={s.switchLink}>{t.forgotPasswordLink}</Text>
           </TouchableOpacity>
         )}
 
         <View style={s.switchRow}>
           <Text style={s.switchText}>
-            {isSignUp ? "Jau turi paskyrą? " : "Neturi paskyros? "}
+            {isSignUp ? t.hasAccountPrompt : t.noAccountPrompt}
           </Text>
           <TouchableOpacity
             onPress={() => setIsSignUp(!isSignUp)}
             hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
           >
-            <Text style={s.switchLink}>{isSignUp ? "Prisijungti" : "Registruotis"}</Text>
+            <Text style={s.switchLink}>{isSignUp ? t.signIn : t.signUpAction}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

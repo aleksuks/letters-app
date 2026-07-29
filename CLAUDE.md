@@ -281,6 +281,38 @@ or in this file, flag it rather than assuming — this product's safety
 model depends on deliberate, not incidental, feature scope.
 
 ## Localization
-   App UI copy is in Lithuanian for end users. Source code, comments, and
-   CLAUDE.md/product-flow.md stay in English — only user-facing strings
-    (JSX text, alerts, placeholders) need Lithuanian.
+   Lithuanian is the default UI language, but English is available as an
+   opt-in second language (toggle in Settings → Kalba/Language) — mainly
+   for reviewers, employers, and anyone outside the target market who wants
+   to try the app. Source code, comments, and CLAUDE.md/product-flow.md
+   stay in English regardless; only user-facing strings (JSX text, alert
+   titles/bodies/buttons, placeholders, accessibility labels/hints) are
+   localized, and every one of them needs both languages, not just
+   Lithuanian.
+
+   **Pattern:** `contexts/language.tsx` holds the active language
+   (`lang: "lt" | "en"`, defaults to `"lt"`, persisted via AsyncStorage —
+   never inferred from device locale, since the product targets Lithuania
+   first and English is a deliberate opt-in). `lib/i18n/index.ts` exports
+   `defineStrings({ lt, en })` (a screen's strings module; TypeScript
+   enforces both objects carry identical keys), `useStrings(dict)` (a hook
+   that returns the flat dict for the current language), `format(template,
+   params)` (fills `{name}`-style placeholders — keep an interpolated
+   sentence as one key, never build it by concatenating translated
+   fragments, since word order differs across languages), and
+   `plural(lang, n, { lt: [one, few, many], en: [one, other] })` for
+   count-dependent text (Lithuanian has three plural forms, English two).
+   `lib/i18n/strings/common.ts` holds generic cross-screen strings (error,
+   ok, cancel, delete, ...) — reuse those before adding near-duplicates to
+   a screen's own module. Every screen/component with user-facing text has
+   a matching `lib/i18n/strings/<name>.ts` module; `app/settings.tsx` +
+   `lib/i18n/strings/settings.ts` is the reference implementation.
+
+   **Deliberately still Lithuanian-only:** `app/moderation.tsx` (the
+   founder-only review queue — not a surface an outside reviewer reaches),
+   and every `reason` value persisted to the `reports` table by the report
+   flows (`report_letter`, `report_map_letter`, `report_message`,
+   `report_conversation`) — the reporter sees a translated button label,
+   but the stored value stays canonical Lithuanian so the single founder
+   moderator's queue (rule 9's assumption) doesn't fragment by reporter
+   language.

@@ -14,21 +14,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useStrings } from "@/lib/i18n";
+import { welcomeLetterStrings } from "@/lib/i18n/strings/welcome-letter";
 
 const TUTORIAL_ID = "welcome_letter";
-
-const WELCOME_BODY =
-  "Sveiki!\n\n" +
-  "„Laiškelyje“ slepiesi po slapyvardžiu ir rašai trumpus tekstus " +
-  "nepažįstamiems.\n\n" +
-  "Jei laiškelį palaikini, jis juda toliau pas kitą gavėją. Jei manai, " +
-  "kad jis to nevertas, siunti į kapines - surinkus pakankamai balsų, " +
-  "jis nebeskraido ir atgula poilsiui. Praėjus moderacijai, patenka į " +
-  "pagrindinį puslapį visų teismui.\n\n" +
-  "Jei laiškelis kažkam ant tiek patinka (ar nepatinka), kad nori " +
-  "susisiekti su siuntėju - galima išsiųsti užklausas, ir jei siuntėjas " +
-  "jas priima, rašinėtis privačiai.\n\n" +
-  "Kol kas tiek.";
 
 // A swipe of this many px (or a fast enough flick) dismisses the card, same
 // feel as the drag stages inside EnvelopeLetter itself.
@@ -56,6 +45,7 @@ export function WelcomeLetter() {
   const { isSeen, markSeen } = useTutorial();
   const { colors } = useTheme();
   const { largeTouchTargets, reducedMotion } = useAccessibility();
+  const t = useStrings(welcomeLetterStrings);
   const [introDone, setIntroDone] = useState(false);
   const translateY = useSharedValue(0);
   const whiteFade = useSharedValue(0);
@@ -100,20 +90,20 @@ export function WelcomeLetter() {
               onPress={() => markSeen(TUTORIAL_ID)}
               hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
               accessibilityRole="button"
-              accessibilityLabel="Uždaryti"
+              accessibilityLabel={t.close}
             >
               <Ionicons name="close" size={26} color={colors.subtext} />
             </TouchableOpacity>
             <View style={s.textWrap}>
-              <Text style={s.body}>{WELCOME_BODY}</Text>
+              <Text style={s.body}>{t.body}</Text>
             </View>
-            <Text style={s.hint}>Brūkštelėk žemyn, kad uždarytum</Text>
+            <Text style={s.hint}>{t.dismissHint}</Text>
           </SafeAreaView>
 
           {!introDone && (
             <Animated.View style={s.introOverlay} exiting={FadeOut.duration(reducedMotion ? 1 : 400)}>
               <EnvelopeLetter
-                body={WELCOME_BODY}
+                body={t.body}
                 mode="receive"
                 onDone={() => setIntroDone(true)}
                 onPulling={() => {

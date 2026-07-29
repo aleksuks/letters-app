@@ -1,6 +1,8 @@
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { useTheme, outlineOver } from "@/contexts/theme";
 import { AVATAR_EMOJIS } from "@/lib/avatars";
+import { useStrings, format } from "@/lib/i18n";
+import { avatarPickerStrings } from "@/lib/i18n/strings/avatar-picker";
 
 interface AvatarPickerGridProps {
   selected: string;
@@ -9,6 +11,7 @@ interface AvatarPickerGridProps {
 
 export function AvatarPickerGrid({ selected, onSelect }: AvatarPickerGridProps) {
   const { colors } = useTheme();
+  const t = useStrings(avatarPickerStrings);
   const s = makeStyles(colors);
 
   return (
@@ -23,7 +26,7 @@ export function AvatarPickerGrid({ selected, onSelect }: AvatarPickerGridProps) 
             activeOpacity={0.7}
             accessibilityRole="radio"
             accessibilityState={{ selected: isSelected }}
-            accessibilityLabel={`Avataras ${emoji}`}
+            accessibilityLabel={format(t.avatarLabel, { emoji })}
           >
             <Text style={s.emoji}>{emoji}</Text>
           </TouchableOpacity>

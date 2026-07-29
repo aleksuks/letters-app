@@ -13,6 +13,9 @@ import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, LARGE_BUTTON } from "@/contexts/accessibility";
 import { TutorialTip } from "@/components/tutorial-tip";
 import { AvatarCircle } from "@/components/avatar-circle";
+import { useStrings, format } from "@/lib/i18n";
+import { common } from "@/lib/i18n/strings/common";
+import { conversationsStrings } from "@/lib/i18n/strings/conversations";
 
 interface ConversationItem {
   id: string;
@@ -44,6 +47,8 @@ export default function ConversationsScreen() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const t = useStrings(conversationsStrings);
+  const c = useStrings(common);
 
   const s = makeStyles(colors);
 
@@ -72,8 +77,8 @@ export default function ConversationsScreen() {
   useFocusAfterTransition(load);
 
   function otherNickname(conv: ConversationItem) {
-    if (conv.user_a_id === user?.id) return conv.user_b?.nickname ?? "nepažįstamasis";
-    return conv.user_a?.nickname ?? "nepažįstamasis";
+    if (conv.user_a_id === user?.id) return conv.user_b?.nickname ?? t.unknownNickname;
+    return conv.user_a?.nickname ?? t.unknownNickname;
   }
 
   function otherAvatar(conv: ConversationItem) {
@@ -95,11 +100,11 @@ export default function ConversationsScreen() {
         // Deliberately doesn't say who — naming the requester here would
         // deanonymize them via whichever conversation already exists.
         Alert.alert(
-          "Pokalbis jau vyksta",
-          "Su šiuo žmogumi jau turi pokalbį — atsiverk jį skiltyje „Pokalbiai“."
+          t.alreadyConversationTitle,
+          t.alreadyConversationBody
         );
       } else {
-        Alert.alert("Klaida", error.message);
+        Alert.alert(c.error, error.message);
       }
       return;
     }
@@ -114,7 +119,7 @@ export default function ConversationsScreen() {
       .update({ status: "declined" })
       .eq("id", requestId);
 
-    if (error) { Alert.alert("Klaida", error.message); return; }
+    if (error) { Alert.alert(c.error, error.message); return; }
     setRequests(prev => prev.filter(r => r.id !== requestId));
   }
 
@@ -136,38 +141,38 @@ export default function ConversationsScreen() {
         contentContainerStyle={s.list}
         ListHeaderComponent={
           <View>
-            <Text style={s.title}>Pokalbiai</Text>
+            <Text style={s.title}>{t.title}</Text>
 
             <TutorialTip
               id="conversations_intro"
-              text="Jei kas norės su tavimi pabendrauti, užklausa bus čia. Priėmus prasidės pokalbis, o atsisakius užklausa tiesiog dings, ir siuntėjas to net nesužinos."
+              text={t.tutorialIntro}
             />
 
             {requests.length > 0 && (
               <View style={s.requestsSection}>
-                <Text style={s.sectionTitle}>Užklausos susisiekti</Text>
+                <Text style={s.sectionTitle}>{t.requestsSectionTitle}</Text>
                 {requests.map(item => (
                   <View key={item.id} style={s.card}>
                     <View style={s.cardHeader}>
                       <AvatarCircle emoji={item.requester?.avatar_emoji ?? "🦊"} size={32} />
-                      <Text style={s.nickname}>{item.requester?.nickname ?? "nepažįstamasis"}</Text>
+                      <Text style={s.nickname}>{item.requester?.nickname ?? t.unknownNickname}</Text>
                     </View>
                     <Text style={s.letterPreview} numberOfLines={2}>
-                      re: „{item.letter?.body ?? item.map_letter?.body ?? ""}“
+                      {format(t.letterPreview, { body: item.letter?.body ?? item.map_letter?.body ?? "" })}
                     </Text>
-                    <Text style={s.greeting}>„{item.greeting}“</Text>
+                    <Text style={s.greeting}>{format(t.greetingQuoted, { greeting: item.greeting })}</Text>
                     <View style={s.cardActions}>
                       <TouchableOpacity
                         style={[s.declineButton, largeTouchTargets && s.cardButtonLarge]}
                         onPress={() => handleDecline(item.id)}
                       >
-                        <Text style={s.declineText}>Atmesti</Text>
+                        <Text style={s.declineText}>{t.declineButton}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[s.acceptButton, largeTouchTargets && s.cardButtonLarge]}
                         onPress={() => handleAccept(item.id)}
                       >
-                        <Text style={s.acceptText}>Priimti</Text>
+                        <Text style={s.acceptText}>{t.acceptButton}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -175,14 +180,14 @@ export default function ConversationsScreen() {
               </View>
             )}
 
-            <Text style={s.sectionTitle}>Žinutės</Text>
+            <Text style={s.sectionTitle}>{t.messagesSectionTitle}</Text>
           </View>
         }
         ListEmptyComponent={
           <View style={s.center}>
-            <Text style={s.empty}>Kol kas jokių pokalbių.</Text>
+            <Text style={s.empty}>{t.emptyText}</Text>
             <Text style={s.emptyHint}>
-              Norint pradėti pokalbį, priimk užklausą susisiekti.
+              {t.emptyHint}
             </Text>
           </View>
         }

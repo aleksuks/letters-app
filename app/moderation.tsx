@@ -11,9 +11,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
-import { Letter, Report } from "@/types";
+import { Letter, MapLetter, Report } from "@/types";
 
 type QueueLetter = Letter & { author: { nickname: string } | null };
+
+type QueueMapLetter = MapLetter & { author: { nickname: string } | null };
 
 type ConvMessage = { sender: string; body: string };
 
@@ -41,11 +43,13 @@ export default function ModerationScreen() {
 
   const [letters, setLetters] = useState<QueueLetter[]>([]);
   const [activeLetters, setActiveLetters] = useState<QueueLetter[]>([]);
+  const [activeMapLetters, setActiveMapLetters] = useState<QueueMapLetter[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [overview, setOverview] = useState<OverviewStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [activeLettersOpen, setActiveLettersOpen] = useState(false);
+  const [activeMapLettersOpen, setActiveMapLettersOpen] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -71,11 +75,18 @@ export default function ModerationScreen() {
         .order("created_at", { ascending: false })
         .limit(100),
       supabase.rpc("moderation_overview_stats").single(),
-    ]).then(([lettersRes, reportItems, activeLettersRes, overviewRes]) => {
+      supabase
+        .from("map_letters")
+        .select("*, author:user_profiles(nickname)")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(100),
+    ]).then(([lettersRes, reportItems, activeLettersRes, overviewRes, activeMapLettersRes]) => {
       setLetters((lettersRes.data as QueueLetter[]) ?? []);
       setReports(reportItems);
       setActiveLetters((activeLettersRes.data as QueueLetter[]) ?? []);
       setOverview((overviewRes.data as OverviewStats) ?? null);
+      setActiveMapLetters((activeMapLettersRes.data as QueueMapLetter[]) ?? []);
       setLoading(false);
     });
   }, []);
@@ -205,26 +216,43 @@ export default function ModerationScreen() {
     setReports(prev => prev.filter(r => r.id !== report.id));
   }
 
-  // Manual proactive removal of an active letter, not tied to any user
-  // report. Reuses report_letter() as-is rather than adding a new RPC — it
-  // only requires auth.uid() IS NOT NULL, so a moderator calling it on their
-  // own initiative works exactly like a user-filed report: the letter flips
-  // to removed_reported immediately, and a 'open' reports row is created,
-  // so it lands in the Open reports section below with the same
-  // Restore/Confirm removal controls if the call turns out to be wrong.
-  async function removeActiveLetter(letter: QueueLetter) {
-    setActingOn(letter.id);
-    const { error } = await supabase.rpc("report_letter", {
-      p_letter_id: letter.id,
-      p_reason: "Moderator review — pulled from active pool",
-    });
-    setActingOn(null);
-    if (error) {
-      Alert.alert("Klaida", error.message);
-      return;
-    }
-    setActiveLetters(prev => prev.filter(l => l.id !== letter.id));
-    load();
+  // Permanent, unreviewable removal — the moderator (also the sole
+  // developer here) deleting something on their own initiative straight
+  // away, rather than the soft flip-to-removed_reported + review-queue
+  // path every user-filed report goes through (that flow is untouched;
+  // this is a second, moderator-only capability layered on top of it,
+  // backed by the is_moderator() DELETE policies from migration 044).
+  function confirmDeleteLetter(id: string, table: "letters" | "map_letters") {
+    Alert.alert(
+      "Delete permanently?",
+      "This deletes the letter outright — no review queue, no undo.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setActingOn(id);
+            const { error } = await supabase.from(table).delete().eq("id", id);
+            setActingOn(null);
+            if (error) {
+              Alert.alert("Klaida", error.message);
+              return;
+            }
+            if (table === "letters") {
+              setActiveLetters(prev => prev.filter(l => l.id !== id));
+              setLetters(prev => prev.filter(l => l.id !== id));
+            } else {
+              setActiveMapLetters(prev => prev.filter(l => l.id !== id));
+            }
+            // The deleted row may itself have been an open report's target
+            // (e.g. deleted straight from the Open reports queue) — its
+            // preview would otherwise dangle until the next load().
+            setReports(prev => prev.filter(r => r.target_id !== id));
+          },
+        },
+      ]
+    );
   }
 
   function daysLeft(expiresAt: string) {
@@ -327,11 +355,47 @@ export default function ModerationScreen() {
                     <View style={s.actionRow}>
                       <TouchableOpacity
                         style={[s.actionButton, s.banButton, largeTouchTargets && s.actionButtonLarge]}
-                        onPress={() => removeActiveLetter(item)}
+                        onPress={() => confirmDeleteLetter(item.id, "letters")}
                         disabled={actingOn === item.id}
                       >
                         <Ionicons name="trash" size={16} color="#fff" />
-                        <Text style={s.banText}>Remove</Text>
+                        <Text style={s.banText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {!loading && activeMapLetters.length > 0 && (
+              <View style={s.reportsSection}>
+                <TouchableOpacity
+                  style={s.sectionToggle}
+                  onPress={() => setActiveMapLettersOpen(v => !v)}
+                  hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : undefined}
+                >
+                  <Text style={s.sectionTitle}>Active map letters ({activeMapLetters.length})</Text>
+                  <Ionicons
+                    name={activeMapLettersOpen ? "chevron-up" : "chevron-down"}
+                    size={16}
+                    color={colors.subtext}
+                  />
+                </TouchableOpacity>
+                {activeMapLettersOpen && activeMapLetters.map(item => (
+                  <View key={item.id} style={s.card}>
+                    <Text style={s.cardBody}>{item.body}</Text>
+                    <View style={s.cardMeta}>
+                      <Text style={s.metaText}>{item.author?.nickname ?? "unknown"}</Text>
+                      <Text style={s.metaText}>❤ {item.like_count}</Text>
+                    </View>
+                    <View style={s.actionRow}>
+                      <TouchableOpacity
+                        style={[s.actionButton, s.banButton, largeTouchTargets && s.actionButtonLarge]}
+                        onPress={() => confirmDeleteLetter(item.id, "map_letters")}
+                        disabled={actingOn === item.id}
+                      >
+                        <Ionicons name="trash" size={16} color="#fff" />
+                        <Text style={s.banText}>Delete</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -378,6 +442,13 @@ export default function ModerationScreen() {
                         >
                           <Ionicons name="checkmark" size={18} color={colors.accentText} />
                           <Text style={s.approveText}>Confirm removal</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.actionButton, s.banButton, largeTouchTargets && s.actionButtonLarge]}
+                          onPress={() => confirmDeleteLetter(item.target_id, item.target_type === "letter" ? "letters" : "map_letters")}
+                          disabled={actingOn === item.id}
+                        >
+                          <Ionicons name="trash" size={16} color="#fff" />
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -439,6 +510,13 @@ export default function ModerationScreen() {
               >
                 <Ionicons name="checkmark" size={18} color={colors.accentText} />
                 <Text style={s.approveText}>Approve</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.actionButton, s.banButton, largeTouchTargets && s.actionButtonLarge]}
+                onPress={() => confirmDeleteLetter(item.id, "letters")}
+                disabled={actingOn === item.id}
+              >
+                <Ionicons name="trash" size={16} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>

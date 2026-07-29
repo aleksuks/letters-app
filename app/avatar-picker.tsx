@@ -9,12 +9,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { AvatarPickerGrid } from "@/components/avatar-picker-grid";
 import { DEFAULT_AVATAR_EMOJI } from "@/lib/avatars";
+import { useStrings } from "@/lib/i18n";
+import { common } from "@/lib/i18n/strings/common";
+import { avatarPickerStrings } from "@/lib/i18n/strings/avatar-picker";
 
 export default function AvatarPickerScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const t = useStrings(avatarPickerStrings);
+  const c = useStrings(common);
   const s = makeStyles(colors);
 
   const [selected, setSelected] = useState(DEFAULT_AVATAR_EMOJI);
@@ -44,7 +49,7 @@ export default function AvatarPickerScreen() {
     setSaving(false);
 
     if (error) {
-      Alert.alert("Klaida", error.message);
+      Alert.alert(c.error, error.message);
       return;
     }
     router.back();
@@ -58,11 +63,11 @@ export default function AvatarPickerScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Grįžti atgal"
+          accessibilityLabel={c.goBack}
         >
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={s.title}>Pasirink avatarą</Text>
+        <Text style={s.title}>{t.title}</Text>
       </View>
 
       <View style={s.content}>
@@ -82,7 +87,7 @@ export default function AvatarPickerScreen() {
           {saving ? (
             <ActivityIndicator color={colors.accentText} />
           ) : (
-            <Text style={s.buttonText}>Išsaugoti</Text>
+            <Text style={s.buttonText}>{c.save}</Text>
           )}
         </TouchableOpacity>
       </View>

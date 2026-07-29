@@ -34,6 +34,10 @@ import { LT_BORDER_RINGS } from "@/lib/lt-border";
 // RN <-> web contract:
 //   web -> RN (window.ReactNativeWebView.postMessage, JSON):
 //     { type: "ready" }                    — map booted, safe to inject data
+//     { type: "contextLost" }              — the canvas's WebGL context died
+//       (GPU memory pressure, extended backgrounding); the map is now
+//       permanently blank and only a full WebView reload recovers it — see
+//       the listener below and the RN-side handler in app/(tabs)/map.tsx
 //     { type: "letterTap", id, openRequest }  — open the detail screen;
 //       openRequest is true when a short letter's single tap should land
 //       straight on the contact-the-author form instead of the plain read view
@@ -64,7 +68,12 @@ export interface MapHtmlLetter {
   nick: string;
 }
 
-export function buildMapHtml(colors: ThemeColors): string {
+export interface MapHtmlStrings {
+  cardReadMore: string;
+  cardHasDrawingLabel: string;
+}
+
+export function buildMapHtml(colors: ThemeColors, strings: MapHtmlStrings): string {
   const b = LITHUANIA_BOUNDS;
   return `<!DOCTYPE html>
 <html>
@@ -235,6 +244,19 @@ export function buildMapHtml(colors: ThemeColors): string {
   map.touchZoomRotate.disableRotation();
   map.touchPitch.disable();
 
+  // The tab that hosts this WebView is never unmounted (see TabPage in
+  // components/tab-pager.tsx — all tabs stay mounted for the app's whole
+  // life), so "load" only ever fires once per app session. A WebGL context
+  // loss (GPU memory pressure, long backgrounding) leaves the canvas
+  // permanently blank afterward with nothing else to notice — the RN-side
+  // ready watchdog already cleared itself after the first successful boot.
+  // Report the loss proactively so RN can force a real WebView reload,
+  // which is the only thing that gets a fresh GL context.
+  map.getCanvas().addEventListener("webglcontextlost", function (e) {
+    e.preventDefault();
+    send({ type: "contextLost" });
+  }, false);
+
   // Crop the neighbours, in two parts:
   //  1. A solid paper-colored fill over every fill/line feature (land,
   //     water, roads) that isn't Lithuania, plus a delicate border outline
@@ -381,11 +403,11 @@ export function buildMapHtml(colors: ThemeColors): string {
       el.style.setProperty("--delay", l.delay + "s");
       el.innerHTML =
         '<div class="ctext' + (isLong ? " clamp" : "") + '">' + esc(l.body) + "</div>" +
-        (isLong ? '<div class="cmore">skaityti toliau\\u2026</div>' : "") +
+        (isLong ? '<div class="cmore">' + ${JSON.stringify(strings.cardReadMore)} + "</div>" : "") +
         '<div class="cfoot">' +
           '<span class="csig">\\u2014 ' + esc(l.nick) + "</span>" +
           '<span class="cright">' +
-            (l.pic ? '<span class="cpic" aria-label="Yra piesinys">\\uD83D\\uDDBC\\uFE0F<span class="cplus">+</span></span>' : "") +
+            (l.pic ? '<span class="cpic" aria-label="' + ${JSON.stringify(strings.cardHasDrawingLabel)} + '">\\uD83D\\uDDBC\\uFE0F<span class="cplus">+</span></span>' : "") +
             (l.likes > 0 ? '<span class="clikes">\\u2665 ' + l.likes + "</span>" : "") +
           "</span>" +
         "</div>";

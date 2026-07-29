@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator, Pressable, StyleSheet, Text, TouchableOpacity,
+  ActivityIndicator, Alert, Pressable, StyleSheet, Text, TouchableOpacity,
   useWindowDimensions, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -9,9 +9,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
+import { useProfile } from "@/contexts/profile";
 import { supabase } from "@/lib/supabase";
 import { DrawingView } from "@/components/drawing-view";
 import type { Letter } from "@/types";
+import { useStrings, format } from "@/lib/i18n";
+import { letterGraveStrings } from "@/lib/i18n/strings/letter-grave";
 
 // A headstone is stone regardless of the app's warm-paper theme, so the
 // granite palette is fixed rather than pulled from `colors`. Engraving is
@@ -54,8 +57,10 @@ export default function LetterGraveScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { largeTouchTargets } = useAccessibility();
+  const { profile } = useProfile();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width: windowWidth } = useWindowDimensions();
+  const t = useStrings(letterGraveStrings);
   const [letter, setLetter] = useState<Letter | null | undefined>(undefined);
   const [drawingOpen, setDrawingOpen] = useState(false);
 
@@ -75,6 +80,30 @@ export default function LetterGraveScreen() {
   // asset lands (kept out of the fetch so it fires on the reveal, not the
   // request). See product notes: "add a sound effect for that later."
 
+  // Moderator-only escape hatch (migration 044): a published Obituary
+  // entry has already cleared review, but the founder may still want to
+  // pull one straight away rather than leave it up.
+  function confirmModeratorDelete() {
+    if (!letter) return;
+    const letterId = letter.id;
+    Alert.alert(
+      "Delete permanently?",
+      "This deletes the letter outright — no undo.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase.from("letters").delete().eq("id", letterId);
+            if (error) { Alert.alert("Klaida", error.message); return; }
+            router.back();
+          },
+        },
+      ]
+    );
+  }
+
   if (letter === undefined) {
     return (
       <SafeAreaView style={s.container}>
@@ -93,12 +122,12 @@ export default function LetterGraveScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti"
+          accessibilityLabel={t.close}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={s.center}>
-          <Text style={s.emptyTitle}>Laiškelio nebėra</Text>
+          <Text style={s.emptyTitle}>{t.gone}</Text>
         </View>
       </SafeAreaView>
     );
@@ -113,14 +142,24 @@ export default function LetterGraveScreen() {
           onPress={() => router.back()}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti"
+          accessibilityLabel={t.close}
         >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
+        {profile?.is_moderator && (
+          <TouchableOpacity
+            onPress={confirmModeratorDelete}
+            hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+            accessibilityRole="button"
+            accessibilityLabel="Delete letter"
+          >
+            <Ionicons name="trash-outline" size={22} color={colors.subtext} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={s.body}>
-        <Text style={s.caption}>Šio laiškelio kelionė baigta.</Text>
+        <Text style={s.caption}>{t.caption}</Text>
 
         <Animated.View entering={FadeInDown.duration(500)} style={s.monument}>
           {/* Rendered before the stone and given no elevation, so it sits
@@ -132,7 +171,7 @@ export default function LetterGraveScreen() {
               style={s.peek}
               onPress={() => setDrawingOpen(true)}
               activeOpacity={0.85}
-              accessibilityLabel="Peržiūrėti prie kapo paliktą piešinį"
+              accessibilityLabel={t.peekDrawing}
             >
               <View style={s.peekCard}>
                 <DrawingView drawing={letter.drawing} size={PEEK_SIZE} />
@@ -151,16 +190,16 @@ export default function LetterGraveScreen() {
 
             <View style={s.stats}>
               <View style={s.statRow}>
-                <Text style={s.statLabel}>Sustojimai</Text>
+                <Text style={s.statLabel}>{t.statStops}</Text>
                 <Text style={s.statValue}>{letter.travel_count}</Text>
               </View>
               <View style={s.statRow}>
-                <Text style={s.statLabel}>Širdelės</Text>
+                <Text style={s.statLabel}>{t.statHearts}</Text>
                 <Text style={s.statValue}>{letter.total_like_count}</Text>
               </View>
               <View style={s.statRow}>
-                <Text style={s.statLabel}>Gyveno</Text>
-                <Text style={s.statValue}>{days} d.</Text>
+                <Text style={s.statLabel}>{t.statLived}</Text>
+                <Text style={s.statValue}>{format(t.daysSuffix, { days })}</Text>
               </View>
             </View>
 
@@ -179,7 +218,7 @@ export default function LetterGraveScreen() {
           style={s.viewer}
           onPress={() => setDrawingOpen(false)}
           accessibilityRole="button"
-          accessibilityLabel="Uždaryti piešinį"
+          accessibilityLabel={t.closeDrawing}
         >
           <Animated.View entering={FadeInDown.duration(220)} style={s.viewerCard}>
             <DrawingView
@@ -208,6 +247,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     header: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "space-between",
       paddingHorizontal: 16,
       paddingVertical: 12,
     },
