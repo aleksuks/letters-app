@@ -436,6 +436,18 @@ export default function ReceiveScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error.code === "23505") {
         Alert.alert(t.alreadyRequestedTitle, t.alreadyRequestedBody);
+      } else if (error.code === "23503") {
+        // Foreign key violation on letter_id: the author (or a moderator)
+        // deleted the letter while this reader had it open. Same race the
+        // reaction RPCs report as not_a_recipient — see letterWithdrawn —
+        // but it surfaces as a raw constraint error here, so translate it
+        // rather than showing the reader Postgres.
+        claimRef.current = null;
+        Alert.alert(
+          t.withdrawnTitle,
+          t.withdrawnRequestBody,
+          [{ text: c.ok, onPress: () => router.back() }]
+        );
       } else if (error.message?.includes("conversation_exists")) {
         // Deliberately doesn't say who — the letter is anonymous-ish, and
         // naming the author here would deanonymize their other letters.

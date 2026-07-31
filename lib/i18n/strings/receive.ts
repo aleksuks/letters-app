@@ -15,6 +15,7 @@ export const receiveStrings = defineStrings({
 
     withdrawnTitle: "Laiškelis atšauktas",
     withdrawnBody: "Siuntėjas atšaukė savo laiškelį prieš tau spėjant jį perskaityti.",
+    withdrawnRequestBody: "Siuntėjas atšaukė šį laiškelį, tad užklausos pakalbėti nebėra kam nusiųsti.",
 
     reportConfirmTitle: "Pranešti apie laiškelį?",
     reportConfirmBody: "Laiškelis bus iškart pašalintas iš apyvartos, kol jį peržiūrės administratorius.",
@@ -63,6 +64,7 @@ export const receiveStrings = defineStrings({
 
     withdrawnTitle: "Letter withdrawn",
     withdrawnBody: "The sender withdrew this letter before you got the chance to read it.",
+    withdrawnRequestBody: "The sender withdrew this letter, so there's no longer anyone for a request to talk to reach.",
 
     reportConfirmTitle: "Report this letter?",
     reportConfirmBody: "The letter will be immediately removed from circulation pending review.",

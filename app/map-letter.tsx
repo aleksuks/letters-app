@@ -128,6 +128,14 @@ export default function MapLetterScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error.code === "23505") {
         Alert.alert(t.alreadyRequestedTitle, t.alreadyRequestedBody);
+      } else if (error.code === "23503") {
+        // Foreign key violation on map_letter_id: the author deleted the
+        // letter while this reader had it open. Nothing left to answer.
+        Alert.alert(
+          t.letterGoneTitle,
+          t.letterGoneBody,
+          [{ text: tc.ok, onPress: () => router.back() }]
+        );
       } else if (error.message?.includes("conversation_exists")) {
         // Deliberately doesn't say who — naming the author here would
         // deanonymize their other letters.
