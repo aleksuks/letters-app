@@ -6,6 +6,8 @@ export const signInStrings = defineStrings({
     accountExistsBody: "Su šiuo el. paštu jau yra sukurta paskyra. Prisijunkite arba atkurkite slaptažodį.",
     disposableEmailTitle: "Šis el. paštas netinka",
     disposableEmailBody: "Laikini/vienkartiniai el. pašto adresai neleidžiami — jei paskyrą reikės atkurti, laiškas turi kur nueiti. Naudokite tikrą el. paštą.",
+    emailVariantTitle: "Šis adresas jau naudojamas",
+    emailVariantBody: "Šis el. paštas veda į tą pačią dėžutę kaip jau esanti paskyra — „+“ priedas ar taškai Gmail adrese naujo adreso nesukuria. Vienai dėžutei — viena paskyra. Prisijunkite arba atkurkite slaptažodį.",
     errorTitle: "Klaida",
 
     checkEmailTitle: "Patikrinkite savo el. paštą",
@@ -35,6 +37,8 @@ export const signInStrings = defineStrings({
     accountExistsBody: "There's already an account with this email. Sign in or reset your password.",
     disposableEmailTitle: "This email won't work",
     disposableEmailBody: "Temporary/disposable email addresses aren't allowed — if you ever need to recover your account, the email needs somewhere to land. Please use a real address.",
+    emailVariantTitle: "This address is already in use",
+    emailVariantBody: "This email lands in the same inbox as an existing account — a “+” tag or dots in a Gmail address don't make a new address. One inbox, one account. Sign in or reset your password.",
     errorTitle: "Error",
 
     checkEmailTitle: "Check your email",
