@@ -8,7 +8,6 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TabPage } from "@/components/tab-pager";
-import { TutorialTip } from "@/components/tutorial-tip";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
@@ -25,6 +24,7 @@ import { mapStrings } from "@/lib/i18n/strings/map";
 type WebMessage =
   | { type: "ready" }
   | { type: "contextLost" }
+  | { type: "mapError" }
   | { type: "letterTap"; id: string; openRequest?: boolean }
   | { type: "likeTap"; id: string }
   | { type: "placePick"; lat: number; lng: number };
@@ -36,6 +36,17 @@ export default function MapScreen() {
   const { largeTouchTargets } = useAccessibility();
   const insets = useSafeAreaInsets();
   const webRef = useRef<WebView>(null);
+  // Bumped to force a full unmount/remount of the WebView below (its `key`)
+  // rather than calling `webRef.current?.reload()` — reload() is unreliable
+  // for a WebView loaded from an inline `html` string (source={{ html }})
+  // rather than a URI, especially on Android, where it can silently no-op
+  // instead of actually re-navigating. This is the fix for the "map doesn't
+  // load until I restart the app" report surviving two earlier attempts
+  // (the ready-timeout watchdog and the process/context-loss handlers
+  // below): both already detected the dead map correctly, but their shared
+  // recovery step didn't reliably bring it back. A key bump guarantees a
+  // genuinely fresh native view, process, and GL context every time.
+  const [webViewKey, setWebViewKey] = useState(0);
   const [webReady, setWebReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [placeMode, setPlaceMode] = useState(false);
@@ -98,15 +109,17 @@ export default function MapScreen() {
   // resolving. On a rare flaky connection one of those hangs or fails
   // silently and "ready" never arrives, leaving the spinner stuck forever —
   // this is the "map doesn't load until I restart the app" report, since
-  // nothing else ever prompts a retry. A watchdog timeout reloads the
-  // WebView if it hasn't booted within a generous window.
+  // nothing else ever prompts a retry. A watchdog timeout remounts the
+  // WebView (see webViewKey above) if it hasn't booted within a generous
+  // window.
   const READY_TIMEOUT_MS = 15000;
   const readyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const armReadyTimeout = useCallback(() => {
     if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
     readyTimeoutRef.current = setTimeout(() => {
-      webRef.current?.reload();
+      setWebReady(false);
+      setWebViewKey((k) => k + 1);
     }, READY_TIMEOUT_MS);
   }, []);
 
@@ -118,15 +131,14 @@ export default function MapScreen() {
   }, [armReadyTimeout]);
 
   function handleWebLoadStart() {
-    // Fires on the initial load and on every reload() — including the ones
-    // triggered below — so it's the single place that resets "booting"
-    // state and re-arms the watchdog.
+    // Fires on the initial load and on every remount below — so it's the
+    // single place that resets "booting" state and re-arms the watchdog.
     setWebReady(false);
     armReadyTimeout();
   }
 
   function recoverDeadWebView() {
-    // Covers three distinct ways the WebView ends up permanently blank
+    // Covers several distinct ways the WebView ends up permanently blank
     // without the "ready" watchdog ever getting a chance to catch it —
     // it only guards the *initial* boot, and since this tab's WebView is
     // never unmounted (components/tab-pager.tsx keeps every tab mounted
@@ -136,10 +148,15 @@ export default function MapScreen() {
     //   - the canvas's WebGL context was lost (GPU pressure, long
     //     backgrounding) without the WebView process itself dying —
     //     reported proactively by lib/map-html.ts's "contextLost" message
-    // In every case the WebView survives but shows blank; only an
-    // explicit reload gets a fresh process/GL context.
+    //   - the style/tiles failed to load in a way MapLibre surfaces as an
+    //     "error" event before ever reaching "load" — reported as
+    //     "mapError" by lib/map-html.ts
+    // In every case the WebView survives but shows blank; only a genuinely
+    // fresh instance (the key bump) reliably gets a fresh process/GL
+    // context — see the webViewKey comment above for why reload() alone
+    // isn't enough here.
     setWebReady(false);
-    webRef.current?.reload();
+    setWebViewKey((k) => k + 1);
   }
 
   function handleMessage(event: WebViewMessageEvent) {
@@ -153,7 +170,7 @@ export default function MapScreen() {
       if (readyTimeoutRef.current) clearTimeout(readyTimeoutRef.current);
       setWebReady(true);
       pushLetters();
-    } else if (msg.type === "contextLost") {
+    } else if (msg.type === "contextLost" || msg.type === "mapError") {
       recoverDeadWebView();
     } else if (msg.type === "letterTap") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -222,6 +239,7 @@ export default function MapScreen() {
   return (
     <TabPage style={s.container} edges={["left", "right"]}>
       <WebView
+        key={webViewKey}
         ref={webRef}
         source={{ html }}
         style={s.web}
@@ -256,14 +274,6 @@ export default function MapScreen() {
         <View style={s.loadingOverlay} pointerEvents="none">
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
-      )}
-
-      {!placeMode && !searchOpen && (
-        <TutorialTip
-          id="map_intro_v2"
-          text={t.tutorialIntro}
-          style={{ ...s.tip, top: overlayTop, right: 56 }}
-        />
       )}
 
       {!placeMode && !searchOpen && (
@@ -388,7 +398,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       alignItems: "center",
       justifyContent: "center",
     },
-    tip: { position: "absolute", left: 12, right: 12 },
     searchButton: {
       position: "absolute",
       right: 12,

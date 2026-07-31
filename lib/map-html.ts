@@ -36,8 +36,11 @@ import { LT_BORDER_RINGS } from "@/lib/lt-border";
 //     { type: "ready" }                    — map booted, safe to inject data
 //     { type: "contextLost" }              — the canvas's WebGL context died
 //       (GPU memory pressure, extended backgrounding); the map is now
-//       permanently blank and only a full WebView reload recovers it — see
+//       permanently blank and only a full WebView remount recovers it — see
 //       the listener below and the RN-side handler in app/(tabs)/map.tsx
+//     { type: "mapError" }                 — the style/tiles failed to load
+//       before the map ever reached "load" (network/CDN hiccup); same
+//       permanently-blank outcome and same RN-side remount recovery
 //     { type: "letterTap", id, openRequest }  — open the detail screen;
 //       openRequest is true when a short letter's single tap should land
 //       straight on the contact-the-author form instead of the plain read view
@@ -257,6 +260,19 @@ export function buildMapHtml(colors: ThemeColors, strings: MapHtmlStrings): stri
     send({ type: "contextLost" });
   }, false);
 
+  // A style/tile fetch failure (bad CDN response, DNS hiccup, CORS) never
+  // throws — MapLibre surfaces it as an "error" event instead, and if it
+  // happens before the style has ever finished loading, "load" simply never
+  // fires and the map is silently blank forever, with no context loss and
+  // no process death for the RN-side handlers above to catch. Report only
+  // the pre-load case: once the map has loaded successfully, transient
+  // per-tile errors are routine and MapLibre already retries them on its
+  // own, so treating those as fatal too would force needless reloads.
+  var mapLoaded = false;
+  map.on("error", function () {
+    if (!mapLoaded) send({ type: "mapError" });
+  });
+
   // Crop the neighbours, in two parts:
   //  1. A solid paper-colored fill over every fill/line feature (land,
   //     water, roads) that isn't Lithuania, plus a delicate border outline
@@ -282,6 +298,7 @@ export function buildMapHtml(colors: ThemeColors, strings: MapHtmlStrings): stri
   };
 
   map.on("load", function () {
+    mapLoaded = true;
     var baseLayers = map.getStyle().layers || [];
     var firstSymbolId;
     for (var i = 0; i < baseLayers.length; i++) {

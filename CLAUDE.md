@@ -232,10 +232,12 @@ implementing any screen or table.
       scribble in the margin, and every added tool makes someone feel their
       drawing isn't good enough to send.
     - **Receiving**: a letter with both is pulled out of the envelope in two
-      beats — the written sheet first, then the picture tucked behind it
-      (`envelope-letter.tsx`, phases `peekingPicture`/`waitingToPullPicture`/
-      `pullingPicture`). A drawing-only letter has no second beat: the
-      picture *is* the sheet.
+      beats from a single swipe — the written sheet flies out first, then
+      the picture (kept visibly behind it, lower z-order) follows
+      automatically (`envelope-letter.tsx`, phases `peekingPicture`/
+      `pullingPicture`, chained off the letter's own pull with no second
+      gesture). A drawing-only letter has no second beat: the picture *is*
+      the sheet.
     - **On the map**: cards never render the drawing (it would dominate a
       120px paper square and turn the map into a gallery). They show a
       framed-picture badge with a `+`, and a letter carrying one is always

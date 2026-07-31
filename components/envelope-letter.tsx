@@ -73,9 +73,11 @@ type Phase =
   | "waitingToPull"
   | "pulling"
   // Receive only, and only when the letter carries both text and a picture:
-  // the same peek/wait/pull beats again for the second sheet.
+  // an automatic peek-then-pull for the second sheet, chained straight off
+  // the letter's own pull — one swipe carries both sheets out, the letter
+  // first and the picture right behind it, with no second gesture and no
+  // phase to wait in between.
   | "peekingPicture"
-  | "waitingToPullPicture"
   | "pullingPicture"
   | "done";
 
@@ -271,6 +273,15 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
   const hasDrawing = isValidDrawing(drawing) && drawing.strokes.length > 0;
   const pictureOnSheet = hasDrawing && body.trim().length === 0;
   const pictureIsSeparate = hasDrawing && !pictureOnSheet && mode === "receive";
+  // The picture sheet stays out of the tree entirely until the written
+  // sheet's own pull has fully committed and its peek has started — with
+  // both mounted throughout, the still-tucked picture sat in the same
+  // notch as the letter (rendered on top, per the old z-order comment) and
+  // visibly intruded on the letter's peek/pull, reading as if one swipe
+  // nudged both sheets at once instead of one motion per sheet in sequence.
+  const pictureVisible =
+    pictureIsSeparate &&
+    (phase === "peekingPicture" || phase === "pullingPicture" || phase === "done");
 
   const SHEET_W = Math.min(Math.round(width * 0.82), 340);
   const SHEET_PADDING = 18;
@@ -595,7 +606,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     invite.value = withTiming(0, { duration: 150 });
     // onPulling exists so the host can start its screen transition on the
     // letter's *last* upward motion. With a picture still to come, this
-    // isn't it — the picture's pull is (see commitPullPicture).
+    // isn't it — the picture's own auto-pull is (see continuePullPicture).
     if (!pictureIsSeparate) onPulling?.();
     if (fromDrag) {
       emerge.value = 1;
@@ -615,11 +626,16 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // The sheet is a single flat page — nothing to unfold. A short settle
     // beat with the letter held free of the envelope, then either hand off
-    // or start the picture's own peek/pull.
+    // or carry straight on into the picture's own peek/pull — one swipe
+    // pulls both sheets out, the letter first and the picture right behind
+    // it, with no second gesture required.
     setTimeout(() => (pictureIsSeparate ? peekPicture() : finishOpen()), d(150));
   }
 
   // ---- RECEIVE, second sheet (text + picture letters only) ----
+  // Entirely automatic, chained straight off the letter's own pull — there
+  // is no gesture and no waiting phase here. peekPicture -> continuePullPicture
+  // mirrors the letter's own peek-then-pull beats back to back.
 
   function peekPicture() {
     setPhase("peekingPicture");
@@ -628,33 +644,23 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
       0.35,
       { duration: d(200), easing: Easing.out(Easing.cubic) },
       (finished) => {
-        if (finished) runOnJS(afterPeekPicture)();
+        if (finished) runOnJS(continuePullPicture)();
       }
     );
   }
 
-  function afterPeekPicture() {
-    setPhase("waitingToPullPicture");
-    committing.value = false;
-    if (!autoPlay) startInvite();
-  }
-
-  function commitPullPicture(fromDrag: boolean) {
-    if (phase !== "waitingToPullPicture") return;
+  function continuePullPicture() {
     setPhase("pullingPicture");
-    invite.value = withTiming(0, { duration: 150 });
+    // This is the ceremony's actual last upward motion now — the host's
+    // full-screen transition should track this, not the letter's own pull.
     onPulling?.();
-    if (fromDrag) {
-      emergePicture.value = 1;
-      pictureSettle();
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    emergePicture.value = withDelay(
-      d(50),
-      withTiming(1, { duration: d(260), easing: Easing.out(Easing.cubic) }, (finished) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    emergePicture.value = withTiming(
+      1,
+      { duration: d(260), easing: Easing.out(Easing.cubic) },
+      (finished) => {
         if (finished) runOnJS(pictureSettle)();
-      })
+      }
     );
   }
 
@@ -694,10 +700,6 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     }
     if (phase === "waitingToPull") {
       const timer = setTimeout(() => commitPull(false), d(500));
-      return () => clearTimeout(timer);
-    }
-    if (phase === "waitingToPullPicture") {
-      const timer = setTimeout(() => commitPullPicture(false), d(500));
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -756,24 +758,11 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     onCommit: commitPull,
   });
 
-  const pullPictureGesture = buildDragStage({
-    enabled: phase === "waitingToPullPicture" && !autoPlay,
-    value: emergePicture,
-    from: 0.35,
-    to: 1,
-    dragUp: true,
-    committing,
-    midpointTicked,
-    lastProgress,
-    onCommit: commitPullPicture,
-  });
-
   const gesture = Gesture.Race(
     closeGesture,
     launchGesture,
     openGesture,
-    pullGesture,
-    pullPictureGesture
+    pullGesture
   );
 
   const interactive =
@@ -781,8 +770,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     (phase === "waitingToClose" ||
       phase === "waitingToSend" ||
       phase === "waitingToOpen" ||
-      phase === "waitingToPull" ||
-      phase === "waitingToPullPicture");
+      phase === "waitingToPull");
 
   const promptStyle = useAnimatedStyle(() => ({
     opacity: invite.value,
@@ -1012,7 +1000,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     <Svg
       width={ENVELOPE_W}
       height={ENVELOPE_H}
-      style={{ position: "absolute", top: ENVELOPE_TOP, left: 0, zIndex: 2 }}
+      style={{ position: "absolute", top: ENVELOPE_TOP, left: 0, zIndex: 3 }}
       pointerEvents="none"
     >
       {paperFill("envelopeTexture", ENVELOPE_W, ENVELOPE_H)}
@@ -1112,10 +1100,6 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
       label: t.waitingToPull,
       icon: "gesture-swipe-up",
     },
-    waitingToPullPicture: {
-      label: t.waitingToPullPicture,
-      icon: "gesture-swipe-up",
-    },
   };
   const prompt = promptCopy[phase];
 
@@ -1159,7 +1143,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
                 pocket floor instead of letting it hang out below. */}
             <Animated.View
               style={[
-                { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 1 },
+                { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 2 },
                 paperSlotStyle,
               ]}
             >
@@ -1178,13 +1162,16 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
               </View>
             </Animated.View>
 
-            {/* The picture, when it's a second sheet. Same zIndex as the
-                written one and rendered after it, so it sits in front once
-                both are out — while tucked, both are behind the pocket front
-                either way, and once out they're clear of the envelope
-                entirely, so document order is the only thing deciding which
-                of the two is on top. */}
-            {pictureIsSeparate && (
+            {/* The picture, when it's a second sheet. Not mounted at all
+                until the written sheet's own pull has committed (see
+                pictureVisible above) — the two sheets are never both
+                animating or both visible at the same tucked spot, so this
+                reads as one motion per sheet instead of both moving at
+                once. A lower zIndex than the written sheet's (2 vs this
+                view's 1) keeps the picture visibly *behind* the letter for
+                the whole time both are out, rather than leaving stacking
+                order to depend on mount sequence. */}
+            {pictureVisible && (
               <Animated.View
                 style={[
                   { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 1 },
@@ -1211,7 +1198,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
                 flap's outer face on top of everything for the visible
                 swinging motion. */}
             {pocketFront}
-            <View style={{ ...flapClip, zIndex: 3 }} pointerEvents="none">
+            <View style={{ ...flapClip, zIndex: 4 }} pointerEvents="none">
               <Animated.View style={[flapPlane, flapFrontStyle]}>
                 {flapFace(false)}
               </Animated.View>
