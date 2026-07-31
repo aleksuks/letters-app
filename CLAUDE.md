@@ -231,11 +231,14 @@ implementing any screen or table.
       undo, clear. No fill, eraser, layers, or zoom — the picture is a
       scribble in the margin, and every added tool makes someone feel their
       drawing isn't good enough to send.
-    - **Receiving**: a letter with both is pulled out of the envelope in two
-      beats — the written sheet first, then the picture tucked behind it
-      (`envelope-letter.tsx`, phases `peekingPicture`/`waitingToPullPicture`/
-      `pullingPicture`). A drawing-only letter has no second beat: the
-      picture *is* the sheet.
+    - **Receiving**: a letter with both gives up both sheets in ONE pull —
+      the written sheet leads, the picture rides the same `emerge` value a
+      fixed `PICTURE_LAG` behind it (which is also what keeps it hidden
+      behind the letter while tucked), and neither stops at "out of the
+      envelope": the letter flies off the top of the screen, the picture
+      follows a beat later, then the reading screen takes over
+      (`envelope-letter.tsx`, `flyAway()`). A drawing-only letter has
+      nothing behind it: the picture *is* the sheet.
     - **On the map**: cards never render the drawing (it would dominate a
       120px paper square and turn the map into a gallery). They show a
       framed-picture badge with a `+`, and a letter carrying one is always

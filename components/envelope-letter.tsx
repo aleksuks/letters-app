@@ -30,9 +30,9 @@ type Props = {
   body: string;
   /**
    * The letter's crayon drawing, if it has one. A letter that carries both
-   * text and a picture is pulled out in two beats — the written sheet first,
-   * then the picture behind it. A drawing-only letter has no second beat:
-   * the picture *is* the sheet.
+   * text and a picture gives both up in a single pull — the written sheet
+   * leads, the picture follows it out and off the screen a beat behind. A
+   * drawing-only letter has nothing behind it: the picture *is* the sheet.
    */
   drawing?: unknown;
   mode: "send" | "receive";
@@ -59,7 +59,8 @@ type Props = {
 // already-open envelope, the user swipes down to close the flap, then up to
 // send it away. Receive: a sealed envelope arrives, the user swipes up to
 // tear it open, the letter pops up on its own, then a second swipe up pulls
-// it free.
+// it free — and, if the letter came with a picture, that same swipe carries
+// the picture out behind it and both off the screen (see flyAway).
 type Phase =
   | "entering"
   | "waitingToClose"
@@ -72,11 +73,6 @@ type Phase =
   | "peeking"
   | "waitingToPull"
   | "pulling"
-  // Receive only, and only when the letter carries both text and a picture:
-  // the same peek/wait/pull beats again for the second sheet.
-  | "peekingPicture"
-  | "waitingToPullPicture"
-  | "pullingPicture"
   | "done";
 
 // How far (px) a finger has to travel to carry a gestured stage (closing,
@@ -95,6 +91,20 @@ const NEVER = 100000;
 // drawn on screen, and is never consulted when deciding whether a drag has
 // committed (see onUpdate below).
 const MAX_DRAG_SPEED = 7;
+// A letter that carries both words and a picture gives both up in ONE pull.
+// The written sheet leads and the picture trails half a beat behind it, and
+// the motion doesn't stop at "out of the envelope" — both keep going straight
+// off the top of the screen, letter first, picture after, and the reading
+// screen takes over behind them. `emerge` past 1 is that exit (see
+// paperSlotStyle): 1 = clear of the envelope, 2 = clear of the screen.
+// PICTURE_LAG is how far behind, in those same units, the picture follows.
+const PICTURE_LAG = 0.45;
+// How long the whole two-sheet yank takes, and how far into it the host's
+// flash-to-white is started (onPulling) — late enough that the written sheet
+// has already left on its own, so the white catches up around the picture's
+// exit rather than washing out the entire motion.
+const FLY_AWAY_MS = 640;
+const FLY_AWAY_WHITE_AT = 300;
 // px/s of vertical velocity, in the gesture's forward direction, that counts
 // as a confident flick — lets a fast swipe commit a stage even if the
 // finger let go a little short of the full DRAG_DISTANCE, since natural
@@ -271,18 +281,15 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
   const hasDrawing = isValidDrawing(drawing) && drawing.strokes.length > 0;
   const pictureOnSheet = hasDrawing && body.trim().length === 0;
   const pictureIsSeparate = hasDrawing && !pictureOnSheet && mode === "receive";
-  // The picture sheet stays out of the tree entirely until the written
-  // sheet's own pull has fully committed and its peek has started — with
-  // both mounted throughout, the still-tucked picture sat in the same
-  // notch as the letter (rendered on top, per the old z-order comment) and
-  // visibly intruded on the letter's peek/pull, reading as if one swipe
-  // nudged both sheets at once instead of one motion per sheet in sequence.
+  // The picture sheet joins the tree once the envelope is open, so it's
+  // already in place behind the written one when the single pull takes both.
+  // It stays invisible until then regardless: it sits a full PICTURE_LAG
+  // behind the letter, which keeps it flat against the pocket floor (cropped
+  // there by its own slot, like any tucked sheet) with the letter covering
+  // it from above.
   const pictureVisible =
     pictureIsSeparate &&
-    (phase === "peekingPicture" ||
-      phase === "waitingToPullPicture" ||
-      phase === "pullingPicture" ||
-      phase === "done");
+    (phase === "peeking" || phase === "waitingToPull" || phase === "pulling" || phase === "done");
 
   const SHEET_W = Math.min(Math.round(width * 0.82), 340);
   const SHEET_PADDING = 18;
@@ -348,13 +355,18 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
   // "Fully out": the sheet sits above the envelope with just its bottom
   // edge dipping into the mouth, so it still reads as belonging to it.
   const FULLY_OUT_Y = -Math.round(SHEET_H * 0.92);
-  // The picture comes to rest a little lower than the written sheet, so the
-  // letter's top edge stays visible behind it and the pair reads as two
-  // things drawn from one envelope rather than one sheet swapping for another.
+  // The picture passes through "out" a little lower than the written sheet,
+  // so for the moment both are in the air the pair reads as two things drawn
+  // from one envelope rather than one sheet swapping for another.
   const PICTURE_OUT_Y = FULLY_OUT_Y + 24;
   const HEADROOM = Math.abs(FULLY_OUT_Y) + 24;
   const GROUP_H = ENVELOPE_H + HEADROOM;
   const ENVELOPE_TOP = HEADROOM;
+  // Where a sheet has left the screen entirely (the far end of the two-sheet
+  // exit — see PICTURE_LAG). Measured from the sheet's slot origin: clearing
+  // the group's own top edge plus a full screen height puts it off-screen
+  // from any position the group can sit at.
+  const OFF_SCREEN_Y = -(ENVELOPE_TOP + SHEET_H + height);
   // Tucked letters rest just under the envelope's mouth — a small, fixed
   // inset from the top, not floor-anchored, now that the envelope no longer
   // grows to match the letter's height.
@@ -382,11 +394,11 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
   // Send only, always auto-animated (never finger-scrubbed) — plays 0->1
   // while entering. Receive drives the sheet's position with `emerge`.
   const slide = useSharedValue(mode === "send" ? 0 : 1);
-  // emerge: 0 = tucked inside the envelope, 1 = fully pulled out. Receive
-  // only; drives the letter's position from "peeking" onward.
+  // emerge: 0 = tucked inside the envelope, 1 = fully pulled out, 2 = gone
+  // off the top of the screen. Receive only; drives the letter's position
+  // from "peeking" onward — and, offset by PICTURE_LAG, the picture's too,
+  // so one finger moves both sheets.
   const emerge = useSharedValue(0);
-  // emergePicture: the same 0..1 for the second sheet, when there is one.
-  const emergePicture = useSharedValue(0);
   // travel: 0 = resting in view, 1 = off-screen (top for send, bottom for
   // receive) — drives the whole envelope group flying on/off screen. Also
   // finger-scrubbed a little at the very start of send's launch (see
@@ -605,10 +617,13 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     if (phase !== "waitingToPull") return;
     setPhase("pulling");
     invite.value = withTiming(0, { duration: 150 });
-    // onPulling exists so the host can start its screen transition on the
-    // letter's *last* upward motion. With a picture still to come, this
-    // isn't it — the picture's pull is (see commitPullPicture).
-    if (!pictureIsSeparate) onPulling?.();
+    // A letter with a picture behind it gives up both in this one motion,
+    // and neither sheet stops at "out" — see flyAway.
+    if (pictureIsSeparate) {
+      flyAway();
+      return;
+    }
+    onPulling?.();
     if (fromDrag) {
       emerge.value = 1;
       pullSettle();
@@ -626,53 +641,38 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
   function pullSettle() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // The sheet is a single flat page — nothing to unfold. A short settle
-    // beat with the letter held free of the envelope, then either hand off
-    // or start the picture's own peek/pull.
-    setTimeout(() => (pictureIsSeparate ? peekPicture() : finishOpen()), d(150));
+    // beat with the letter held free of the envelope, then hand off.
+    setTimeout(() => finishOpen(), d(150));
   }
 
-  // ---- RECEIVE, second sheet (text + picture letters only) ----
+  // ---- RECEIVE, the two-sheet exit (text + picture letters only) ----
 
-  function peekPicture() {
-    setPhase("peekingPicture");
+  /**
+   * One continuous motion carrying both sheets out of the envelope and off
+   * the screen. `emerge` runs on from wherever the finger left it to
+   * 2 + PICTURE_LAG — the point at which the *trailing* sheet (the picture,
+   * a fixed PICTURE_LAG behind, see pictureSlotStyle) has itself cleared the
+   * top edge. The written sheet passed that mark a beat earlier and is long
+   * gone. Linear, deliberately: the finger was already moving when it let
+   * go, and a constant-speed continuation reads as the same yank carrying
+   * on rather than a fresh animation starting over.
+   */
+  function flyAway() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    emergePicture.value = withTiming(
-      0.35,
-      { duration: d(200), easing: Easing.out(Easing.cubic) },
+    playWoosh();
+    // The letter is off-screen around here; the picture is still climbing.
+    setTimeout(
+      () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+      d(Math.round(FLY_AWAY_MS * 0.7))
+    );
+    setTimeout(() => onPulling?.(), d(FLY_AWAY_WHITE_AT));
+    emerge.value = withTiming(
+      2 + PICTURE_LAG,
+      { duration: d(FLY_AWAY_MS), easing: Easing.linear },
       (finished) => {
-        if (finished) runOnJS(afterPeekPicture)();
+        if (finished) runOnJS(finishOpen)();
       }
     );
-  }
-
-  function afterPeekPicture() {
-    setPhase("waitingToPullPicture");
-    committing.value = false;
-    if (!autoPlay) startInvite();
-  }
-
-  function commitPullPicture(fromDrag: boolean) {
-    if (phase !== "waitingToPullPicture") return;
-    setPhase("pullingPicture");
-    invite.value = withTiming(0, { duration: 150 });
-    onPulling?.();
-    if (fromDrag) {
-      emergePicture.value = 1;
-      pictureSettle();
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    emergePicture.value = withDelay(
-      d(50),
-      withTiming(1, { duration: d(260), easing: Easing.out(Easing.cubic) }, (finished) => {
-        if (finished) runOnJS(pictureSettle)();
-      })
-    );
-  }
-
-  function pictureSettle() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTimeout(() => finishOpen(), d(150));
   }
 
   function finishOpen() {
@@ -706,10 +706,6 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     }
     if (phase === "waitingToPull") {
       const timer = setTimeout(() => commitPull(false), d(500));
-      return () => clearTimeout(timer);
-    }
-    if (phase === "waitingToPullPicture") {
-      const timer = setTimeout(() => commitPullPicture(false), d(500));
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -768,33 +764,14 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     onCommit: commitPull,
   });
 
-  const pullPictureGesture = buildDragStage({
-    enabled: phase === "waitingToPullPicture" && !autoPlay,
-    value: emergePicture,
-    from: 0.35,
-    to: 1,
-    dragUp: true,
-    committing,
-    midpointTicked,
-    lastProgress,
-    onCommit: commitPullPicture,
-  });
-
-  const gesture = Gesture.Race(
-    closeGesture,
-    launchGesture,
-    openGesture,
-    pullGesture,
-    pullPictureGesture
-  );
+  const gesture = Gesture.Race(closeGesture, launchGesture, openGesture, pullGesture);
 
   const interactive =
     !autoPlay &&
     (phase === "waitingToClose" ||
       phase === "waitingToSend" ||
       phase === "waitingToOpen" ||
-      phase === "waitingToPull" ||
-      phase === "waitingToPullPicture");
+      phase === "waitingToPull");
 
   const promptStyle = useAnimatedStyle(() => ({
     opacity: invite.value,
@@ -850,19 +827,28 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     const y =
       mode === "send"
         ? interpolate(slide.value, [0, 1], [FULLY_OUT_Y, TUCKED_Y])
-        : interpolate(emerge.value, [0, 1], [TUCKED_Y, FULLY_OUT_Y]);
-    const tuckedness = mode === "send" ? slide.value : 1 - emerge.value;
+        : interpolate(emerge.value, [0, 1, 2], [TUCKED_Y, FULLY_OUT_Y, OFF_SCREEN_Y]);
+    // Clamped, because `emerge` runs past 1 on a two-sheet exit and an
+    // extrapolated "less than not tucked at all" would grow the slot past
+    // the sheet's own height.
+    const tuckedness =
+      mode === "send" ? slide.value : Math.max(0, Math.min(1, 1 - emerge.value));
     return {
       transform: [{ translateY: y }],
       height: interpolate(tuckedness, [0, 1], [SHEET_H, TUCKED_VISIBLE_H]),
     };
   });
 
-  // The second sheet's slot. Identical mechanics to paperSlotStyle, on its
-  // own shared value and resting a little lower when out (PICTURE_OUT_Y).
+  // The second sheet's slot. Identical mechanics to paperSlotStyle, riding
+  // the same shared value a fixed PICTURE_LAG behind it — that lag is the
+  // whole two-sheet effect: it keeps the picture pinned inside the envelope,
+  // hidden behind the written sheet, until the letter is on its way out, and
+  // then makes it follow the letter off the top of the screen a beat later.
+  // One finger, one motion, two sheets.
   const pictureSlotStyle = useAnimatedStyle(() => {
-    const y = interpolate(emergePicture.value, [0, 1], [TUCKED_Y, PICTURE_OUT_Y]);
-    const tuckedness = 1 - emergePicture.value;
+    const p = Math.max(0, emerge.value - PICTURE_LAG);
+    const y = interpolate(p, [0, 1, 2], [TUCKED_Y, PICTURE_OUT_Y, OFF_SCREEN_Y]);
+    const tuckedness = Math.max(0, Math.min(1, 1 - p));
     return {
       transform: [{ translateY: y }],
       height: interpolate(tuckedness, [0, 1], [SHEET_H, TUCKED_VISIBLE_H]),
@@ -951,14 +937,17 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
   //   z0 flap back  — the flap's shaded underside, visible while open,
   //                   standing above the pocket *behind* the paper so a
   //                   letter slides out in front of it;
-  //   z1 the paper  — (built in JSX below);
-  //   z2 pocket front — one continuous path: the full envelope face with a
+  //   z1 the picture — the second sheet, when there is one, behind the
+  //                   written one so it stays hidden until the letter that
+  //                   covers it has moved off (built in JSX below);
+  //   z2 the paper  — (built in JSX below);
+  //   z3 pocket front — one continuous path: the full envelope face with a
   //                   triangular mouth notch cut into its top edge (the
   //                   flap's exact footprint, so sealing covers it flush),
   //                   rounded bottom corners, and the two classic side-seam
   //                   creases running from the bottom corners up to the
   //                   notch apex;
-  //   z3 flap front — the flap's outer face, sealing the mouth when closed.
+  //   z4 flap front — the flap's outer face, sealing the mouth when closed.
   // This ordering is only trustworthy because every layer here is FLAT.
   // The flap's 3D rotation lives inside overflow-hidden wrappers (see
   //  flapClip below): iOS Core Animation depth-composites siblings in
@@ -1024,7 +1013,7 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
     <Svg
       width={ENVELOPE_W}
       height={ENVELOPE_H}
-      style={{ position: "absolute", top: ENVELOPE_TOP, left: 0, zIndex: 2 }}
+      style={{ position: "absolute", top: ENVELOPE_TOP, left: 0, zIndex: 3 }}
       pointerEvents="none"
     >
       {paperFill("envelopeTexture", ENVELOPE_W, ENVELOPE_H)}
@@ -1121,11 +1110,8 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
       icon: "gesture-swipe-up",
     },
     waitingToPull: {
-      label: t.waitingToPull,
-      icon: "gesture-swipe-up",
-    },
-    waitingToPullPicture: {
-      label: t.waitingToPullPicture,
+      // One swipe takes both sheets when there are two, so say so.
+      label: pictureIsSeparate ? t.waitingToPullBoth : t.waitingToPull,
       icon: "gesture-swipe-up",
     },
   };
@@ -1161,42 +1147,12 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
               </Animated.View>
             </View>
 
-            {/* Paper: a single flat sheet, sliding between "fully out"
-                (above the envelope) and "tucked" (resting just under the
-                envelope's mouth, its written face visible through the
-                pocket's notch). surfaceAlt — whiter than the surface-colored
-                envelope — so it stays visibly *a letter* against the shaded
-                pocket interior. overflow:hidden + the animated height on
-                paperSlotStyle crop a letter taller than the envelope at the
-                pocket floor instead of letting it hang out below. */}
-            <Animated.View
-              style={[
-                { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 1 },
-                paperSlotStyle,
-              ]}
-            >
-              <View
-                style={{
-                  width: SHEET_W,
-                  height: SHEET_H,
-                  overflow: "hidden",
-                  backgroundColor: colors.surfaceAlt,
-                  ...outlineOver(colors, colors.border),
-                  borderRadius: 12,
-                  borderCurve: "continuous",
-                }}
-              >
-                {sheetContent}
-              </View>
-            </Animated.View>
-
-            {/* The picture, when it's a second sheet. Not mounted at all
-                until the written sheet's own pull has committed (see
-                pictureVisible above) — the two sheets are never both
-                animating or both visible at the same tucked spot, so this
-                reads as one motion per sheet instead of both moving at
-                once. Same zIndex as the written one, only ever in the tree
-                once the letter is already clear of the envelope. */}
+            {/* The picture, when it's a second sheet — *behind* the written
+                one (lower zIndex, and first in the tree), tucked a fixed
+                PICTURE_LAG deeper than it. That's what keeps it out of sight
+                until the letter covering it moves away, and what makes it
+                trail the letter off the screen on the single pull that takes
+                both (see pictureSlotStyle). */}
             {pictureVisible && (
               <Animated.View
                 style={[
@@ -1220,11 +1176,40 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
               </Animated.View>
             )}
 
+            {/* Paper: a single flat sheet, sliding between "fully out"
+                (above the envelope) and "tucked" (resting just under the
+                envelope's mouth, its written face visible through the
+                pocket's notch). surfaceAlt — whiter than the surface-colored
+                envelope — so it stays visibly *a letter* against the shaded
+                pocket interior. overflow:hidden + the animated height on
+                paperSlotStyle crop a letter taller than the envelope at the
+                pocket floor instead of letting it hang out below. */}
+            <Animated.View
+              style={[
+                { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 2 },
+                paperSlotStyle,
+              ]}
+            >
+              <View
+                style={{
+                  width: SHEET_W,
+                  height: SHEET_H,
+                  overflow: "hidden",
+                  backgroundColor: colors.surfaceAlt,
+                  ...outlineOver(colors, colors.border),
+                  borderRadius: 12,
+                  borderCurve: "continuous",
+                }}
+              >
+                {sheetContent}
+              </View>
+            </Animated.View>
+
             {/* Pocket front (mouth notch cut into its top edge), then the
                 flap's outer face on top of everything for the visible
                 swinging motion. */}
             {pocketFront}
-            <View style={{ ...flapClip, zIndex: 3 }} pointerEvents="none">
+            <View style={{ ...flapClip, zIndex: 4 }} pointerEvents="none">
               <Animated.View style={[flapPlane, flapFrontStyle]}>
                 {flapFace(false)}
               </Animated.View>
