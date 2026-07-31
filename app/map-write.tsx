@@ -24,6 +24,10 @@ import { mapWriteStrings } from "@/lib/i18n/strings/map-write";
 import { common } from "@/lib/i18n/strings/common";
 
 const MAX_LENGTH = 600;
+const INPUT_PADDING = 20;
+const INPUT_LINE_HEIGHT = 28;
+// Floor for the auto-growing input below — see write.tsx for why.
+const MIN_INPUT_HEIGHT = INPUT_PADDING * 2 + INPUT_LINE_HEIGHT * 3;
 
 // Composition for a map letter — same bones as write.tsx, but addressed to
 // a place instead of the random pool: the spot is already chosen (lat/lng
@@ -39,6 +43,8 @@ export default function MapWriteScreen() {
   const t = useStrings(mapWriteStrings);
   const tc = useStrings(common);
   const [body, setBody] = useState("");
+  // Grows with the content — see write.tsx's onContentSizeChange for why.
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const [drawing, setDrawing] = useState<Drawing>(emptyDrawing);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -153,9 +159,10 @@ export default function MapWriteScreen() {
             </View>
 
             <TextInput
-              style={s.input}
+              style={[s.input, { height: Math.max(MIN_INPUT_HEIGHT, inputHeight) }]}
               value={body}
               onChangeText={setBody}
+              onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
               placeholder={t.placeholder}
               placeholderTextColor={colors.subtext}
               multiline
@@ -271,9 +278,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     input: {
       color: colors.text,
       fontSize: 18,
-      lineHeight: 28,
-      padding: 20,
-      minHeight: 240,
+      lineHeight: INPUT_LINE_HEIGHT,
+      padding: INPUT_PADDING,
     },
     counter: {
       fontSize: 12,

@@ -13,6 +13,7 @@ import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useLanguage } from "@/contexts/language";
 import { useAuth } from "@/hooks/use-auth";
 import { useTutorial } from "@/contexts/tutorial";
+import { useTour } from "@/contexts/tour";
 import { supabase } from "@/lib/supabase";
 import { useStrings } from "@/lib/i18n";
 import { settingsStrings } from "@/lib/i18n/strings/settings";
@@ -34,6 +35,7 @@ export default function SettingsScreen() {
   const { largeTouchTargets, reducedMotion } = useAccessibility();
   const { lang, setLang } = useLanguage();
   const { resetAll: resetTutorial } = useTutorial();
+  const { reset: resetTour } = useTour();
   const t = useStrings(settingsStrings);
   const s = makeStyles(colors);
 
@@ -293,7 +295,11 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={[s.settingItem, { marginBottom: 0 }]}
             onPress={() => {
+              // Both layers restart: the discovery tour (contexts/tour.tsx)
+              // and the per-screen seen-once tips, including the welcome
+              // letter redelivered on the next receive.
               resetTutorial();
+              resetTour();
               Alert.alert(t.resetTutorialDoneTitle, t.resetTutorialDoneBody);
             }}
             accessibilityRole="button"

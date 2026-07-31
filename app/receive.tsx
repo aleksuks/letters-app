@@ -7,12 +7,14 @@ import { Letter } from "@/types";
 import { EnvelopeLetter } from "@/components/envelope-letter";
 import { DrawingView } from "@/components/drawing-view";
 import { TutorialTip } from "@/components/tutorial-tip";
+import { useTour } from "@/contexts/tour";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import * as Haptics from "@/lib/haptics";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert,
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView, Platform,
   ScrollView,
@@ -38,6 +40,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useStrings, format } from "@/lib/i18n";
 import { receiveStrings } from "@/lib/i18n/strings/receive";
+import { welcomeLetterStrings } from "@/lib/i18n/strings/welcome-letter";
 import { common } from "@/lib/i18n/strings/common";
 
 type LetterWithAuthor = Letter & { author: { nickname: string; accepts_requests: boolean } | null };
@@ -47,7 +50,7 @@ type Reaction = "none" | "liked" | "disliked";
 type ScreenState =
   | { phase: "loading" }
   | { phase: "empty" }
-  | { phase: "ready"; letter: LetterWithAuthor; reaction: Reaction };
+  | { phase: "ready"; letter: LetterWithAuthor; reaction: Reaction; isWelcome?: boolean };
 
 // How far (fraction of screen width) the card must be dragged before release
 // commits the reaction; a fast horizontal flick commits from a shorter drag.
@@ -57,6 +60,7 @@ const SWIPE_FLICK_MIN_DRAG = 40;
 
 export default function ReceiveScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { colors } = useTheme();
@@ -64,6 +68,8 @@ export default function ReceiveScreen() {
   const { width } = useWindowDimensions();
   const t = useStrings(receiveStrings);
   const c = useStrings(common);
+  const w = useStrings(welcomeLetterStrings);
+  const { welcomeDelivered, markWelcomeDelivered } = useTour();
   const [state, setState] = useState<ScreenState>({ phase: "loading" });
 
   // The receive_letter() claim is provisional until the server hears the
@@ -124,11 +130,34 @@ export default function ReceiveScreen() {
 
   const s = makeStyles(colors);
 
+  // The reader must vote (like/dislike) before the letter can go away — no
+  // accidental swipe-down-to-dismiss (a keyboard-closing swipe on the
+  // greeting field was catching the modal gesture instead) and no Android
+  // back button either. Once a reaction is recorded, both are restored.
+  const mustDecide = state.phase === "ready" && state.reaction === "none";
+
   useEffect(() => {
-    if (!user) return;
+    navigation.setOptions({ gestureEnabled: !mustDecide });
+  }, [navigation, mustDecide]);
+
+  useEffect(() => {
+    if (!mustDecide) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
+  }, [mustDecide]);
+
+  // Waits for welcomeDelivered to resolve from storage before fetching:
+  // treating "not yet known" as "already delivered" would race the premise
+  // letter and hand a first-time reader a stranger's letter instead. The ref
+  // keeps the fetch to exactly one — marking the welcome delivered flips the
+  // flag mid-read, and refetching then would swap the letter under them.
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (!user || welcomeDelivered === null || fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchLetter();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, welcomeDelivered]);
 
   // Unmount covers every exit path the close button doesn't (hardware back,
   // swipe-back gesture, auth loss). Refs keep the latest claim visible here.
@@ -147,6 +176,7 @@ export default function ReceiveScreen() {
   }
 
   function handleClose() {
+    if (mustDecide) return;
     releaseIfUnread();
     router.back();
   }
@@ -167,6 +197,14 @@ export default function ReceiveScreen() {
   function handleIntroDone() {
     setIntroDone(true);
     actionsOpacity.value = withTiming(1, { duration: 250 });
+
+    // The welcome letter has no server-side claim; marking it delivered here
+    // (letter actually shown, mirroring open_letter) means backing out
+    // mid-ceremony redelivers it next time.
+    if (state.phase === "ready" && state.isWelcome) {
+      markWelcomeDelivered();
+      return;
+    }
 
     // The reader has seen the letter — confirm the delivery so the claim
     // becomes permanent. One silent retry; beyond that, reacting confirms
@@ -189,6 +227,21 @@ export default function ReceiveScreen() {
   async function fetchLetter() {
     if (!user) return;
     setState({ phase: "loading" });
+
+    // First receive ever: deliver the premise letter, entirely client-side.
+    // Reactions on it are local (see react()), and it can't be reported or
+    // replied to — it's the app talking, not a stranger.
+    if (welcomeDelivered === false) {
+      const letter = {
+        id: "welcome",
+        author_id: "",
+        body: w.body,
+        drawing: null,
+        author: { nickname: w.fromNickname, accepts_requests: true },
+      } as unknown as LetterWithAuthor;
+      setState({ phase: "ready", letter, reaction: "none", isWelcome: true });
+      return;
+    }
 
     // Eligibility (reach cap, hourly pacing, not-own, not-seen) and the
     // random pick all live in the receive_letter() RPC, which claims the
@@ -229,6 +282,15 @@ export default function ReceiveScreen() {
     Haptics.impactAsync(
       kind === "liked" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Heavy
     );
+    // The welcome letter isn't in the pool — the swipe is a dry run of the
+    // real mechanic, so it lands on the same result screen without an RPC.
+    if (state.isWelcome) {
+      if (kind === "liked") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      setState({ ...state, reaction: kind });
+      return true;
+    }
     const rpc = kind === "liked" ? "like_letter" : "dislike_letter";
     const { error } = await supabase.rpc(rpc, { p_letter_id: state.letter.id });
     if (error) {
@@ -427,23 +489,26 @@ export default function ReceiveScreen() {
     );
   }
 
-  const { letter, reaction } = state;
-  const canRequest = letter.author?.accepts_requests !== false;
+  const { letter, reaction, isWelcome } = state;
+  const canRequest = !isWelcome && letter.author?.accepts_requests !== false;
 
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
         <TouchableOpacity
           onPress={handleClose}
+          disabled={mustDecide}
+          style={mustDecide ? s.closeDisabled : undefined}
           hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
           accessibilityRole="button"
           accessibilityLabel={t.closeLetter}
+          accessibilityState={{ disabled: mustDecide }}
         >
-          <Ionicons name="close" size={28} color={colors.text} />
+          <Ionicons name="close" size={28} color={mustDecide ? colors.border : colors.text} />
         </TouchableOpacity>
         <Text style={s.from}>{format(t.from, { nickname: letter.author?.nickname ?? t.unknownAuthor })}</Text>
         <View style={s.headerActions}>
-          {profile?.is_moderator && (
+          {profile?.is_moderator && !isWelcome && (
             <TouchableOpacity
               onPress={confirmModeratorDelete}
               hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
@@ -453,21 +518,23 @@ export default function ReceiveScreen() {
               <Ionicons name="trash-outline" size={22} color={colors.subtext} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={confirmReport}
-            hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
-            accessibilityRole="button"
-            accessibilityLabel={t.reportLabel}
-            accessibilityHint={t.reportHint}
-          >
-            <Ionicons name="flag-outline" size={22} color={colors.subtext} />
-          </TouchableOpacity>
+          {!isWelcome && (
+            <TouchableOpacity
+              onPress={confirmReport}
+              hitSlop={largeTouchTargets ? HIT_SLOP_LARGE : 8}
+              accessibilityRole="button"
+              accessibilityLabel={t.reportLabel}
+              accessibilityHint={t.reportHint}
+            >
+              <Ionicons name="flag-outline" size={22} color={colors.subtext} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {reaction === "none" ? (
           <View style={s.cardArea}>
@@ -574,7 +641,7 @@ export default function ReceiveScreen() {
             </TouchableOpacity>
           )}
 
-          {!canRequest && !requestSent && (
+          {!isWelcome && !canRequest && !requestSent && (
             <Text style={s.requestClosedText}>{t.requestClosed}</Text>
           )}
 
@@ -660,6 +727,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
+    closeDisabled: { opacity: 0.35 },
     from: { fontSize: 14, color: colors.subtext, fontStyle: "italic" },
     headerActions: { flexDirection: "row", alignItems: "center", gap: 16 },
     cardArea: { flex: 1, padding: 16 },

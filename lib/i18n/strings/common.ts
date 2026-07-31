@@ -15,6 +15,8 @@ export const common = defineStrings({
     goBack: "Grįžti atgal",
     tryAgain: "Bandyti dar kartą",
     somethingWentWrong: "Kažkas nutiko ne taip",
+    showPassword: "Rodyti slaptažodį",
+    hidePassword: "Slėpti slaptažodį",
   },
   en: {
     error: "Error",
@@ -27,5 +29,7 @@ export const common = defineStrings({
     goBack: "Go back",
     tryAgain: "Try again",
     somethingWentWrong: "Something went wrong",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
   },
 });

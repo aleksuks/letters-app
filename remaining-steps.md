@@ -134,13 +134,13 @@ gone). What's uncommitted now:
   bundle id `lt.laiskelis.app`, `eas.json` production/submit profiles added.
   One follow-up outside the repo: add `laiskelis://auth/callback` to the
   Supabase Auth redirect allowlist before the next build.
-- [ ] **Store release — both stores** (see `docs/store-release.md`). Android
-  first only because Play's 14-day closed-test clock is the long pole; Apple
-  work runs beside it, not after it. Play: account, first manual AAB upload,
-  12 testers. Apple: Developer Program, App Store Connect record, then the
-  three values that fill in the iOS submit block. `supportsTablet` is now
-  false and export compliance is pre-answered, so no iPad screenshots and no
-  per-build encryption question.
+- [~] **Store release — both stores** (see `docs/store-release.md`). Android
+  underway as of 2026-07-30: Play developer account created, closed test with
+  12 testers started, 14-day clock running (the long pole). Apple next:
+  Developer Program, App Store Connect record, then the three values that
+  fill in the iOS submit block. `supportsTablet` is now false and export
+  compliance is pre-answered, so no iPad screenshots and no per-build
+  encryption question.
 - [x] Fill in `README.md` — setup, env vars, migrations, edge functions,
   cron, layout.
 

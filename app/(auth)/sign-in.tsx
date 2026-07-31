@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/hooks/use-auth";
+import { PasswordInput } from "@/components/password-input";
 import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useStrings, format } from "@/lib/i18n";
@@ -166,13 +167,11 @@ export default function SignInScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
-        <TextInput
-          style={s.input}
+        <PasswordInput
+          containerStyle={s.input}
           placeholder={t.passwordPlaceholder}
-          placeholderTextColor={colors.subtext}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
         />
 
         <TouchableOpacity style={s.button} onPress={handleSubmit} disabled={loading}>

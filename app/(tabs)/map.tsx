@@ -8,7 +8,6 @@ import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TabPage } from "@/components/tab-pager";
-import { TutorialTip } from "@/components/tutorial-tip";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
@@ -259,14 +258,6 @@ export default function MapScreen() {
       )}
 
       {!placeMode && !searchOpen && (
-        <TutorialTip
-          id="map_intro_v2"
-          text={t.tutorialIntro}
-          style={{ ...s.tip, top: overlayTop, right: 56 }}
-        />
-      )}
-
-      {!placeMode && !searchOpen && (
         <TouchableOpacity
           style={[s.searchButton, { top: overlayTop }]}
           onPress={openSearch}
@@ -388,7 +379,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       alignItems: "center",
       justifyContent: "center",
     },
-    tip: { position: "absolute", left: 12, right: 12 },
     searchButton: {
       position: "absolute",
       right: 12,

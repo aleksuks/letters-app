@@ -2,8 +2,6 @@ import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
 import { Letter } from "@/types";
-import { TutorialTip } from "@/components/tutorial-tip";
-import { WelcomeLetter } from "@/components/welcome-letter";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -238,11 +236,6 @@ export default function HomeScreen() {
             <Text style={s.title}>{t.title}</Text>
             <Text style={s.subtitle}>{t.subtitle}</Text>
 
-            <TutorialTip
-              id="obituary_intro_v2"
-              text={t.tutorialIntro}
-            />
-
             <TouchableOpacity
               style={[s.sortDropdownButton, largeTouchTargets && s.sortDropdownButtonLarge]}
               onPress={openSortMenu}
@@ -348,7 +341,6 @@ export default function HomeScreen() {
           </Animated.View>
         </Animated.View>
       )}
-      <WelcomeLetter />
     </TabPage>
   );
 }

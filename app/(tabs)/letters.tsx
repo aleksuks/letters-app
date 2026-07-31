@@ -5,7 +5,7 @@ import {
 import { TabPage } from "@/components/tab-pager";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
@@ -17,7 +17,7 @@ import {
   LARGE_BUTTON_TEXT,
 } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
-import { TutorialTip } from "@/components/tutorial-tip";
+import { measureViewInWindow, useTour } from "@/contexts/tour";
 import { FlyingLetter } from "@/components/flying-letter";
 import { DrawingView } from "@/components/drawing-view";
 import { Letter } from "@/types";
@@ -35,6 +35,15 @@ export default function LettersScreen() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const t = useStrings(lettersStrings);
   const c = useStrings(common);
+  const { registerTarget, advanceFrom } = useTour();
+
+  // The discovery tour's second step spotlights the receive button — the
+  // control the tour exists to get pressed.
+  const receiveButtonRef = useRef<View | null>(null);
+  useEffect(
+    () => registerTarget("receive-button", () => measureViewInWindow(receiveButtonRef.current)),
+    [registerTarget]
+  );
 
   const s = makeStyles(colors);
 
@@ -70,6 +79,7 @@ export default function LettersScreen() {
   function handleReceivePress() {
     if (navigatingToReceiveRef.current) return;
     navigatingToReceiveRef.current = true;
+    advanceFrom("receiveButton");
     router.push("/receive" as any);
   }
 
@@ -124,11 +134,6 @@ export default function LettersScreen() {
           <View>
             <Text style={s.title}>{t.title}</Text>
 
-            <TutorialTip
-              id="letters_intro"
-              text={t.tutorialIntro}
-            />
-
             <View style={s.actions}>
               <TouchableOpacity
                 style={[s.primaryButton, largeTouchTargets && LARGE_BUTTON]}
@@ -141,16 +146,20 @@ export default function LettersScreen() {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[s.secondaryButton, largeTouchTargets && LARGE_BUTTON]}
-                onPress={handleReceivePress}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="mail-open-outline" size={largeTouchTargets ? 26 : 22} color={colors.accent} />
-                <Text style={[s.secondaryButtonText, largeTouchTargets && LARGE_BUTTON_TEXT]}>
-                  {t.receiveButton}
-                </Text>
-              </TouchableOpacity>
+              {/* collapsable=false keeps the wrapper measurable on Android
+                  for the tour spotlight. */}
+              <View ref={receiveButtonRef} collapsable={false}>
+                <TouchableOpacity
+                  style={[s.secondaryButton, largeTouchTargets && LARGE_BUTTON]}
+                  onPress={handleReceivePress}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="mail-open-outline" size={largeTouchTargets ? 26 : 22} color={colors.accent} />
+                  <Text style={[s.secondaryButtonText, largeTouchTargets && LARGE_BUTTON_TEXT]}>
+                    {t.receiveButton}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <Text style={s.sectionTitle}>{t.myLettersSectionTitle}</Text>

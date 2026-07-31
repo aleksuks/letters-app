@@ -4,10 +4,9 @@ import { defineStrings } from "@/lib/i18n";
 export const homeStrings = defineStrings({
   lt: {
     title: "Kapinės",
-    subtitle: "Šiems laiškeliams kelionė jau baigta.",
-
-    tutorialIntro:
-      "Čia ilsisi laiškeliai, kurių kelionė jau baigta. Laiškeliai nustoja keliauti, kai juos išbalsuoja arba praėjus savaitei. Dukart bakstelėk laiškelį — paliksi jam širdelę.",
+    // Carries the old banner tip's one still-useful line — the double-tap
+    // heart is otherwise invisible.
+    subtitle: "Šiems laiškeliams kelionė jau baigta. Dukart bakstelėk laiškelį — paliksi jam širdelę.",
 
     sortPopularAll: "Populiariausi (visų laikų)",
     sortPopularMonth: "Populiariausi (šį mėnesį)",
@@ -30,10 +29,7 @@ export const homeStrings = defineStrings({
   },
   en: {
     title: "Obituary",
-    subtitle: "These letters have finished their journey.",
-
-    tutorialIntro:
-      "This is where letters rest once their journey is over — either voted off early or expired after a week. Double-tap a letter to leave it a heart.",
+    subtitle: "These letters have finished their journey. Double-tap one to leave it a heart.",
 
     sortPopularAll: "Most liked (all time)",
     sortPopularMonth: "Most liked (this month)",

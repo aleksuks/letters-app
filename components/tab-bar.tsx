@@ -1,8 +1,16 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { useEffect, useRef } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/theme";
 import { useUnreadMessages } from "@/contexts/unread-messages";
+import { measureViewInWindow, useTour } from "@/contexts/tour";
+
+// Tab items the discovery tour can spotlight, keyed by route name.
+const TOUR_TARGET_BY_ROUTE: Record<string, string> = {
+  letters: "tab-letters",
+  map: "tab-map",
+};
 
 const ICON_BOX = 40;
 // Route name (from app/(tabs)/conversations.tsx) that carries the unread
@@ -20,6 +28,18 @@ const UNREAD_BADGE_ROUTE = "conversations";
 // gesture bar sits right at the edge of insets.bottom, so it needs more
 // breathing room than iOS's indicator does to avoid feeling cramped.
 const EXTRA_BOTTOM_CLEARANCE = Platform.OS === "ios" ? 10 : 20;
+// Fallback used only when Android reports insets.bottom as exactly 0 — some
+// OEM skins (older Huawei/EMUI in particular) dispatch WindowInsets
+// incorrectly and report 0 even though an on-screen nav bar is occupying
+// real space, which let the tab bar sit flush under it with no clearance
+// at all. Gated on an exact 0 rather than a Math.max floor against
+// whatever's reported: a correctly-reporting device (gesture nav in
+// particular) can legitimately have a smaller nonzero inset, and flooring
+// against that would trade a rare OEM bug for real whitespace on every
+// normal device. Sized for a classic on-screen 3-button bar (~48dp) since
+// that's the specific failure this was reported on, not the shorter
+// gesture pill.
+const ANDROID_ZERO_INSET_FALLBACK = 48;
 
 export function AnimatedTabBar({
   state,
@@ -29,6 +49,20 @@ export function AnimatedTabBar({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { unreadCount } = useUnreadMessages();
+  const { registerTarget } = useTour();
+  const tabRefs = useRef<Record<string, View | null>>({});
+
+  useEffect(() => {
+    const unregister = Object.entries(TOUR_TARGET_BY_ROUTE).map(
+      ([routeName, targetId]) =>
+        registerTarget(targetId, () => measureViewInWindow(tabRefs.current[routeName]))
+    );
+    return () => unregister.forEach((fn) => fn());
+  }, [registerTarget]);
+  const bottomInset =
+    Platform.OS === "android" && insets.bottom === 0
+      ? ANDROID_ZERO_INSET_FALLBACK
+      : insets.bottom;
 
   return (
     <View
@@ -37,9 +71,9 @@ export function AnimatedTabBar({
         backgroundColor: colors.tabBar,
         borderTopColor: colors.tabBarBorder,
         borderTopWidth: 1,
-        paddingBottom: insets.bottom + EXTRA_BOTTOM_CLEARANCE,
+        paddingBottom: bottomInset + EXTRA_BOTTOM_CLEARANCE,
         paddingTop: 8,
-        height: 56 + insets.bottom + EXTRA_BOTTOM_CLEARANCE,
+        height: 56 + bottomInset + EXTRA_BOTTOM_CLEARANCE,
       }}
     >
       {state.routes.map((route, index) => {
@@ -66,6 +100,9 @@ export function AnimatedTabBar({
         return (
           <Pressable
             key={route.key}
+            ref={(view) => {
+              if (route.name in TOUR_TARGET_BY_ROUTE) tabRefs.current[route.name] = view;
+            }}
             accessibilityRole="button"
             accessibilityState={isFocused ? { selected: true } : {}}
             accessibilityLabel={options.tabBarAccessibilityLabel}

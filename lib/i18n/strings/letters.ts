@@ -4,7 +4,6 @@ import { defineStrings } from "@/lib/i18n";
 export const lettersStrings = defineStrings({
   lt: {
     title: "Laiškeliai",
-    tutorialIntro: "Čia gali parašyti arba gauti laiškelį iš atsitiktinio žmogaus.",
 
     writeButton: "Parašyti laiškelį",
     receiveButton: "Gauti laiškelį",
@@ -28,7 +27,6 @@ export const lettersStrings = defineStrings({
   },
   en: {
     title: "Letters",
-    tutorialIntro: "Here you can write a letter or receive one from a random stranger.",
 
     writeButton: "Write a letter",
     receiveButton: "Receive a letter",

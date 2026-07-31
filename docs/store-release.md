@@ -313,29 +313,24 @@ shared dev/test account, which has been deleted outright rather than wiped
 - [x] ~~Decide the package/bundle id~~ — `lt.laiskelis.app`, 2026-07-28 (§1).
 - [x] ~~Add `laiskelis://auth/callback` to the Supabase redirect allowlist~~ —
       done 2026-07-28.
-- [ ] Google Play developer account ($25), first manual AAB upload, recruit 12
-      closed testers, start the 14-day clock. **This is the long pole — it
-      cannot be shortened, so start it before anything else here.**
-- [ ] Apple Developer Program ($99/yr), create the App Store Connect record,
-      then hand over the three values in §4 so the iOS submit block can be
-      filled in.
+- [~] Google Play — underway as of 2026-07-30: developer account created,
+      closed test with 12 testers started, 14-day clock running. **Still the
+      long pole; nothing else here can shorten it.**
+- [x] ~~Apple Developer Program ($99/yr), create the App Store Connect record~~
+      — done 2026-07-31. Team ID `292X7P792G`, App Store Connect app id
+      `6796757249`, App ID registered as `lt.laiskelis.app` with Push
+      Notifications capability only. iOS submit block filled into `eas.json`.
 - [x] ~~Delete the shared test account~~ — done 2026-07-28. Not just wiped:
       confirmed it was already gone from the live DB (no matching row in
       `auth.users`, so nothing to cascade-delete), and removed
       `TEST_ACCOUNT.md`, `scripts/seed-test-account.mjs`, and a stray
       `scripts_seed_test_tmp.mjs` leftover from the repo. No longer needed
       now that real testers are about to take over that role.
-- [ ] Fix auth email delivery before the 12-tester cohort — full steps in
-      [`email-setup.md`](email-setup.md). **Not a store requirement**: neither
-      store asks for a custom domain, and the privacy/support URLs now point at
-      `laiskelis.lt` regardless. The problem is that the built-in Supabase sender is
-      capped at a couple of emails an hour, so a burst of signups fails
-      silently on the confirmation email. Registering `laiskelis.lt` + Resend
-      is the clean fix; turning confirmation off is the free one, with the
-      trade-off written up in the doc. The Lithuanian auth email templates
-      belong to the same job either way.
-- [ ] Write real founder seed letters (cold-start content). Your voice, not
-      mine — but I can draft candidates to edit.
+- [x] ~~Fix auth email delivery before the 12-tester cohort~~ — done, see
+      [`email-setup.md`](email-setup.md) (Resend + `laiskelis.lt`).
+- [ ] Write real founder seed letters (cold-start content) — **deferred until
+      after release**, not before. Decision 2026-07-30: populate the app with
+      real letters once it's actually live rather than pre-seeding.
 - [x] ~~Create the reviewer demo account~~ — done 2026-07-28,
       `scripts/seed-reviewer-account.mjs`, credentials in
       `credentials/reviewer-account.md` (gitignored). Separate from the

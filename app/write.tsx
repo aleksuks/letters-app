@@ -36,6 +36,10 @@ const DRAFT_DRAWING_KEY = "letters.write.draft.drawing";
 const MIN_TEXT_LENGTH = 10;
 const INPUT_PADDING = 20;
 const INPUT_LINE_HEIGHT = 28;
+// Floor for the auto-growing input below — enough for a couple of wrapped
+// placeholder lines so the box doesn't feel like a single-line field before
+// the user has typed anything.
+const MIN_INPUT_HEIGHT = INPUT_PADDING * 2 + INPUT_LINE_HEIGHT * 3;
 // Suggestions must be visible without scrolling and without fighting the
 // keyboard for space, so they're pinned a few lines below the input's own
 // top edge (roughly where the first couple of typed lines would land)
@@ -89,6 +93,10 @@ export default function WriteScreen() {
   const { largeTouchTargets } = useAccessibility();
   const t = useStrings(writeStrings);
   const [body, setBody] = useState("");
+  // Grows with the content (see onContentSizeChange below) so a short
+  // letter leaves the drawing tray visible right underneath it, instead of
+  // sitting inside a fixed-height box sized for a full page of text.
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const [drawing, setDrawing] = useState<Drawing>(emptyDrawing);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -279,9 +287,10 @@ export default function WriteScreen() {
 
           <View style={s.inputWrap}>
             <TextInput
-              style={s.input}
+              style={[s.input, { height: Math.max(MIN_INPUT_HEIGHT, inputHeight) }]}
               value={body}
               onChangeText={setBody}
+              onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
               placeholder={t.inputPlaceholder}
               placeholderTextColor={colors.subtext}
               multiline
@@ -432,7 +441,6 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       fontSize: 18,
       lineHeight: INPUT_LINE_HEIGHT,
       padding: INPUT_PADDING,
-      minHeight: 280,
     },
     counter: {
       fontSize: 12,

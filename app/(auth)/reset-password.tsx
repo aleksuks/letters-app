@@ -1,11 +1,12 @@
 import { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/use-auth";
+import { PasswordInput } from "@/components/password-input";
 import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useStrings } from "@/lib/i18n";
 import { resetPasswordStrings } from "@/lib/i18n/strings/reset-password";
@@ -57,21 +58,17 @@ export default function ResetPasswordScreen() {
         <Text style={s.title}>{t.title}</Text>
         <Text style={s.subtitle}>{t.subtitle}</Text>
 
-        <TextInput
-          style={s.input}
+        <PasswordInput
+          containerStyle={s.input}
           placeholder={t.newPasswordPlaceholder}
-          placeholderTextColor={colors.subtext}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
         />
-        <TextInput
-          style={s.input}
+        <PasswordInput
+          containerStyle={s.input}
           placeholder={t.confirmPasswordPlaceholder}
-          placeholderTextColor={colors.subtext}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          secureTextEntry
         />
 
         <TouchableOpacity style={s.button} onPress={handleSubmit} disabled={loading}>

@@ -43,6 +43,11 @@
         "serviceAccountKeyPath": "./credentials/play-service-account.json",
         "track": "production",
         "releaseStatus": "completed"
+      },
+      "ios": {
+        "appleId": "aleksandrasabrutis18@gmail.com",
+        "ascAppId": "6796757249",
+        "appleTeamId": "292X7P792G"
       }
     }
   }

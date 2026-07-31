@@ -10,7 +10,7 @@ export const mapLetterStrings = defineStrings({
     emptyHint: "Jis pasibaigė arba buvo pašalintas.",
 
     strangerSignature: "nepažįstamasis",
-    meta: "Paliktas {left} · guls čia iki {until}",
+    meta: "Paliktas {left} · gulės čia iki {until}",
 
     likeHintLiked: "Patiko. Bakstelėk dar kartą du kartus, jei nori atšaukti.",
     likeHintUnliked: "Patiko? Bakstelėk laiškelį du kartus.",

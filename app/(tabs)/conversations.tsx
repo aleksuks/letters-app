@@ -11,7 +11,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFocusAfterTransition } from "@/hooks/use-focus-after-transition";
 import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, LARGE_BUTTON } from "@/contexts/accessibility";
-import { TutorialTip } from "@/components/tutorial-tip";
 import { AvatarCircle } from "@/components/avatar-circle";
 import { useStrings, format } from "@/lib/i18n";
 import { common } from "@/lib/i18n/strings/common";
@@ -143,11 +142,6 @@ export default function ConversationsScreen() {
           <View>
             <Text style={s.title}>{t.title}</Text>
 
-            <TutorialTip
-              id="conversations_intro"
-              text={t.tutorialIntro}
-            />
-
             {requests.length > 0 && (
               <View style={s.requestsSection}>
                 <Text style={s.sectionTitle}>{t.requestsSectionTitle}</Text>
@@ -217,7 +211,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8 },
     list: { paddingHorizontal: 16, paddingBottom: 32, gap: 2 },
     empty: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
-    emptyHint: { fontSize: 13, color: colors.subtext },
+    emptyHint: { fontSize: 13, color: colors.subtext, textAlign: "center", lineHeight: 19, paddingHorizontal: 24 },
     requestsSection: { marginTop: 16, marginBottom: 8, gap: 12 },
     sectionTitle: {
       fontSize: 13,

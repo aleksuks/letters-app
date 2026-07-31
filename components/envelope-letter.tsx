@@ -271,6 +271,18 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
   const hasDrawing = isValidDrawing(drawing) && drawing.strokes.length > 0;
   const pictureOnSheet = hasDrawing && body.trim().length === 0;
   const pictureIsSeparate = hasDrawing && !pictureOnSheet && mode === "receive";
+  // The picture sheet stays out of the tree entirely until the written
+  // sheet's own pull has fully committed and its peek has started — with
+  // both mounted throughout, the still-tucked picture sat in the same
+  // notch as the letter (rendered on top, per the old z-order comment) and
+  // visibly intruded on the letter's peek/pull, reading as if one swipe
+  // nudged both sheets at once instead of one motion per sheet in sequence.
+  const pictureVisible =
+    pictureIsSeparate &&
+    (phase === "peekingPicture" ||
+      phase === "waitingToPullPicture" ||
+      phase === "pullingPicture" ||
+      phase === "done");
 
   const SHEET_W = Math.min(Math.round(width * 0.82), 340);
   const SHEET_PADDING = 18;
@@ -1178,13 +1190,14 @@ export function EnvelopeLetter({ body, drawing, mode, onDone, onStart, onPulling
               </View>
             </Animated.View>
 
-            {/* The picture, when it's a second sheet. Same zIndex as the
-                written one and rendered after it, so it sits in front once
-                both are out — while tucked, both are behind the pocket front
-                either way, and once out they're clear of the envelope
-                entirely, so document order is the only thing deciding which
-                of the two is on top. */}
-            {pictureIsSeparate && (
+            {/* The picture, when it's a second sheet. Not mounted at all
+                until the written sheet's own pull has committed (see
+                pictureVisible above) — the two sheets are never both
+                animating or both visible at the same tucked spot, so this
+                reads as one motion per sheet instead of both moving at
+                once. Same zIndex as the written one, only ever in the tree
+                once the letter is already clear of the envelope. */}
+            {pictureVisible && (
               <Animated.View
                 style={[
                   { position: "absolute", top: ENVELOPE_TOP, left: PAPER_LEFT, width: SHEET_W, overflow: "hidden", zIndex: 1 },

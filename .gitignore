@@ -48,3 +48,6 @@ app-example
 
 # JetBrains IDE
 .idea/
+
+# Claude Code worktrees
+.claude/worktrees/

@@ -1,9 +1,14 @@
 import { defineStrings } from "@/lib/i18n";
 
+// The premise letter, delivered as the user's very first received letter
+// through the real envelope ceremony in app/receive.tsx (tutorial id
+// "welcome_letter") — not a separate welcome screen.
 export const welcomeLetterStrings = defineStrings({
   lt: {
-    close: "Uždaryti",
-    dismissHint: "Brūkštelėk žemyn, kad uždarytum",
+    // The premise letter is genuinely written by the founder, so it's signed
+    // as such rather than by the app — a first letter from a person lands
+    // differently than a first letter from a system.
+    fromNickname: "aleksandras",
     body:
       "Sveiki!\n\n" +
       "„Laiškelyje“ slepiesi po slapyvardžiu ir rašai trumpus tekstus " +
@@ -15,11 +20,14 @@ export const welcomeLetterStrings = defineStrings({
       "Jei laiškelis kažkam ant tiek patinka (ar nepatinka), kad nori " +
       "susisiekti su siuntėju - galima išsiųsti užklausas, ir jei siuntėjas " +
       "jas priima, rašinėtis privačiai.\n\n" +
-      "Kol kas tiek.",
+      "Šitas laiškelis - pirmasis tavo gautas. Išbandyk ant jo, ką moki: " +
+      "brūkštelėk jį į kurią nors pusę.",
   },
   en: {
-    close: "Close",
-    dismissHint: "Swipe down to close",
+    // The premise letter is genuinely written by the founder, so it's signed
+    // as such rather than by the app — a first letter from a person lands
+    // differently than a first letter from a system.
+    fromNickname: "aleksandras",
     body:
       "Hello!\n\n" +
       "In Laiškelis, you hide behind a nickname and write short letters " +
@@ -32,6 +40,7 @@ export const welcomeLetterStrings = defineStrings({
       "If a letter strikes someone enough — for better or worse — that " +
       "they want to reach the sender, they can send a request, and if the " +
       "sender accepts, the two of you can write to each other privately.\n\n" +
-      "That's it for now.",
+      "This letter is the first one you've received. Try your new powers " +
+      "on it: swipe it to either side.",
   },
 });

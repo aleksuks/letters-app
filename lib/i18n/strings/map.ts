@@ -7,9 +7,6 @@ export const mapStrings = defineStrings({
     mapAccessibilityHint:
       "Žemėlapio turinys nepasiekiamas ekrano skaitytuvui. Naudok vietos paiešką, kad pereitum prie miesto.",
 
-    tutorialIntro:
-      "Čia išdėlioti laiškeliai, kurie ieško savo gavėjo konkrečioje vietoje, galbūt ten sutiktam žmogui, o galbūt įspėti būsimus. Gali pasižvalgyti, o patikusiems uždėti širdutę. Jei manai, kad laiškelis tau, gali su rašytoju susisiekti.",
-
     searchButtonLabel: "Ieškoti vietos žemėlapyje",
     searchPlaceholder: "Miestas, miestelis, kaimas...",
     closeSearchLabel: "Uždaryti paiešką",
@@ -28,9 +25,6 @@ export const mapStrings = defineStrings({
     mapAccessibilityLabel: "Map of Lithuania with letters",
     mapAccessibilityHint:
       "The map's content isn't accessible to screen readers. Use place search to jump to a town.",
-
-    tutorialIntro:
-      "These are letters left in specific places — for someone the author met there, or maybe as a warning for whoever comes next. Browse around and leave a heart on the ones you like. If you think a letter's meant for you, you can reach out to whoever wrote it.",
 
     searchButtonLabel: "Search for a place on the map",
     searchPlaceholder: "City, town, village...",

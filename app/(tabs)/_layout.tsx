@@ -2,7 +2,7 @@ import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useMemo, useRef } from "react";
-import { useWindowDimensions } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import {
   Easing,
   runOnJS,
@@ -11,7 +11,9 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { AnimatedTabBar } from "@/components/tab-bar";
+import { TourSpotlight } from "@/components/tour-spotlight";
 import { useAccessibility } from "@/contexts/accessibility";
+import { useTour } from "@/contexts/tour";
 import { useStrings } from "@/lib/i18n";
 import { tabsStrings } from "@/lib/i18n/strings/tabs";
 import {
@@ -26,6 +28,7 @@ import {
 export default function TabLayout() {
   const { width } = useWindowDimensions();
   const { reducedMotion } = useAccessibility();
+  const { onTabFocused } = useTour();
   const t = useStrings(tabsStrings);
 
   const position = useSharedValue(0);
@@ -112,6 +115,9 @@ export default function TabLayout() {
   return (
     <TabPagerContext.Provider value={pager}>
       <TabSceneVisibilityOverride>
+      {/* The spotlight must overlay the tab bar too, so it sits as a
+          sibling of the whole navigator rather than inside any screen. */}
+      <View style={{ flex: 1 }}>
       <Tabs
         detachInactiveScreens={false}
         screenOptions={screenOptions}
@@ -119,6 +125,11 @@ export default function TabLayout() {
         screenListeners={{
           state: (e) => {
             animateToIndex(e.data.state.index);
+            // Keeps the discovery tour told which tab is on screen — both
+            // to advance tab-targeted steps and to hide steps whose target
+            // lives on a currently off-screen tab.
+            const route = e.data.state.routes[e.data.state.index];
+            if (route) onTabFocused(route.name);
           },
         }}
       >
@@ -168,6 +179,8 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
+      <TourSpotlight />
+      </View>
       </TabSceneVisibilityOverride>
     </TabPagerContext.Provider>
   );

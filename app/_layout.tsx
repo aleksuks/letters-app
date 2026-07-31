@@ -4,6 +4,7 @@ import * as Linking from "expo-linking";
 import { Stack, useRouter, useSegments, useNavigationContainerRef } from "expo-router";
 import { CommonActions } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import * as Notifications from "expo-notifications";
@@ -13,9 +14,21 @@ import { ThemeProvider } from "@/contexts/theme";
 import { LanguageProvider } from "@/contexts/language";
 import { AccessibilityProvider } from "@/contexts/accessibility";
 import { TutorialProvider } from "@/contexts/tutorial";
+import { TourProvider } from "@/contexts/tour";
 import { UnreadMessagesProvider } from "@/contexts/unread-messages";
 import { ProfileProvider } from "@/contexts/profile";
 import { registerForPushNotificationsAsync, touchLastActive, notificationDataToRoute } from "@/lib/notifications";
+
+// The envelope ceremony (components/envelope-letter.tsx) races a Tap and a
+// Pan gesture at every swipeable stage. Resolving that race sometimes has
+// Gesture Handler call into Reanimated's setGestureState from the plain JS
+// thread instead of the UI runtime — internal library plumbing, nothing our
+// gesture callbacks do directly — which Reanimated then logs as a warning
+// on every occurrence. It doesn't affect gesture behavior; raising the
+// logger's floor above `warn` is the documented way to quiet it.
+if (__DEV__) {
+  configureReanimatedLogger({ level: ReanimatedLogLevel.error });
+}
 
 // Password-recovery links carry tokens as a URL fragment (implicit flow,
 // the supabase-js default — detectSessionInUrl is off in lib/supabase.ts
@@ -151,6 +164,7 @@ export default function RootLayout() {
           <ThemeProvider>
             <LanguageProvider>
               <TutorialProvider>
+                <TourProvider>
                 <ProfileProvider>
                   <UnreadMessagesProvider>
                     <Stack screenOptions={{ headerShown: false }}>
@@ -172,6 +186,7 @@ export default function RootLayout() {
                     </Stack>
                   </UnreadMessagesProvider>
                 </ProfileProvider>
+                </TourProvider>
               </TutorialProvider>
             </LanguageProvider>
           </ThemeProvider>

@@ -4,8 +4,6 @@ import { defineStrings } from "@/lib/i18n";
 export const conversationsStrings = defineStrings({
   lt: {
     title: "Pokalbiai",
-    tutorialIntro:
-      "Jei kas norės su tavimi pabendrauti, užklausa bus čia. Priėmus prasidės pokalbis, o atsisakius užklausa tiesiog dings, ir siuntėjas to net nesužinos.",
 
     requestsSectionTitle: "Užklausos susisiekti",
     messagesSectionTitle: "Žinutės",
@@ -18,7 +16,10 @@ export const conversationsStrings = defineStrings({
     acceptButton: "Priimti",
 
     emptyText: "Kol kas jokių pokalbių.",
-    emptyHint: "Norint pradėti pokalbį, priimk užklausą susisiekti.",
+    // The old banner tip's content lives here now — read exactly when the
+    // screen is otherwise empty and the user is wondering what goes in it.
+    emptyHint:
+      "Jei kas norės su tavimi pabendrauti, užklausa atsiras čia. Priėmus prasidės pokalbis, o atmesta užklausa tiesiog dings — siuntėjas to net nesužinos.",
 
     alreadyConversationTitle: "Pokalbis jau vyksta",
     alreadyConversationBody:
@@ -26,8 +27,6 @@ export const conversationsStrings = defineStrings({
   },
   en: {
     title: "Conversations",
-    tutorialIntro:
-      "If someone wants to talk with you, their request will show up here. Accept it and a conversation begins — decline, and it just quietly disappears; the sender never finds out.",
 
     requestsSectionTitle: "Requests to talk",
     messagesSectionTitle: "Messages",
@@ -40,7 +39,8 @@ export const conversationsStrings = defineStrings({
     acceptButton: "Accept",
 
     emptyText: "No conversations yet.",
-    emptyHint: "Accept a request to talk to start a conversation.",
+    emptyHint:
+      "If someone wants to talk with you, their request will show up here. Accept it and a conversation begins — decline, and it just quietly disappears; the sender never finds out.",
 
     alreadyConversationTitle: "You're already talking",
     alreadyConversationBody:

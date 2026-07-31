@@ -389,6 +389,35 @@ looking at.
 See "Push-only" above — shipped after test users asked, against the original
 intent of total silence.
 
+### Onboarding stopped being reading (2026-07-31)
+
+**Originally:** a full-screen welcome letter on first launch plus dismissible
+banner tips at the top of each screen. The texts were good; nobody read them.
+A test user came away believing the map was the whole app — "Gauti laiškelį"
+went unpressed, because nothing ever pointed at it.
+
+**What changed:** all passive teaching was replaced with doing. A spotlight
+tour (`contexts/tour.tsx` + `components/tour-spotlight.tsx`) dims the screen
+around one real control at a time — Letters tab, the receive button, then the
+Map tab — and each step is dismissed only by performing the action it points
+at (or an explicit skip), closing with a short farewell so the tour ends
+rather than just stopping. The light is a soft-edged oval with a faint beam
+angling into it (an SVG radial-gradient mask, not a cut-out rectangle): a
+hard border around the target read as a UI element stuck to the screen, while
+a pool of light reads as attention. The premise text survived intact
+but moved *inside the mechanic*: it now arrives as the user's guaranteed
+first received letter, through the real envelope ceremony, from sender
+"Laiškelis" (app/receive.tsx). That also means the first receive press can
+never land in an empty pool and kill the magic moment. Banner tips on tab
+screens were deleted; their one-liners moved into empty states and the
+subtitle. Moment-of-need tips on modal screens (swipe explanation, chat
+safety note) stay — those already appear at the moment they're relevant.
+
+**Rejected:** a swipeable tutorial carousel on first launch. Same failure
+mode as the welcome screen — front-loaded reading about features the user
+hasn't met yet, skipped by reflex, and outdated as a pattern precisely
+because everyone learned to skip it.
+
 ---
 
 ## What success actually means
