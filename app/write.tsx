@@ -97,6 +97,11 @@ export default function WriteScreen() {
   // letter leaves the drawing tray visible right underneath it, instead of
   // sitting inside a fixed-height box sized for a full page of text.
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
+  // Measured so the space below the input can be padded out whenever the
+  // prompt chips (variable height — they wrap depending on locale/width)
+  // spill past the input's own bottom edge, instead of overlapping
+  // whatever sits below (counter, "add drawing" button).
+  const [promptsHeight, setPromptsHeight] = useState(0);
   const [drawing, setDrawing] = useState<Drawing>(emptyDrawing);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -121,6 +126,16 @@ export default function WriteScreen() {
   const s = makeStyles(colors);
 
   const remaining = MAX_LENGTH - body.length;
+  const showPrompts = body.length < PROMPTS_HIDE_AT_LENGTH;
+  // The overlay is absolutely positioned (so it doesn't push the input's
+  // own height around), which means it reserves no layout space of its
+  // own — without this, a short/min-height input lets the chips spill
+  // past its bottom edge and sit on top of the counter and drawing
+  // toggle below it.
+  const inputBoxHeight = Math.max(MIN_INPUT_HEIGHT, inputHeight);
+  const promptsOverflow = showPrompts
+    ? Math.max(0, PROMPTS_OVERLAY_TOP + promptsHeight - inputBoxHeight)
+    : 0;
   const hasDrawing = !isDrawingEmpty(drawing);
   // Text, drawing, or both — but a letter with no picture still has to carry
   // enough words to be worth someone's claim.
@@ -285,9 +300,9 @@ export default function WriteScreen() {
             style={s.tip}
           />
 
-          <View style={s.inputWrap}>
+          <View style={[s.inputWrap, { marginBottom: promptsOverflow }]}>
             <TextInput
-              style={[s.input, { height: Math.max(MIN_INPUT_HEIGHT, inputHeight) }]}
+              style={[s.input, { height: inputBoxHeight }]}
               value={body}
               onChangeText={setBody}
               onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
@@ -305,11 +320,12 @@ export default function WriteScreen() {
                 actually started writing. Purely inspirational — not
                 clickable/insertable — so they read as ideas, not
                 prewritten text to just tap in. */}
-            {body.length < PROMPTS_HIDE_AT_LENGTH && (
+            {showPrompts && (
               <Animated.View
                 style={s.promptsOverlay}
                 pointerEvents="none"
                 exiting={FadeOut.duration(300)}
+                onLayout={(e) => setPromptsHeight(e.nativeEvent.layout.height)}
               >
                 <Text style={s.promptsLabel}>{t.promptsLabel}</Text>
                 <View style={s.promptsRow}>
@@ -447,6 +463,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       color: colors.subtext,
       textAlign: "right",
       paddingRight: 20,
+      marginTop: 8,
       marginBottom: 24,
     },
     counterWarning: { color: colors.red },
