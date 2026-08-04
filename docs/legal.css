@@ -1,11 +1,13 @@
+/* Bone and brick are sampled from the feature graphic, so the whole site is
+   the same two colours as the artwork on the front page. */
 :root {
   color-scheme: light dark;
-  --bg: #fbf8f3;
+  --bg: #e7dec8;
   --text: #2b2620;
-  --subtext: #6b6255;
-  --accent: #a8562f;
-  --border: #e6ddd0;
-  --surface: #ffffff;
+  --subtext: #665c4c;
+  --accent: #96160F;
+  --border: #cfc4aa;
+  --surface: #f1eade;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -37,7 +39,8 @@ body {
 
 nav.top {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   margin-bottom: 32px;
   font-size: 14px;
 }
@@ -83,15 +86,17 @@ table {
   font-size: 14px;
 }
 
+/* Tables sit on the page colour — the only thing separating them is the
+   grid itself, drawn in the text colour rather than a tint. */
 th, td {
   text-align: left;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--text);
   vertical-align: top;
 }
 
 th {
-  background: var(--surface);
+  background: transparent;
 }
 
 ul { padding-left: 20px; }

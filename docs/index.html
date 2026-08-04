@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>„Laiškelis“</title>
+<meta name="description" content="Anoniminiai laiškeliai nepažįstamiesiems. Parašyk laiškelį — jis atkeliaus atsitiktiniam žmogui arba liks laukti vietoje žemėlapyje.">
+<meta name="theme-color" content="#e7dec8">
+<meta property="og:type" content="website">
+<meta property="og:title" content="„Laiškelis“">
+<meta property="og:description" content="Anoniminiai laiškeliai nepažįstamiesiems.">
+<meta property="og:url" content="https://laiskelis.lt/">
+<meta property="og:image" content="https://laiskelis.lt/feature-graphic.png">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="stylesheet" href="legal.css">
+<style>
+  /* The landing page commits to the feature graphic's own palette in both
+     light and dark, so the banner blends into the page instead of floating
+     on it. Bone and brick are sampled straight from the artwork. */
+  :root,
+  :root[data-theme] {
+    color-scheme: light;
+    --bg: #e7dec8;
+    --text: #2b2620;
+    --subtext: #665c4c;
+    --accent: #96160F;
+    --border: #cfc4aa;
+    --surface: #f1eade;
+    --brick: #96160F;
+    --brick-dark: #7d1009;
+    --on-brick: #f7f1e4;
+  }
+
+  .banner {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin: 0 0 8px;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .hero .tagline {
+    font-size: 19px;
+    margin: 0 auto 12px;
+    max-width: 30ch;
+  }
+
+  .hero .blurb {
+    color: var(--subtext);
+    font-size: 15px;
+    margin: 0 auto;
+    max-width: 46ch;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  a.card {
+    display: block;
+    background: var(--brick);
+    border: 1px solid var(--brick);
+    border-radius: 10px;
+    padding: 18px 20px;
+    text-decoration: none;
+    color: var(--on-brick);
+    transition: background-color 0.15s ease, transform 0.15s ease;
+  }
+
+  a.card:hover {
+    background: var(--brick-dark);
+    border-color: var(--brick-dark);
+    transform: translateY(-1px);
+  }
+
+  a.card:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+
+  a.card .label {
+    display: block;
+    font-size: 17px;
+    color: var(--on-brick);
+    margin-bottom: 4px;
+  }
+
+  a.card .desc {
+    display: block;
+    font-size: 14px;
+    color: rgba(247, 241, 228, 0.82);
+    line-height: 1.5;
+  }
+
+  a.card .lang {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(247, 241, 228, 0.82);
+    border: 1px solid rgba(247, 241, 228, 0.45);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    vertical-align: 2px;
+  }
+
+  .contact {
+    margin-top: 32px;
+    text-align: center;
+    color: var(--subtext);
+    font-size: 15px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    a.card { transition: none; }
+    a.card:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <img class="banner" src="feature-graphic.png"
+         alt="„Laiškelis“ — kreidele pieštas logotipas ir telefonas su laiškeliu, prisegtu prie vietos žemėlapyje">
+    <h1 class="sr-only">„Laiškelis“</h1>
+    <p class="tagline">Anoniminiai laiškeliai nepažįstamiesiems.</p>
+    <p class="blurb">Parašai laiškelį — jis iškeliauja atsitiktiniam žmogui
+    Lietuvoje. Arba prisegi jį prie vietos žemėlapyje ir lauki, kol tas, kuriam
+    jis skirtas, ras.</p>
+  </header>
+
+  <!-- Store buttons go here once the app is live. Uncomment and fill in:
+  <div class="cards">
+    <a class="card" href="https://play.google.com/store/apps/details?id=lt.laiskelis.app">
+      <span class="label">Google Play</span>
+      <span class="desc">„Android“ programėlė</span>
+    </a>
+    <a class="card" href="https://apps.apple.com/lt/app/idAPPLE_ID_HERE">
+      <span class="label">App Store</span>
+      <span class="desc">„iPhone“ programėlė</span>
+    </a>
+  </div>
+  -->
+
+  <nav class="cards">
+
+    <a class="card" href="story/">
+      <span class="label">Story<span class="lang">EN</span></span>
+      <span class="desc">Kaip ir kodėl atsirado „Laiškelis“ — sprendimai,
+      persigalvojimai ir tai, kas sąmoningai nebuvo padaryta.</span>
+    </a>
+
+    <a class="card" href="support.html">
+      <span class="label">Pagalba</span>
+      <span class="desc">Dažniausi klausimai: slaptažodis, patvirtinimo
+      laiškas, skundai, blokavimas.</span>
+    </a>
+
+    <a class="card" href="privacy.html">
+      <span class="label">Privatumo politika</span>
+      <span class="desc">Kokius duomenis renkame, kiek laiko saugome ir ko
+      neprašome niekada.</span>
+    </a>
+
+    <a class="card" href="terms.html">
+      <span class="label">Naudojimo sąlygos</span>
+      <span class="desc">Taisyklės, turinio ribos ir ko tikimasi iš
+      naudotojų.</span>
+    </a>
+
+    <a class="card" href="delete-account.html">
+      <span class="label">Paskyros ištrynimas</span>
+      <span class="desc">Kaip ištrinti paskyrą ir kas nutinka Jūsų
+      laiškeliams.</span>
+    </a>
+
+    <a class="card" href="csae-standards.html">
+      <span class="label">CSAE Standards<span class="lang">EN</span></span>
+      <span class="desc">Vaikų apsaugos nuo išnaudojimo standartai („Google
+      Play“ reikalavimas).</span>
+    </a>
+
+  </nav>
+
+  <p class="contact">Klausimai ar pranešimai apie netinkamą turinį —
+  <a href="mailto:aleksandrasabrutis18@gmail.com">aleksandrasabrutis18@gmail.com</a></p>
+
+  <footer>„Laiškelis“ · Aleksandras Abrutis · aleksandrasabrutis18@gmail.com</footer>
+</div>
+</body>
+</html>

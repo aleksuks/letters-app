@@ -51,3 +51,6 @@ app-example
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# story draft — the published version is docs/story/index.html
+story.md
