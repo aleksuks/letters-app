@@ -15,23 +15,6 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="stylesheet" href="legal.css">
 <style>
-  /* The landing page commits to the feature graphic's own palette in both
-     light and dark, so the banner blends into the page instead of floating
-     on it. Bone and brick are sampled straight from the artwork. */
-  :root,
-  :root[data-theme] {
-    color-scheme: light;
-    --bg: #e7dec8;
-    --text: #2b2620;
-    --subtext: #665c4c;
-    --accent: #96160F;
-    --border: #cfc4aa;
-    --surface: #f1eade;
-    --brick: #96160F;
-    --brick-dark: #7d1009;
-    --on-brick: #f7f1e4;
-  }
-
   .banner {
     display: block;
     width: 100%;
@@ -142,7 +125,7 @@
 <div class="wrap">
 
   <header class="hero">
-    <img class="banner" src="feature-graphic.png"
+    <img class="banner" src="banner.png"
          alt="„Laiškelis“ — kreidele pieštas logotipas ir telefonas su laiškeliu, prisegtu prie vietos žemėlapyje">
     <h1 class="sr-only">„Laiškelis“</h1>
     <p class="tagline">Anoniminiai laiškeliai nepažįstamiesiems.</p>
@@ -168,8 +151,13 @@
 
     <a class="card" href="story/">
       <span class="label">Story<span class="lang">EN</span></span>
-      <span class="desc">Kaip ir kodėl atsirado „Laiškelis“ — sprendimai,
-      persigalvojimai ir tai, kas sąmoningai nebuvo padaryta.</span>
+      <span class="desc">The idea, the process, and the goals.</span>
+    </a>
+
+    <a class="card" href="csae-standards.html">
+      <span class="label">CSAE Standards<span class="lang">EN</span></span>
+      <span class="desc">Child sexual abuse and exploitation standards, as
+      required by Google Play.</span>
     </a>
 
     <a class="card" href="support.html">
@@ -194,12 +182,6 @@
       <span class="label">Paskyros ištrynimas</span>
       <span class="desc">Kaip ištrinti paskyrą ir kas nutinka Jūsų
       laiškeliams.</span>
-    </a>
-
-    <a class="card" href="csae-standards.html">
-      <span class="label">CSAE Standards<span class="lang">EN</span></span>
-      <span class="desc">Vaikų apsaugos nuo išnaudojimo standartai („Google
-      Play“ reikalavimas).</span>
     </a>
 
   </nav>

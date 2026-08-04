@@ -1,24 +1,18 @@
-/* Bone and brick are sampled from the feature graphic, so the whole site is
-   the same two colours as the artwork on the front page. */
+/* Bone and brick are sampled from the feature graphic, so every page is the
+   same two colours as the artwork on the front page. There is deliberately no
+   dark variant: the banner carries a baked-in bone background, and a dark
+   shell around it reads as broken rather than as a theme. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --bg: #e7dec8;
   --text: #2b2620;
   --subtext: #665c4c;
   --accent: #96160F;
   --border: #cfc4aa;
   --surface: #f1eade;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1a17;
-    --text: #ece6dc;
-    --subtext: #a89e8e;
-    --accent: #e0a074;
-    --border: #37322b;
-    --surface: #24211d;
-  }
+  --brick: #96160F;
+  --brick-dark: #7d1009;
+  --on-brick: #f7f1e4;
 }
 
 * { box-sizing: border-box; }

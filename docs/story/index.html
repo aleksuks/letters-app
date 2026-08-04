@@ -5,12 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The story of „Laiškelis“</title>
 <meta name="description" content="How an anonymous letter app for Lithuania came to exist — the decisions, the reversals, and the things that were deliberately left out.">
+<meta name="theme-color" content="#e7dec8">
 <meta property="og:type" content="article">
 <meta property="og:title" content="The story of „Laiškelis“">
 <meta property="og:description" content="How an anonymous letter app for Lithuania came to exist — the decisions, the reversals, and the things that were deliberately left out.">
 <meta property="og:url" content="https://laiskelis.lt/story/">
+<meta property="og:image" content="https://laiskelis.lt/feature-graphic.png">
+<link rel="icon" href="../favicon.png">
+<link rel="apple-touch-icon" href="../icon.png">
 <link rel="stylesheet" href="../legal.css">
 <style>
+  html { scroll-behavior: smooth; }
+
   .lead {
     color: var(--subtext);
     font-style: italic;
@@ -19,7 +25,85 @@
 
   article p { margin: 0 0 16px; }
 
+  article h2 {
+    scroll-margin-top: 16px;
+  }
+
   article h2:first-of-type { margin-top: 32px; }
+
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+
+  .toc h2 {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--subtext);
+    border: 0;
+    margin: 0 0 12px;
+    padding: 0;
+  }
+
+  .toc ol {
+    columns: 2;
+    column-gap: 32px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .toc li {
+    break-inside: avoid;
+    margin-bottom: 6px;
+    font-size: 15px;
+  }
+
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  @media (max-width: 520px) {
+    .toc ol { columns: 1; }
+  }
+
+  figure {
+    margin: 28px 0;
+  }
+
+  figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  @media (max-width: 520px) {
+    .pair { grid-template-columns: 1fr; }
+  }
+
+  .phone {
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  figcaption {
+    color: var(--subtext);
+    font-size: 14px;
+    line-height: 1.5;
+    margin-top: 10px;
+    text-align: center;
+  }
 
   .placeholder {
     background: var(--surface);
@@ -40,6 +124,10 @@
     color: var(--accent);
     margin-bottom: 8px;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
 </style>
 </head>
 <body>
@@ -57,13 +145,35 @@
   <h1>The story of „Laiškelis“</h1>
   <p class="updated"><strong>Last updated:</strong> 4 August 2026</p>
 
-  <article>
-
   <p class="lead">How an anonymous letter app for Lithuania came to exist —
   written from the decisions log kept while building it, which is the only
   record of why any of it is the way it is.</p>
 
-  <h2>0. Before it was this</h2>
+  <nav class="toc" aria-labelledby="toc-heading">
+    <h2 id="toc-heading">Chapters</h2>
+    <ol>
+      <li><a href="#before">Before it was this</a></li>
+      <li><a href="#two-ideas">Two ideas combined</a></li>
+      <li><a href="#the-look">The look came first</a></li>
+      <li><a href="#no-inbox">Nobody wants mail they didn't ask for</a></li>
+      <li><a href="#scarcity">Product (letter) scarcity</a></li>
+      <li><a href="#mechanic">The mechanic</a></li>
+      <li><a href="#seven-days">Seven days</a></li>
+      <li><a href="#safety">The safety model</a></li>
+      <li><a href="#map">The map was never planned</a></li>
+      <li><a href="#crayons">Crayons</a></li>
+      <li><a href="#notifications">The compromise on notifications</a></li>
+      <li><a href="#test-users">Other stuff the test users changed</a></li>
+      <li><a href="#lithuania">Lithuania only</a></li>
+      <li><a href="#success">What success means for this project</a></li>
+      <li><a href="#campaign">The campaign</a></li>
+      <li><a href="#results">What actually happened</a></li>
+    </ol>
+  </nav>
+
+  <article>
+
+  <h2 id="before">Before it was this</h2>
 
   <p>On 23 June 2026 the base of this was a previous attempt at a
   micro-learning app designed to act as a substitute to mindless social media.
@@ -77,7 +187,7 @@
   CRUD patterns and the deployment path all carried over. No need to restart
   everything for no reason, is there?</p>
 
-  <h2>1. Two ideas combined</h2>
+  <h2 id="two-ideas">Two ideas combined</h2>
 
   <p>Anonymous letters sent out to strangers is not such a new idea, in fact,
   there is a recorded message in a bottle all the way from 1886. Temporary
@@ -96,7 +206,7 @@
   fall short of expectations if they aren't executed to their fullest
   potential. Well, I digress anyway.</p>
 
-  <h2>2. The look came first</h2>
+  <h2 id="the-look">The look came first</h2>
 
   <p>Bone on brick. Warm paper texture, typewriter type, an envelope you
   actually open. Let's see Paul Allen's card.</p>
@@ -117,7 +227,7 @@
   the general perception in big ways. The envelope tear and letter pullout
   ceremony is what separates the letters from just text boxes sent around.</p>
 
-  <h2>3. Nobody wants mail they didn't ask for</h2>
+  <h2 id="no-inbox">Nobody wants mail they didn't ask for</h2>
 
   <p>When the app began the testing phase, I did get some questions about why
   there isn't an inbox for the letters, and others didn't even realize you have
@@ -140,7 +250,7 @@
   to check the app all the time. Nobody wants to be pestered for that.
   Laiskelis is intentionally relaxed. It's not your work Outlook.</p>
 
-  <h2>4. Product (letter) scarcity</h2>
+  <h2 id="scarcity">Product (letter) scarcity</h2>
 
   <p>... is a marketing technique used in various ways to force the user in
   believing they might miss out on a limited offer. It can be really, really
@@ -161,7 +271,7 @@
   likely to be someone else entirely, and the original group is offline by
   then.</p>
 
-  <h2>5. The mechanic</h2>
+  <h2 id="mechanic">The mechanic</h2>
 
   <p>Originally every letter had a ceiling on how many distinct people could
   ever receive it, and a like bought exactly one more reader. If one person
@@ -183,7 +293,7 @@
   is exactly what this app exists to make thrive. A couple of dislikes for an
   odd joke must not be enough to kill a letter someone might really enjoy.</p>
 
-  <h2>6. Seven days, because that's how long post takes</h2>
+  <h2 id="seven-days">Seven days, because that's how long post takes</h2>
 
   <p>Pool letters live seven days. Not because seven is some type of technical
   number I was forced to pick, but because unregistered post in real life takes
@@ -194,7 +304,7 @@
   <p>Map letters live thirty days, to ensure they get a chance to be found by
   the person they're directed at.</p>
 
-  <h2>7. The safety model</h2>
+  <h2 id="safety">The safety model</h2>
 
   <p><strong>Keyword scoring.</strong> A letter is scored on send; over
   threshold, the send is rejected. Bad words are rated in points rather than a
@@ -244,12 +354,18 @@
   It's the one feature that adds identity to the product built on its
   absence.</p>
 
-  <h2>8. The map was never planned</h2>
+  <h2 id="map">The map was never planned</h2>
 
   <p>The app was the random pool of letters and the obituary. Map letters were
   built later as an additional feature — and became the definitive feature.
   They're the part that's actually beautiful to sit and look at, and the part
   with an obvious public surface to show people.</p>
+
+  <figure class="phone">
+    <img src="map.png" alt="The map screen: a letter pinned beside the Nemunas river in Kaunas, signed by aleksandras, with a „Palikti laiškelį“ button below it">
+    <figcaption>Zoomed in far enough, a map letter is just readable in
+    place.</figcaption>
+  </figure>
 
   <p>Worth writing down for the next project: do not be afraid to stray from
   the original idea.</p>
@@ -260,10 +376,19 @@
   attention, as the map letters are designed for a particular one person who
   knows the location anyway.</p>
 
-  <h2>9. Crayons</h2>
+  <h2 id="crayons">Crayons</h2>
 
   <p>All letters can carry a crude drawing instead of, or alongside, its
   text.</p>
+
+  <figure>
+    <div class="pair">
+      <img src="drawing-1.png" alt="A letter called „Didysis laiskas“ by abrutis — a dense scribble of coloured crayon dots">
+      <img src="drawing-2.png" alt="A letter by garvezys — a crayon face in sunglasses, captioned DALEI">
+    </div>
+    <figcaption>Two real letters. Eight crayons, three nib sizes, no
+    eraser.</figcaption>
+  </figure>
 
   <p>Drawings are stored as the strokes that made them — points, palette index,
   nib width — and re-rendered on the client. A few kilobytes per picture: no
@@ -293,7 +418,7 @@
   hand-approving every map drawing — but who really likes waiting for
   approval?</p>
 
-  <h2>10. The compromise on notifications</h2>
+  <h2 id="notifications">The compromise on notifications</h2>
 
   <p>The original premise was a silent app, with no inbox, no badges, no
   digests, no streaks — like an avoidant person, so you remember to open the
@@ -312,7 +437,7 @@
   letters that is only ever sent when there is actually a letter waiting for
   you. Never an invitation to come back and scroll.</p>
 
-  <h2>11. Other stuff the test users changed</h2>
+  <h2 id="test-users">Other stuff the test users changed</h2>
 
   <p>Four reversals, all of them from watching someone else use it.</p>
 
@@ -335,7 +460,7 @@
   land in an empty pool and kill the moment (call that 'deletion at first
   sight').</p>
 
-  <h2>12. Lithuania only</h2>
+  <h2 id="lithuania">Lithuania only</h2>
 
   <p>Before anyone asks — international expansion was always an option, and
   still is, but I firmly believe that a personal app like this should cater to
@@ -343,7 +468,7 @@
   A soulless app attempting to cater to the whole Earth will win nowhere on
   it.</p>
 
-  <h2>13. What success means for this project</h2>
+  <h2 id="success">What success means for this project</h2>
 
   <p>Daily active users was rejected as a north star specifically because it
   measures the exact behaviour the product is designed <em>not</em> to produce.
@@ -365,7 +490,7 @@
 
   <p>Also, passion project truly finished is a feat in itself.</p>
 
-  <h2>14. The campaign</h2>
+  <h2 id="campaign">The campaign</h2>
 
   <div class="placeholder">
     <span class="tag">Not written yet</span>
@@ -374,7 +499,7 @@
     whole of success criterion #1 above.</p>
   </div>
 
-  <!-- Section 14 — things worth capturing when you write it. Delete what doesn't apply:
+  <!-- The campaign — things worth capturing when you write it. Delete what doesn't apply:
 
     - The premise: what the campaign was actually selling — the mechanic, the
       feeling, or the look. (The map is the obvious public surface; the pool is
@@ -392,7 +517,7 @@
 
   -->
 
-  <h2>15. What actually happened</h2>
+  <h2 id="results">What actually happened</h2>
 
   <div class="placeholder">
     <span class="tag">Not written yet</span>
@@ -400,7 +525,7 @@
     tell a result from a spike.</p>
   </div>
 
-  <!-- Section 15 — things worth capturing when you write it. Delete what doesn't apply:
+  <!-- What actually happened — things worth capturing when you write it. Delete what doesn't apply:
 
     - Against the two stated success criteria first, before any other number:
       did strangers talk about it, and is there any evidence of two people
