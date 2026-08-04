@@ -17,6 +17,7 @@ import { useTour } from "@/contexts/tour";
 import { supabase } from "@/lib/supabase";
 import { useStrings } from "@/lib/i18n";
 import { settingsStrings } from "@/lib/i18n/strings/settings";
+import { responsiveContent } from "@/lib/responsive";
 
 const PRIVACY_POLICY_URL = "https://laiskelis.lt/privacy.html";
 const TERMS_OF_SERVICE_URL = "https://laiskelis.lt/terms.html";
@@ -394,7 +395,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     backButton: { marginRight: 16 },
     title: { fontSize: 28, fontWeight: "bold", color: colors.text, flex: 1 },
-    content: { flex: 1, paddingHorizontal: 16 },
+    content: { flex: 1, paddingHorizontal: 16, ...responsiveContent },
     section: { marginBottom: 32 },
     sectionTitle: {
       fontSize: 13,

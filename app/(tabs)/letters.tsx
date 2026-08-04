@@ -24,6 +24,7 @@ import { Letter } from "@/types";
 import { useStrings, format } from "@/lib/i18n";
 import { common } from "@/lib/i18n/strings/common";
 import { lettersStrings } from "@/lib/i18n/strings/letters";
+import { responsiveContent } from "@/lib/responsive";
 
 export default function LettersScreen() {
   const router = useRouter();
@@ -130,6 +131,7 @@ export default function LettersScreen() {
       <FlatList
         data={myLetters}
         keyExtractor={(item) => item.id}
+        style={s.content}
         ListHeaderComponent={
           <View>
             <Text style={s.title}>{t.title}</Text>
@@ -257,6 +259,7 @@ export default function LettersScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
+    content: { flex: 1, ...responsiveContent },
     list: { paddingHorizontal: 16, paddingBottom: 32 },
     title: {
       fontSize: 32,

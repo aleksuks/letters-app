@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
 import { supabase } from "@/lib/supabase";
+import { responsiveContent } from "@/lib/responsive";
 import { Letter, MapLetter, Report } from "@/types";
 
 type QueueLetter = Letter & { author: { nickname: string } | null };
@@ -348,6 +349,7 @@ export default function ModerationScreen() {
       <FlatList
         data={letters}
         keyExtractor={(item) => item.id}
+        style={s.content}
         contentContainerStyle={s.list}
         ListHeaderComponent={
           <View>
@@ -654,6 +656,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     backButton: { marginRight: 16 },
     title: { fontSize: 28, fontWeight: "bold", color: colors.text, flex: 1 },
+    content: { flex: 1, ...responsiveContent },
     list: { paddingHorizontal: 16, paddingBottom: 32 },
     empty: { color: colors.subtext, fontSize: 15, marginTop: 4 },
     statsSection: { marginBottom: 8 },

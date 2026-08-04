@@ -10,6 +10,7 @@ import { useTheme, outlineOnly, outlineOver } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useStrings, format } from "@/lib/i18n";
 import { signInStrings } from "@/lib/i18n/strings/sign-in";
+import { responsiveContent } from "@/lib/responsive";
 
 export default function SignInScreen() {
   const { signInWithEmail, signUpWithEmail, sendPasswordReset } = useAuth();
@@ -213,7 +214,7 @@ export default function SignInScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    inner: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
+    inner: { flex: 1, justifyContent: "center", paddingHorizontal: 24, ...responsiveContent },
     title: { fontSize: 36, fontWeight: "bold", color: colors.text, marginBottom: 8 },
     subtitle: { fontSize: 16, color: colors.subtext, marginBottom: 40, lineHeight: 24 },
     input: {

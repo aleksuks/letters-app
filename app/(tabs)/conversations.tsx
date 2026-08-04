@@ -15,6 +15,7 @@ import { AvatarCircle } from "@/components/avatar-circle";
 import { useStrings, format } from "@/lib/i18n";
 import { common } from "@/lib/i18n/strings/common";
 import { conversationsStrings } from "@/lib/i18n/strings/conversations";
+import { responsiveContent } from "@/lib/responsive";
 
 interface ConversationItem {
   id: string;
@@ -137,6 +138,7 @@ export default function ConversationsScreen() {
       <FlatList
         data={conversations}
         keyExtractor={item => item.id}
+        style={s.content}
         contentContainerStyle={s.list}
         ListHeaderComponent={
           <View>
@@ -209,6 +211,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     container: { flex: 1, backgroundColor: colors.bg },
     title: { fontSize: 32, fontWeight: "bold", color: colors.text, marginTop: 24, marginBottom: 8 },
     center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8 },
+    content: { flex: 1, ...responsiveContent },
     list: { paddingHorizontal: 16, paddingBottom: 32, gap: 2 },
     empty: { fontSize: 15, color: colors.subtext, fontWeight: "600" },
     emptyHint: { fontSize: 13, color: colors.subtext, textAlign: "center", lineHeight: 19, paddingHorizontal: 24 },

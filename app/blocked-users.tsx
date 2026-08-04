@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { useStrings, format } from "@/lib/i18n";
 import { common } from "@/lib/i18n/strings/common";
 import { blockedUsersStrings } from "@/lib/i18n/strings/blocked-users";
+import { responsiveContent } from "@/lib/responsive";
 
 interface BlockedRow {
   id: string;
@@ -97,6 +98,7 @@ export default function BlockedUsersScreen() {
         <FlatList
           data={rows}
           keyExtractor={(item) => item.id}
+          style={s.content}
           contentContainerStyle={s.list}
           ListEmptyComponent={
             <Text style={s.empty}>{t.emptyList}</Text>
@@ -135,6 +137,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     backButton: { marginRight: 16 },
     title: { fontSize: 28, fontWeight: "bold", color: colors.text, flex: 1 },
+    content: { flex: 1, ...responsiveContent },
     list: { paddingHorizontal: 16, paddingBottom: 32 },
     empty: { color: colors.subtext, fontSize: 15, marginTop: 4 },
     row: {

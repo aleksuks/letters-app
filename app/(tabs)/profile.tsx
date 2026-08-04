@@ -10,6 +10,7 @@ import { AvatarCircle } from "@/components/avatar-circle";
 import { useStrings } from "@/lib/i18n";
 import { common } from "@/lib/i18n/strings/common";
 import { profileStrings } from "@/lib/i18n/strings/profile";
+import { responsiveContent } from "@/lib/responsive";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -100,7 +101,7 @@ export default function ProfileScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    content: { flex: 1, paddingHorizontal: 16 },
+    content: { flex: 1, paddingHorizontal: 16, ...responsiveContent },
     title: { fontSize: 32, fontWeight: "bold", color: colors.text, marginTop: 24 },
     profileSection: { marginTop: 32, alignItems: "center" },
     avatarEditBadge: {

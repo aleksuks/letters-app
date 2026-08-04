@@ -14,6 +14,7 @@ import { AvatarPickerGrid } from "@/components/avatar-picker-grid";
 import { randomAvatarEmoji } from "@/lib/avatars";
 import { useStrings } from "@/lib/i18n";
 import { onboardingStrings } from "@/lib/i18n/strings/onboarding";
+import { responsiveContent } from "@/lib/responsive";
 
 const PRIVACY_POLICY_URL = "https://laiskelis.lt/privacy.html";
 const TERMS_OF_SERVICE_URL = "https://laiskelis.lt/terms.html";
@@ -178,7 +179,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
     keyboardAvoider: { flex: 1 },
-    content: { flex: 1 },
+    content: { flex: 1, ...responsiveContent },
     contentContainer: { paddingHorizontal: 24, paddingTop: 48, paddingBottom: 24 },
     title: { fontSize: 34, fontWeight: "bold", color: colors.text },
     subtitle: { fontSize: 16, color: colors.subtext, marginTop: 12, lineHeight: 24 },
@@ -204,6 +205,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     footer: {
       paddingHorizontal: 24, paddingVertical: 24,
       borderTopWidth: 1, borderTopColor: colors.border,
+      ...responsiveContent,
     },
     button: {
       backgroundColor: colors.accent, borderRadius: 12, padding: 16, alignItems: "center",

@@ -9,6 +9,7 @@ import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE } from "@/contexts/accessibility";
 import { useStrings } from "@/lib/i18n";
 import { accessibilityScreenStrings } from "@/lib/i18n/strings/accessibility-screen";
+import { responsiveContent } from "@/lib/responsive";
 
 export default function AccessibilityScreen() {
   const router = useRouter();
@@ -127,7 +128,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     backButton: { marginRight: 16 },
     title: { fontSize: 24, fontWeight: "bold", color: colors.text, flex: 1 },
-    content: { flex: 1, paddingHorizontal: 16 },
+    content: { flex: 1, paddingHorizontal: 16, ...responsiveContent },
     section: { marginBottom: 32 },
     sectionTitle: {
       fontSize: 13,
