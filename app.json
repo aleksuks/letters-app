@@ -63,7 +63,8 @@
           "color": "#E3DAC9",
           "sounds": ["./assets/sounds/notification.wav"]
         }
-      ]
+      ],
+      "./plugins/withAndroidPlayStoreFixes.js"
     ],
     "experiments": {
       "typedRoutes": true,
