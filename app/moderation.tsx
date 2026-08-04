@@ -10,6 +10,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, outlineOnly } from "@/contexts/theme";
 import { useAccessibility, HIT_SLOP_LARGE, LARGE_BUTTON } from "@/contexts/accessibility";
+import { DrawingView } from "@/components/drawing-view";
 import { supabase } from "@/lib/supabase";
 import { responsiveContent } from "@/lib/responsive";
 import { Letter, MapLetter, Report } from "@/types";
@@ -445,8 +446,14 @@ export default function ModerationScreen() {
                   />
                 </TouchableOpacity>
                 {activeLettersOpen && activeLetters.map(item => (
-                  <View key={item.id} style={s.card}>
+                  <TouchableOpacity
+                    key={item.id}
+                    style={s.card}
+                    activeOpacity={0.85}
+                    onPress={() => router.push({ pathname: "/moderation-letter", params: { id: item.id, kind: "letter" } } as never)}
+                  >
                     <Text style={s.cardBody}>{item.body}</Text>
+                    <DrawingView drawing={item.drawing} size={140} style={s.cardDrawing} />
                     <View style={s.cardMeta}>
                       <Text style={s.metaText}>{item.author?.nickname ?? "unknown"}</Text>
                       <Text style={s.metaText}>
@@ -463,7 +470,7 @@ export default function ModerationScreen() {
                         <Text style={s.banText}>Delete</Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
@@ -483,8 +490,14 @@ export default function ModerationScreen() {
                   />
                 </TouchableOpacity>
                 {activeMapLettersOpen && activeMapLetters.map(item => (
-                  <View key={item.id} style={s.card}>
+                  <TouchableOpacity
+                    key={item.id}
+                    style={s.card}
+                    activeOpacity={0.85}
+                    onPress={() => router.push({ pathname: "/moderation-letter", params: { id: item.id, kind: "map_letter" } } as never)}
+                  >
                     <Text style={s.cardBody}>{item.body}</Text>
+                    <DrawingView drawing={item.drawing} size={140} style={s.cardDrawing} />
                     <View style={s.cardMeta}>
                       <Text style={s.metaText}>{item.author?.nickname ?? "unknown"}</Text>
                       <Text style={s.metaText}>❤ {item.like_count}</Text>
@@ -499,7 +512,7 @@ export default function ModerationScreen() {
                         <Text style={s.banText}>Delete</Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
@@ -589,8 +602,13 @@ export default function ModerationScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={s.card}>
+          <TouchableOpacity
+            style={s.card}
+            activeOpacity={0.85}
+            onPress={() => router.push({ pathname: "/moderation-letter", params: { id: item.id, kind: "letter" } } as never)}
+          >
             <Text style={s.cardBody}>{item.body}</Text>
+            <DrawingView drawing={item.drawing} size={140} style={s.cardDrawing} />
             <View style={s.cardMeta}>
               <Text style={s.metaText}>{item.author?.nickname ?? "unknown"}</Text>
               <Text style={s.metaText}>❤ {item.like_count} · {item.travel_count} travels</Text>
@@ -620,7 +638,7 @@ export default function ModerationScreen() {
                 <Ionicons name="trash" size={16} color="#fff" />
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
     </SafeAreaView>
@@ -719,6 +737,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       ...outlineOnly(colors),
     },
     cardBody: { fontSize: 15, color: colors.text, lineHeight: 22, marginBottom: 12 },
+    cardDrawing: { marginBottom: 12 },
     cardMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
     metaText: { fontSize: 13, color: colors.subtext },
     actionRow: { flexDirection: "row", gap: 10 },
